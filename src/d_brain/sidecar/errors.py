@@ -9,3 +9,7 @@ class SidecarError(Exception):
 
     code: str
     message: str
+
+
+INTERNAL_ERROR_CODE = "internal_error"
+INTERNAL_ERROR_MESSAGE = "Temporary error. Please try again."

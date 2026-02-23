@@ -16,6 +16,7 @@ from d_brain.services.transcription import build_stt_adapter
 
 router = Router(name="do")
 logger = logging.getLogger(__name__)
+INTERNAL_ERROR_MESSAGE = "Temporary error. Please try again."
 
 
 @router.message(Command("do"))

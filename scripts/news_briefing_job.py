@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -17,6 +18,12 @@ def _ensure_src_on_path() -> None:
 def main() -> int:
     _ensure_src_on_path()
     from d_brain.sidecar.scheduler import Scheduler, build_default_registry
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+    logger = logging.getLogger("news_briefing_job")
 
     parser = argparse.ArgumentParser(description="Run news briefing jobs")
     parser.add_argument(
@@ -37,14 +44,19 @@ def main() -> int:
     scheduler = Scheduler(build_default_registry())
 
     if args.all:
+        logger.info("Running job: news_briefing_generate_daily")
         scheduler.run_once("news_briefing_generate_daily")
+        logger.info("Running job: news_briefing_deliver_telegram")
         scheduler.run_once("news_briefing_deliver_telegram")
+        logger.info("All jobs completed.")
         return 0
 
     if not args.job:
         parser.error("Provide --job or --all")
 
+    logger.info("Running job: %s", args.job)
     scheduler.run_once(args.job)
+    logger.info("Job completed: %s", args.job)
     return 0
 
 

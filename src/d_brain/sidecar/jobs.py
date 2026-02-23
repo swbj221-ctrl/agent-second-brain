@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from d_brain.config import Settings, get_settings
 
 from .plans import trigger_due_reminders
@@ -17,6 +19,7 @@ from d_brain.services.telegram_delivery import (
 )
 from d_brain.services.db_backup import run_backup
 
+logger = logging.getLogger(__name__)
 
 def noop_job() -> None:
     """No-op job for scheduler smoke tests."""
@@ -127,6 +130,7 @@ def news_briefing_generate_daily_job() -> None:
     """Generate a daily news briefing using existing pipeline."""
     settings = get_settings()
     store = SQLiteStore(settings.db_path)
+    logger.info("Generating daily news briefing...")
     generate_manual_briefing(
         store,
         section_id=None,
@@ -135,6 +139,9 @@ def news_briefing_generate_daily_job() -> None:
         target_count=5,
         briefing_mode="daily",
     )
+    briefing = store.get_latest_briefing()
+    items = (briefing.get("items") or []) if briefing else []
+    logger.info("Daily news briefing generated. briefing_id=%s items=%d", briefing.get("id") if briefing else None, len(items))
 
 
 def news_briefing_deliver_telegram_job() -> None:
@@ -143,8 +150,10 @@ def news_briefing_deliver_telegram_job() -> None:
     store = SQLiteStore(settings.db_path)
     briefing = store.get_latest_briefing()
     message = format_news_briefing(briefing, max_items=5)
+    logger.info("Delivering latest news briefing to Telegram. briefing_id=%s", briefing.get("id") if briefing else None)
     results = send_to_allowed_users(settings, message, parse_mode="HTML")
     if not results:
+        logger.warning("News delivery skipped. No allowed_user_ids configured.")
         store.create_heartbeat_log(
             event_type="news_delivery",
             event_source="telegram",
@@ -155,6 +164,10 @@ def news_briefing_deliver_telegram_job() -> None:
             },
         )
     for result in results:
+        if result.ok:
+            logger.info("News delivered. chat_id=%s message_id=%s", result.chat_id, result.message_id)
+        else:
+            logger.warning("News delivery failed. chat_id=%s error=%s", result.chat_id, result.error)
         store.create_heartbeat_log(
             event_type="news_delivery",
             event_source="telegram",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
@@ -10,7 +11,11 @@ from pydantic import ValidationError
 
 from d_brain.config import Settings, get_settings
 
-from .errors import SidecarError
+from .errors import (
+    INTERNAL_ERROR_CODE,
+    INTERNAL_ERROR_MESSAGE,
+    SidecarError,
+)
 from .ingestion import ingest_payload
 from .idea_research import (
     get_research_report,
@@ -127,6 +132,7 @@ def handle_request(
     settings: Settings | None = None,
 ) -> dict[str, Any]:
     """Handle a sidecar request and return a response dict."""
+    logger = logging.getLogger(__name__)
     active_settings = settings or get_settings()
     try:
         request = SidecarRequest.model_validate(raw_request)
@@ -650,15 +656,39 @@ def handle_request(
             data=data,
         )
     except SidecarError as exc:
+        logger.info(
+            "Sidecar error action=%s code=%s",
+            raw_request.get("action"),
+            exc.code,
+        )
         response = SidecarResponse(
             request_id=raw_request.get("request_id", "unknown"),
             status="error",
             error=SidecarErrorData(code=exc.code, message=exc.message),
         )
     except ValidationError as exc:
+        logger.info(
+            "Sidecar validation error action=%s details=%s",
+            raw_request.get("action"),
+            exc.errors(),
+        )
         response = SidecarResponse(
             request_id=raw_request.get("request_id", "unknown"),
             status="error",
             error=SidecarErrorData(code="invalid_payload", message=str(exc)),
+        )
+    except Exception:
+        logger.exception(
+            "Sidecar unexpected error action=%s request_id=%s",
+            raw_request.get("action"),
+            raw_request.get("request_id"),
+        )
+        response = SidecarResponse(
+            request_id=raw_request.get("request_id", "unknown"),
+            status="error",
+            error=SidecarErrorData(
+                code=INTERNAL_ERROR_CODE,
+                message=INTERNAL_ERROR_MESSAGE,
+            ),
         )
     return response.model_dump()

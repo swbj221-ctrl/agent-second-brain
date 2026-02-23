@@ -9,6 +9,23 @@
 ## Local Development
 TODO: steps to start local services, env vars, and health checks.
 
+## Windows MSI Quickstart
+1. Create a Python 3.12 virtual environment:
+   `py -3.12 -m venv .venv`
+2. Activate the environment:
+   `.\.venv\Scripts\Activate.ps1`
+3. Install dependencies (canonical manifest for MSI):
+   `python -m pip install -r requirements.txt`
+4. Configure environment:
+   `Copy-Item .env.example .env`
+   Set `TELEGRAM_BOT_TOKEN` and `ALLOWED_USER_IDS` in `.env`.
+5. Run the bot:
+   `$env:PYTHONPATH="src"; python -m d_brain`
+
+Notes:
+- STT requires `deepgram-sdk` and `DEEPGRAM_API_KEY`. If missing, STT falls back with a clear error.
+- TTS defaults to `none` and will fall back to text replies.
+
 ## Dependencies
 - Install (pip): `python -m pip install -r requirements.txt`
 - Install (uv): `uv sync`
@@ -96,6 +113,52 @@ Output includes:
 4. If it fails, review:
    - `logs\backup_weekly.log`
    - Task History tab (enable `All Tasks History` if disabled)
+
+## Troubleshooting (MSI)
+- `ModuleNotFoundError: aiogram` or other packages:
+  - Ensure the venv is activated and run `python -m pip install -r requirements.txt`.
+- `ModuleNotFoundError: deepgram`:
+  - Install `deepgram-sdk` or set `STT_PROVIDER=none` to disable STT.
+- `TELEGRAM_BOT_TOKEN is required`:
+  - Set `TELEGRAM_BOT_TOKEN` in `.env` before starting the bot.
+- `No ALLOWED_USER_IDS configured`:
+  - Set `ALLOWED_USER_IDS=[123456789]` in `.env` or set `ALLOW_ALL_USERS=true` for local testing.
+- `Temporary error. Please try again.` in Telegram:
+  - Indicates a transient failure or internal error; check logs for details.
+- Telegram delivery failures:
+  - Delivery uses bounded retries for transient errors (timeouts, 5xx, 429). Verify network access and bot token.
+- `ModuleNotFoundError: d_brain` or `PYTHONPATH` issues:
+  - Run with `$env:PYTHONPATH="src"; python -m d_brain` from repo root.
+- Task Scheduler job fails:
+  - Confirm `Start in` is `D:\openclaw_bot\agent-second-brain`.
+  - Confirm the venv path and `python` executable used by the task.
+  - Check `logs\backup_weekly.log` and Task History.
+
+## Hardening Phase B QA (MSI)
+Checklist (run from repo root):
+1. Validation error path (clean user-facing message):
+   - In Telegram: `/inbox summarize abc`
+   - Expect: "Invalid input. Use /help for examples."
+2. Sidecar internal error path (structured error + safe message):
+   - PowerShell:
+     `$env:PYTHONPATH="src"; $env:DB_PATH="Z:\nonexistent\app.db"; python - <<'PY'\nfrom d_brain.sidecar.dispatcher import handle_request\nprint(handle_request({\"request_id\": \"qa-1\", \"user_id\": \"1\", \"action\": \"event_list\", \"payload\": {\"status\": \"planned\", \"limit\": 1, \"offset\": 0}}))\nPY`
+   - Expect: `status=error` with `code=internal_error` and a safe message.
+3. Telegram delivery retry/timeout with bogus token:
+   - PowerShell:
+     `$env:PYTHONPATH="src"; python - <<'PY'\nfrom d_brain.services.telegram_delivery import send_telegram_message\nprint(send_telegram_message(\"BAD_TOKEN\", 123456789, \"test\").__dict__)\nPY`
+   - Expect: retry attempts in logs and a clean error result (no crash).
+4. STT missing dependency (graceful failure):
+   - Uninstall: `python -m pip uninstall -y deepgram-sdk`
+   - Send a voice message in Telegram.
+   - Expect: "STT is unavailable" or "deepgram-sdk is not installed." and no crash.
+5. No raw exceptions to Telegram users:
+   - Trigger any internal failure and confirm user sees "Temporary error. Please try again."
+6. Log severity expectations:
+   - Validation/user input errors should log at INFO/WARN without stack traces.
+   - Internal failures should log ERROR with stack traces.
+
+Troubleshooting note:
+- If results differ, verify `.env` values (token, allowed users, STT provider), the active venv, and that you are running from `D:\openclaw_bot\agent-second-brain`.
 
 ## Verification
 - Scheduler smoke test (no-op): run a short script or REPL and call

@@ -1,5 +1,7 @@
 """Application configuration using Pydantic Settings."""
 
+import importlib.util
+import sys
 from pathlib import Path
 
 from pydantic import Field
@@ -105,3 +107,36 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get application settings instance."""
     return Settings()
+
+
+def validate_settings(settings: Settings) -> tuple[list[str], list[str]]:
+    """Return (errors, warnings) for current settings."""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    if not settings.telegram_bot_token.strip():
+        errors.append("TELEGRAM_BOT_TOKEN is required to start the bot.")
+
+    if not settings.allow_all_users and not settings.allowed_user_ids:
+        warnings.append(
+            "No ALLOWED_USER_IDS configured and ALLOW_ALL_USERS is false; all users will be blocked."
+        )
+
+    if settings.stt_provider.strip().lower() == "deepgram":
+        if importlib.util.find_spec("deepgram") is None:
+            warnings.append("deepgram-sdk is not installed; STT will be unavailable.")
+        if not settings.deepgram_api_key.strip():
+            warnings.append("DEEPGRAM_API_KEY is empty; STT will be unavailable.")
+
+    if settings.tts_provider.strip().lower() not in {"", "none", "mock"}:
+        warnings.append(
+            f"Unsupported TTS_PROVIDER '{settings.tts_provider}'. Falling back to text."
+        )
+
+    if settings.sidecar_payload_limit_bytes <= 0:
+        errors.append("SIDECAR_PAYLOAD_LIMIT_BYTES must be positive.")
+
+    if sys.version_info < (3, 12):
+        errors.append("Python 3.12+ is required. Recreate the venv with Python 3.12.")
+
+    return errors, warnings

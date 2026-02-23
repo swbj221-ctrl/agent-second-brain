@@ -2,6 +2,9 @@
 
 ## Log
 - 2026-02-23: Initialized documentation baseline.
+- 2026-02-24: Phase A hardening started: added startup config validation, lazy Deepgram import guard, and MSI quickstart/troubleshooting notes.
+- 2026-02-24: Phase B hardening: added sidecar internal error mapping, Telegram handler safety, bounded retries/timeouts for Telegram and STT, and logging polish notes.
+- 2026-02-24: Added Hardening Phase B QA checklist to runbook.
 - 2026-02-23: Added Stage 1 migration runner, base schema migration, and sidecar scheduler skeleton.
 - 2026-02-23: Drafted Stage 2 ingestion contract and added sidecar ingestion pipeline skeleton.
 - 2026-02-23: Added Stage 2 ingestion smoke test script and runbook steps.

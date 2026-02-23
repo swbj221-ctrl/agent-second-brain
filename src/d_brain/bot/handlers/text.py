@@ -17,6 +17,7 @@ from d_brain.services.storage import VaultStorage
 
 router = Router(name="text")
 logger = logging.getLogger(__name__)
+INTERNAL_ERROR_MESSAGE = "Temporary error. Please try again."
 
 
 @router.message(lambda m: m.text is not None and not m.text.startswith("/"))
@@ -25,44 +26,49 @@ async def handle_text(message: Message) -> None:
     if not message.text or not message.from_user:
         return
 
-    reflection_state = get_active_reflection_session(message.from_user.id)
-    if reflection_state:
-        reflection_service = ReflectionVoiceService()
-        reply_text, error = await reflection_service.handle_user_turn(
-            message.from_user.id, message.text
-        )
-        if error:
-            await message.answer(error)
+    try:
+        reflection_state = get_active_reflection_session(message.from_user.id)
+        if reflection_state:
+            reflection_service = ReflectionVoiceService()
+            reply_text, error = await reflection_service.handle_user_turn(
+                message.from_user.id, message.text
+            )
+            if error:
+                await message.answer(error)
+                return
+            await message.answer(reply_text or "")
             return
-        await message.answer(reply_text or "")
-        return
 
-    tutor_state = get_active_tutor_session(message.from_user.id)
-    if tutor_state:
-        tutor_service = EnglishTutorService()
-        reply_text, error = await tutor_service.handle_user_turn(
-            message.from_user.id, message.text
-        )
-        if error:
-            await message.answer(error)
+        tutor_state = get_active_tutor_session(message.from_user.id)
+        if tutor_state:
+            tutor_service = EnglishTutorService()
+            reply_text, error = await tutor_service.handle_user_turn(
+                message.from_user.id, message.text
+            )
+            if error:
+                await message.answer(error)
+                return
+            await message.answer(reply_text or "")
             return
-        await message.answer(reply_text or "")
-        return
 
-    settings = get_settings()
-    storage = VaultStorage(settings.vault_path)
+        settings = get_settings()
+        storage = VaultStorage(settings.vault_path)
 
-    timestamp = datetime.fromtimestamp(message.date.timestamp())
-    storage.append_to_daily(message.text, timestamp, "[text]")
+        timestamp = datetime.fromtimestamp(message.date.timestamp())
+        storage.append_to_daily(message.text, timestamp, "[text]")
 
-    # Log to session
-    session = SessionStore(settings.vault_path)
-    session.append(
-        message.from_user.id,
-        "text",
-        text=message.text,
-        msg_id=message.message_id,
-    )
+        # Log to session
+        session = SessionStore(settings.vault_path)
+        session.append(
+            message.from_user.id,
+            "text",
+            text=message.text,
+            msg_id=message.message_id,
+        )
 
-    await message.answer("✓ Сохранено")
-    logger.info("Text message saved: %d chars", len(message.text))
+        await message.answer("??? ??????????????????")
+        logger.info("Text message saved: %d chars", len(message.text))
+    except Exception:
+        logger.exception("Error processing text message")
+        await message.answer(INTERNAL_ERROR_MESSAGE)
+

@@ -19,6 +19,7 @@ from d_brain.services.tts import build_tts_adapter
 
 router = Router(name="voice")
 logger = logging.getLogger(__name__)
+INTERNAL_ERROR_MESSAGE = "Temporary error. Please try again."
 
 
 @router.message(lambda m: m.voice is not None)
@@ -128,6 +129,6 @@ async def handle_voice(message: Message, bot: Bot) -> None:
         await message.answer(f"рџЋ¤ {transcript}\n\nвњ“ РЎРѕС…СЂР°РЅРµРЅРѕ")
         logger.info("Voice message saved: %d chars", len(transcript))
 
-    except Exception as e:
+    except Exception:
         logger.exception("Error processing voice message")
-        await message.answer(f"Error: {e}")
+        await message.answer(INTERNAL_ERROR_MESSAGE)

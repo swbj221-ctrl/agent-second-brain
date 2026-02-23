@@ -17,6 +17,7 @@ from d_brain.services.sidecar_client import call_sidecar_action
 
 router = Router(name="telegram_ux")
 logger = logging.getLogger(__name__)
+INTERNAL_ERROR_MESSAGE = "Temporary error. Please try again."
 
 
 def _source_ref(message: Message) -> str:
@@ -33,6 +34,8 @@ def _split_args(text: str, maxsplit: int) -> list[str]:
 
 
 def _format_error(code: str | None, message: str | None) -> str:
+    if code == "internal_error":
+        return INTERNAL_ERROR_MESSAGE
     if code == "invalid_payload":
         return "Invalid input. Use /help for examples."
     if code == "not_found":
@@ -40,11 +43,8 @@ def _format_error(code: str | None, message: str | None) -> str:
     if code == "payload_too_large":
         return "Message too long. Please shorten it."
     if code in {"storage_error", "summary_error"}:
-        return "Temporary error. Please try again later."
-    if message:
-        safe = message.strip().replace("\n", " ")
-        return f"Error: {safe[:300]}"
-    return "Unexpected error."
+        return INTERNAL_ERROR_MESSAGE
+    return INTERNAL_ERROR_MESSAGE
 
 
 def _render_list(items: list[dict[str, Any]], line_builder) -> str:
