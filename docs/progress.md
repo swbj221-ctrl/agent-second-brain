@@ -1,6 +1,7 @@
 # Progress
 
 ## Log
+- 2026-02-23: Close-session check-in; no code changes made in this session.
 - 2026-02-23: Initialized documentation baseline.
 - 2026-02-23: Added Stage 18 Projects & Tasks MVP planning notes (schema, command map, and decision records).
 - 2026-02-23: Implemented Stage 18 Projects & Tasks MVP first pass (schema migration, sidecar actions, Telegram commands, smoke test, docs updates).
