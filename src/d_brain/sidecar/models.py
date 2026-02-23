@@ -71,6 +71,7 @@ class SummaryResult(BaseModel):
 
 EventStatus = Literal["planned", "done", "canceled"]
 ReminderStatus = Literal["pending", "triggered", "canceled"]
+CalendarView = Literal["today", "upcoming", "date"]
 
 
 class EventCreatePayload(BaseModel):
@@ -114,6 +115,27 @@ class ReminderUpdateStatusPayload(BaseModel):
 
     reminder_id: int = Field(..., ge=1)
     status: ReminderStatus
+
+
+class ReminderDeliveryRunPayload(BaseModel):
+    """Payload for running reminder delivery."""
+
+    chat_id: int = Field(..., ge=1)
+    mode: Literal["manual", "scheduler"] = "manual"
+
+
+class CalendarViewPayload(BaseModel):
+    """Payload for calendar-style reminder views."""
+
+    view: CalendarView = "today"
+    limit: int = Field(default=10, ge=1, le=200)
+    date: str | None = None
+
+    @model_validator(mode="after")
+    def validate_date(self) -> "CalendarViewPayload":
+        if self.view == "date" and not (self.date and self.date.strip()):
+            raise ValueError("date is required for view=date.")
+        return self
 
 
 class EventParsePayload(BaseModel):

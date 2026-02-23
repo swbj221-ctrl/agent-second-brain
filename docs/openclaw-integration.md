@@ -992,3 +992,50 @@ Scope: scheduler-triggerable daily briefing generation and Telegram delivery.
 ### Delivery Traceability
 - Uses `heartbeat_logs` with `event_type=news_delivery`.
 - `event_details` includes `briefing_id`, `chat_id`, `status`, and optional `error`.
+
+## Stage 16: Reminders Delivery + Calendar-style Telegram Views MVP (First Pass)
+Scope: scheduled reminder delivery + text-only calendar views in Telegram.
+
+### Scheduler Jobs
+- `reminder_delivery_telegram` (job): deliver due reminders to allowed Telegram users.
+
+### Telegram Commands
+- `/reminder deliver` -> `reminder_delivery_run` (manual delivery to current chat)
+- `/calendar today` -> `calendar_view` (`view=today`)
+- `/calendar upcoming [N]` -> `calendar_view` (`view=upcoming`, optional limit)
+- `/calendar date YYYY-MM-DD` -> `calendar_view` (`view=date`, date filter)
+
+### Actions
+- `reminder_delivery_run`
+- `calendar_view`
+
+### Reminder Delivery Run Payload (action = reminder_delivery_run)
+Required:
+- `chat_id` (int)
+
+Optional:
+- `mode` (string): `manual` or `scheduler` (default `manual`)
+
+Response Data:
+- `attempted` (int)
+- `delivered` (int)
+- `sent` (bool)
+- `chat_ids` (array of ints)
+
+### Calendar View Payload (action = calendar_view)
+Required:
+- `view` (string): `today`, `upcoming`, or `date`
+
+Optional:
+- `limit` (int, default 10, max 200)
+- `date` (string, required only for `view=date`, format `YYYY-MM-DD`)
+
+Response Data:
+- `view` (string)
+- `date` (string or null)
+- `count` (int)
+- `items` (array of reminders joined with event fields)
+
+### Delivery Traceability
+- Uses `heartbeat_logs` with `event_type=reminder_delivery`.
+- `event_details` includes `status`, `reminder_id`, `event_id`, `chat_id`, optional `error`.

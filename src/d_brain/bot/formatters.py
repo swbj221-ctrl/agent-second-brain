@@ -1,5 +1,6 @@
 """Report formatters for Telegram messages."""
 
+from datetime import datetime, timezone
 import html
 import re
 from typing import Any
@@ -233,3 +234,58 @@ def format_news_briefing(briefing: dict[str, Any], max_items: int = 5) -> str:
 
     message = "\n".join(lines).strip()
     return truncate_html(message, max_length=4096)
+
+
+def _format_iso_utc(value: str | None) -> str:
+    if not value:
+        return "unknown"
+    cleaned = value.strip()
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(cleaned)
+    except ValueError:
+        return cleaned
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def format_reminder_delivery(reminders: list[dict[str, Any]], now_iso: str | None = None) -> str:
+    if not reminders:
+        return "No due reminders."
+    now_label = _format_iso_utc(now_iso)
+    lines = [f"<b>Reminders Due</b>", f"<code>{html.escape(now_label)}</code>", ""]
+    for idx, item in enumerate(reminders, start=1):
+        title = html.escape((item.get("event_title") or "Untitled").strip())
+        remind_at = _format_iso_utc(item.get("remind_at"))
+        event_id = item.get("event_id")
+        reminder_id = item.get("reminder_id")
+        lines.append(
+            f"{idx}. {remind_at} - {title} (event_id={event_id} reminder_id={reminder_id})"
+        )
+    return truncate_html("\n".join(lines), max_length=4096)
+
+
+def format_calendar_view(
+    view: str,
+    items: list[dict[str, Any]],
+    date_label: str | None = None,
+) -> str:
+    header = f"<b>Calendar: {html.escape(view.capitalize())}</b>"
+    lines = [header]
+    if date_label:
+        lines.append(f"<code>{html.escape(date_label)}</code>")
+    lines.append("")
+    if not items:
+        lines.append("No records found.")
+        return truncate_html("\n".join(lines), max_length=4096)
+    for idx, item in enumerate(items, start=1):
+        title = html.escape((item.get("event_title") or "Untitled").strip())
+        remind_at = _format_iso_utc(item.get("remind_at"))
+        event_id = item.get("event_id")
+        reminder_id = item.get("reminder_id")
+        lines.append(
+            f"{idx}. {remind_at} - {title} (event_id={event_id} reminder_id={reminder_id})"
+        )
+    return truncate_html("\n".join(lines), max_length=4096)

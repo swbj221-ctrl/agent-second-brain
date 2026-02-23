@@ -907,6 +907,160 @@ class SQLiteStore:
             for row in rows
         ]
 
+    def list_due_reminders_with_events(self, now_iso: str) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT er.id,
+                       er.event_id,
+                       er.remind_at,
+                       er.status,
+                       er.triggered_at,
+                       er.created_at,
+                       er.updated_at,
+                       e.title,
+                       e.body,
+                       e.start_at,
+                       e.end_at,
+                       e.status
+                FROM event_reminders er
+                JOIN events e ON e.id = er.event_id
+                WHERE er.status = 'pending'
+                  AND er.remind_at <= ?
+                  AND e.status = 'planned'
+                ORDER BY er.remind_at ASC;
+                """,
+                (now_iso,),
+            ).fetchall()
+        return [
+            {
+                "reminder_id": row[0],
+                "event_id": row[1],
+                "remind_at": row[2],
+                "reminder_status": row[3],
+                "triggered_at": row[4],
+                "created_at": row[5],
+                "updated_at": row[6],
+                "event_title": row[7],
+                "event_body": row[8],
+                "event_start_at": row[9],
+                "event_end_at": row[10],
+                "event_status": row[11],
+            }
+            for row in rows
+        ]
+
+    def list_reminders_for_date(
+        self,
+        date_str: str,
+        reminder_status: str | None,
+        event_status: str | None,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        query = (
+            """
+            SELECT er.id,
+                   er.event_id,
+                   er.remind_at,
+                   er.status,
+                   er.triggered_at,
+                   er.created_at,
+                   er.updated_at,
+                   e.title,
+                   e.body,
+                   e.start_at,
+                   e.end_at,
+                   e.status
+            FROM event_reminders er
+            JOIN events e ON e.id = er.event_id
+            WHERE date(er.remind_at) = date(?)
+            """
+        )
+        params: list[Any] = [date_str]
+        if reminder_status:
+            query += " AND er.status = ?"
+            params.append(reminder_status)
+        if event_status:
+            query += " AND e.status = ?"
+            params.append(event_status)
+        query += " ORDER BY er.remind_at ASC LIMIT ? OFFSET ?;"
+        params.extend([limit, offset])
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "reminder_id": row[0],
+                "event_id": row[1],
+                "remind_at": row[2],
+                "reminder_status": row[3],
+                "triggered_at": row[4],
+                "created_at": row[5],
+                "updated_at": row[6],
+                "event_title": row[7],
+                "event_body": row[8],
+                "event_start_at": row[9],
+                "event_end_at": row[10],
+                "event_status": row[11],
+            }
+            for row in rows
+        ]
+
+    def list_upcoming_reminders(
+        self,
+        now_iso: str,
+        reminder_status: str | None,
+        event_status: str | None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        query = (
+            """
+            SELECT er.id,
+                   er.event_id,
+                   er.remind_at,
+                   er.status,
+                   er.triggered_at,
+                   er.created_at,
+                   er.updated_at,
+                   e.title,
+                   e.body,
+                   e.start_at,
+                   e.end_at,
+                   e.status
+            FROM event_reminders er
+            JOIN events e ON e.id = er.event_id
+            WHERE er.remind_at >= ?
+            """
+        )
+        params: list[Any] = [now_iso]
+        if reminder_status:
+            query += " AND er.status = ?"
+            params.append(reminder_status)
+        if event_status:
+            query += " AND e.status = ?"
+            params.append(event_status)
+        query += " ORDER BY er.remind_at ASC LIMIT ?;"
+        params.append(limit)
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "reminder_id": row[0],
+                "event_id": row[1],
+                "remind_at": row[2],
+                "reminder_status": row[3],
+                "triggered_at": row[4],
+                "created_at": row[5],
+                "updated_at": row[6],
+                "event_title": row[7],
+                "event_body": row[8],
+                "event_start_at": row[9],
+                "event_end_at": row[10],
+                "event_status": row[11],
+            }
+            for row in rows
+        ]
+
     def mark_reminder_triggered(self, reminder_id: int) -> None:
         timestamp = utc_now()
         with self._connect() as conn:

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from d_brain.bot.formatters import format_news_briefing
+from d_brain.bot.formatters import format_calendar_view, format_news_briefing
 from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
 from d_brain.services.reflection_voice import ReflectionVoiceService
 from d_brain.services.sidecar_client import call_sidecar_action
@@ -109,23 +110,50 @@ async def cmd_plan(message: Message) -> None:
 async def cmd_reminder(message: Message) -> None:
     text = message.text or ""
     parts = _split_args(text, maxsplit=2)
-    if len(parts) < 2 or parts[1].lower() != "list":
-        await message.answer("Usage: /reminder list")
+    if len(parts) < 2:
+        await message.answer("Usage: /reminder list | /reminder deliver")
         return
-    result = call_sidecar_action(
-        "reminder_list",
-        {"status": "pending", "limit": 50, "offset": 0},
-        _user_id(message),
-    )
-    if result.status != "ok":
-        await message.answer(_format_error(result.error_code, result.error_message))
+    sub = parts[1].lower()
+    if sub == "list":
+        result = call_sidecar_action(
+            "reminder_list",
+            {"status": "pending", "limit": 50, "offset": 0},
+            _user_id(message),
+        )
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        reminders = (result.data or {}).get("reminders", [])
+        output = _render_list(
+            reminders,
+            lambda r: f"#{r['id']} event_id={r['event_id']} remind_at={r['remind_at']} ({r['status']})",
+        )
+        await message.answer(output)
         return
-    reminders = (result.data or {}).get("reminders", [])
-    output = _render_list(
-        reminders,
-        lambda r: f"#{r['id']} event_id={r['event_id']} remind_at={r['remind_at']} ({r['status']})",
-    )
-    await message.answer(output)
+    if sub == "deliver":
+        chat_id = message.chat.id if message.chat else None
+        if chat_id is None:
+            await message.answer("Unable to resolve chat_id for delivery.")
+            return
+        result = call_sidecar_action(
+            "reminder_delivery_run",
+            {"chat_id": int(chat_id), "mode": "manual"},
+            _user_id(message),
+        )
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        payload = result.data or {}
+        attempted = int(payload.get("attempted", 0))
+        delivered = int(payload.get("delivered", 0))
+        if attempted == 0:
+            await message.answer("No due reminders.")
+            return
+        await message.answer(
+            f"Reminder delivery attempted. reminders={attempted} delivered={delivered}"
+        )
+        return
+    await message.answer("Usage: /reminder list | /reminder deliver")
 
 
 @router.message(Command("note"))
@@ -485,6 +513,52 @@ async def cmd_news(message: Message) -> None:
         )
         return
     await message.answer("Usage: /news latest | /news generate | /news deliver")
+
+
+@router.message(Command("calendar"))
+async def cmd_calendar(message: Message) -> None:
+    text = message.text or ""
+    parts = _split_args(text, maxsplit=2)
+    if len(parts) < 2:
+        await message.answer(
+            "Usage: /calendar today | /calendar upcoming [N] | /calendar date YYYY-MM-DD"
+        )
+        return
+    sub = parts[1].lower()
+    if sub == "today":
+        payload = {"view": "today", "limit": 50}
+    elif sub == "upcoming":
+        limit = 10
+        if len(parts) > 2 and parts[2].isdigit():
+            limit = int(parts[2])
+        payload = {"view": "upcoming", "limit": limit}
+    elif sub == "date":
+        if len(parts) < 3:
+            await message.answer("Usage: /calendar date YYYY-MM-DD")
+            return
+        date_raw = parts[2].strip()
+        try:
+            datetime.fromisoformat(date_raw)
+        except ValueError:
+            await message.answer("Invalid date. Use YYYY-MM-DD.")
+            return
+        payload = {"view": "date", "date": date_raw, "limit": 50}
+    else:
+        await message.answer(
+            "Usage: /calendar today | /calendar upcoming [N] | /calendar date YYYY-MM-DD"
+        )
+        return
+
+    result = call_sidecar_action("calendar_view", payload, _user_id(message))
+    if result.status != "ok":
+        await message.answer(_format_error(result.error_code, result.error_message))
+        return
+    data = result.data or {}
+    view = data.get("view", "calendar")
+    date_label = data.get("date")
+    items = data.get("items", [])
+    message_text = format_calendar_view(view, items, date_label=date_label)
+    await message.answer(message_text, parse_mode="HTML", disable_web_page_preview=True)
 
 
 @router.message(Command("health"))

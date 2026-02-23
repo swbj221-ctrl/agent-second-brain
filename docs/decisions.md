@@ -17,6 +17,7 @@ Reason: Cyrillic rendering is unreliable in the current environment.
 ## Pending
 - Persistence store selection
 - Interface contract between skill and sidecar
+- Stage 16 manual Telegram verification on MSI
 
 ## Updates
 - 2026-02-23 | Migration workflow using `scripts/migrate.py` + SQL files | Accepted | Simple, local SQLite-friendly baseline for Stage 1.
@@ -24,6 +25,7 @@ Reason: Cyrillic rendering is unreliable in the current environment.
 - 2026-02-23 | Stage 12 uses provider-agnostic STT/TTS adapters with graceful fallback | Accepted | Keep Telegram thin while allowing provider swaps; missing providers return structured errors and fall back to text.
 - 2026-02-24 | Stage 14 uses minimal `note_categories` link table | Accepted | Reuse `notes` and avoid a new knowledge schema while enabling categorization.
 - 2026-02-23 | Lazy import for Telegram delivery dependencies | Accepted | Keep scheduler imports safe; delivery failures surface at runtime with traceability logs.
+- 2026-02-23 | Reminder delivery traceability uses `heartbeat_logs` | Accepted | Avoid new tables; keep delivery attempts visible with minimal structured logging.
 
 # Architectural Decisions
 

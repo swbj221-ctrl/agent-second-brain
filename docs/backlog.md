@@ -306,3 +306,36 @@ Acceptance Criteria
 - Runbook and integration docs updated during implementation.
 Status
 - Implemented first pass; manual Telegram verification on MSI pending.
+
+### Stage 16: Reminders Delivery + Calendar-style Telegram Views MVP (First Pass, Narrow Scope) (P1)
+Goals
+- Add scheduler-triggerable reminder delivery to Telegram using existing plans/reminders data.
+- Provide text-only calendar-style views for reminders (today, upcoming, date).
+
+Scope (first pass only)
+- Reuse existing `events` / `event_reminders` tables and reminder trigger logic.
+- Scheduler job for reminder delivery to Telegram.
+- Manual trigger command for reminder delivery testing.
+- Text-only calendar views: `today`, `upcoming [N]`, `date YYYY-MM-DD`.
+- Delivery traceability via `heartbeat_logs` (no new tables).
+
+Constraints
+- No per-user timezone scheduling (single global UTC).
+- No Google Calendar integration.
+- No recurring rules beyond current reminders.
+- No dashboard UI.
+- No voice flows.
+- Documentation remains English-only.
+
+Acceptance Criteria
+- Scheduler-compatible reminder delivery job exists and can deliver due reminders to Telegram.
+- Telegram text commands show calendar-style views (today/upcoming/date).
+- Delivery attempts are traceable in `heartbeat_logs` with reminder/event IDs.
+- Existing plans/reminders storage and logic are reused (no duplicated business logic).
+- Runbook and integration docs updated during implementation.
+Status
+- Implemented first pass; manual Telegram verification on MSI pending.
+
+### Stage 17: Web Dashboard MVP (Postponed)
+Status
+- Postponed. Do not prioritize until Stage 16 is manually verified.

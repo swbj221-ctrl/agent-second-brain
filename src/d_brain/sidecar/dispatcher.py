@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import ValidationError
@@ -78,12 +79,15 @@ from .models import (
     ReflectionSessionCreatePayload,
     ReflectionSessionListPayload,
     ReflectionSessionTurnAppendPayload,
+    ReminderDeliveryRunPayload,
     ReminderListPayload,
     ReminderUpdateStatusPayload,
+    CalendarViewPayload,
     SidecarErrorData,
     SidecarRequest,
     SidecarResponse,
 )
+from .jobs import deliver_due_reminders
 from .plans import (
     create_event_with_default_reminder,
     parse_event_text,
@@ -92,7 +96,7 @@ from .plans import (
     update_reminder_status,
 )
 from .news import generate_manual_briefing, summarize_news_item
-from .store import SQLiteStore
+from .store import SQLiteStore, utc_now
 
 
 def payload_size_bytes(payload: dict[str, Any]) -> int:
@@ -487,6 +491,49 @@ def handle_request(
             data = update_reminder_status(payload, store)
         elif request.action == "reminder_trigger_due":
             data = trigger_due_reminders(store)
+        elif request.action == "reminder_delivery_run":
+            payload = ReminderDeliveryRunPayload.model_validate(request.payload or {})
+            data = deliver_due_reminders(
+                store,
+                active_settings,
+                [payload.chat_id],
+                mode=payload.mode,
+            )
+        elif request.action == "calendar_view":
+            payload = CalendarViewPayload.model_validate(request.payload or {})
+            date_value = None
+            if payload.view == "today":
+                date_value = datetime.now(timezone.utc).date().isoformat()
+                items = store.list_reminders_for_date(
+                    date_value,
+                    "pending",
+                    "planned",
+                    payload.limit,
+                    0,
+                )
+            elif payload.view == "date":
+                date_value = (payload.date or "").strip()
+                items = store.list_reminders_for_date(
+                    date_value,
+                    "pending",
+                    "planned",
+                    payload.limit,
+                    0,
+                )
+            else:
+                now_iso = utc_now()
+                items = store.list_upcoming_reminders(
+                    now_iso,
+                    "pending",
+                    "planned",
+                    payload.limit,
+                )
+            data = {
+                "view": payload.view,
+                "date": date_value,
+                "count": len(items),
+                "items": items,
+            }
         elif request.action == "news_section_create":
             payload = NewsSectionCreatePayload.model_validate(request.payload or {})
             section_id = store.create_news_section(

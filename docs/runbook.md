@@ -261,5 +261,21 @@ TODO: steps to start local services, env vars, and health checks.
    5. Verify delivery traceability:
       - Check `heartbeat_logs` for `event_type=news_delivery`
 
+- Stage 16 Reminders Delivery + Calendar Views MVP checklist (manual):
+   0. Apply migrations (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+   1. Create a plan/reminder:
+      `/plan add Test reminder`
+   2. Force due reminder (update remind_at to now or past via DB or use rule-based input).
+   3. Manual delivery trigger:
+      `/reminder deliver`
+   4. Verify Telegram receives reminder message.
+   5. Calendar views:
+      `/calendar today`
+      `/calendar upcoming 5`
+      `/calendar date 2026-02-23`
+   6. Verify delivery traceability:
+      - Check `heartbeat_logs` for `event_type=reminder_delivery` with `reminder_id` and `event_id`.
+
 ## Debugging
 TODO: logs, tracing, and common failure modes.
