@@ -68,6 +68,8 @@ Tasks
 
 Acceptance Criteria
 - Reminders can be created, listed, and triggered.
+Status
+- Completed (validated by local smoke tests on MSI: default + parse mode).
 
 ### Stage 4: English MVP (P1)
 Goals

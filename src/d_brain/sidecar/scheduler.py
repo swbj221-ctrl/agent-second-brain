@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from .jobs import noop_job
+from .jobs import noop_job, reminder_tick_job
 
 JobFunc = Callable[[], None]
 
@@ -43,4 +43,5 @@ class Scheduler:
 def build_default_registry() -> JobRegistry:
     registry = JobRegistry()
     registry.register("noop", noop_job)
+    registry.register("reminder_tick", reminder_tick_job)
     return registry

@@ -8,7 +8,10 @@
 - 2026-02-23: Made Stage 2 smoke tests work with src layout and optional Deepgram config.
 - 2026-02-23: Added requirements.txt and dependency install steps in runbook.
 - 2026-02-23: Stage 2 completed and validated by local smoke test on MSI.
+- 2026-02-23: Started Stage 3 plans/reminders with schema, dispatcher actions, and reminder tick job.
+- 2026-02-23: Added Stage 3 smoke tests including parse path and parse log validation.
+- 2026-02-23: Stage 3 completed and validated by local smoke tests on MSI (default + parse mode).
 
 ## Next
-- Stage 3: Plans and Reminders.
+- Stage 4: English MVP.
 - Confirm persistence choices and deployment workflow.

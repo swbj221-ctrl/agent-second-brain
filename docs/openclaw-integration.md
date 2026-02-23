@@ -89,6 +89,72 @@ Error object (when `status=error`):
 - `code` (string): `invalid_payload`, `payload_too_large`, `unsupported_type`, `storage_error`, `summary_error`.
 - `message` (string): human-readable summary.
 
+## Stage 3: Plans and Reminders Contract
+Scope: rule-first events, reminders, and minimal parsing. Reuse the Stage 1 request/response envelope.
+
+### Actions
+- `event_create`
+- `event_list`
+- `event_update_status`
+- `event_parse`
+- `reminder_list`
+- `reminder_update_status`
+- `reminder_trigger_due`
+
+### Event Create Payload (action = event_create)
+Required:
+- `title` (string)
+
+Optional:
+- `body` (string)
+- `start_at` (string, ISO 8601)
+- `end_at` (string, ISO 8601)
+- `remind_at` (string, ISO 8601)
+- `source_type` (string)
+- `source_ref` (string)
+
+Behavior:
+- If `remind_at` is omitted, default to `start_at` if provided, otherwise `now + 1 hour` (UTC).
+
+### Event List Payload (action = event_list)
+Optional:
+- `status` (string): `planned`, `done`, `canceled`
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+### Event Update Status Payload (action = event_update_status)
+Required:
+- `event_id` (int)
+- `status` (string): `planned`, `done`, `canceled`
+
+### Event Parse Payload (action = event_parse)
+Required:
+- `text` (string)
+
+Optional:
+- `source_type` (string)
+- `source_ref` (string)
+
+Rule-first parse:
+- Accepts only `title | <iso datetime>` format.
+- Logs parse attempts to `event_parse_logs`.
+- Fallback plan: keep parser rule-based for Stage 3; expand to richer parsing in Stage 4+.
+
+### Reminder List Payload (action = reminder_list)
+Optional:
+- `status` (string): `pending`, `triggered`, `canceled`
+- `due_before` (string, ISO 8601)
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+### Reminder Update Status Payload (action = reminder_update_status)
+Required:
+- `reminder_id` (int)
+- `status` (string): `pending`, `triggered`, `canceled`
+
+### Reminder Trigger (action = reminder_trigger_due)
+No payload. Triggers due reminders and marks them as `triggered`.
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.

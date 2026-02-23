@@ -11,7 +11,25 @@ from d_brain.config import Settings, get_settings
 
 from .errors import SidecarError
 from .ingestion import ingest_payload
-from .models import IngestPayload, SidecarErrorData, SidecarRequest, SidecarResponse
+from .models import (
+    EventCreatePayload,
+    EventListPayload,
+    EventParsePayload,
+    EventUpdateStatusPayload,
+    IngestPayload,
+    ReminderListPayload,
+    ReminderUpdateStatusPayload,
+    SidecarErrorData,
+    SidecarRequest,
+    SidecarResponse,
+)
+from .plans import (
+    create_event_with_default_reminder,
+    parse_event_text,
+    trigger_due_reminders,
+    update_event_status,
+    update_reminder_status,
+)
 from .store import SQLiteStore
 
 
@@ -40,11 +58,36 @@ def handle_request(
     try:
         request = SidecarRequest.model_validate(raw_request)
         enforce_payload_limit(request.payload, active_settings.sidecar_payload_limit_bytes)
-        if request.action != "ingest":
-            raise SidecarError("invalid_payload", f"Unsupported action: {request.action}")
-        payload = IngestPayload.model_validate(request.payload or {})
         store = SQLiteStore(active_settings.db_path)
-        data = ingest_payload(payload, store)
+        if request.action == "ingest":
+            payload = IngestPayload.model_validate(request.payload or {})
+            data = ingest_payload(payload, store)
+        elif request.action == "event_create":
+            payload = EventCreatePayload.model_validate(request.payload or {})
+            data = create_event_with_default_reminder(payload, store)
+        elif request.action == "event_list":
+            payload = EventListPayload.model_validate(request.payload or {})
+            data = {"events": store.list_events(payload.status, payload.limit, payload.offset)}
+        elif request.action == "event_update_status":
+            payload = EventUpdateStatusPayload.model_validate(request.payload or {})
+            data = update_event_status(payload, store)
+        elif request.action == "event_parse":
+            payload = EventParsePayload.model_validate(request.payload or {})
+            data = parse_event_text(payload, store)
+        elif request.action == "reminder_list":
+            payload = ReminderListPayload.model_validate(request.payload or {})
+            data = {
+                "reminders": store.list_reminders(
+                    payload.status, payload.due_before, payload.limit, payload.offset
+                )
+            }
+        elif request.action == "reminder_update_status":
+            payload = ReminderUpdateStatusPayload.model_validate(request.payload or {})
+            data = update_reminder_status(payload, store)
+        elif request.action == "reminder_trigger_due":
+            data = trigger_due_reminders(store)
+        else:
+            raise SidecarError("invalid_payload", f"Unsupported action: {request.action}")
         response = SidecarResponse(
             request_id=request.request_id,
             status="ok",

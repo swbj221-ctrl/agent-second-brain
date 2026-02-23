@@ -67,3 +67,58 @@ class SummaryResult(BaseModel):
     summary_text: str
     summary_format: str
     model_ref: str
+
+
+EventStatus = Literal["planned", "done", "canceled"]
+ReminderStatus = Literal["pending", "triggered", "canceled"]
+
+
+class EventCreatePayload(BaseModel):
+    """Payload for creating a new event and reminder."""
+
+    title: str = Field(..., min_length=1)
+    body: str | None = None
+    start_at: str | None = None
+    end_at: str | None = None
+    remind_at: str | None = None
+    source_type: str | None = None
+    source_ref: str | None = None
+
+
+class EventListPayload(BaseModel):
+    """Payload for listing events."""
+
+    status: EventStatus | None = None
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class EventUpdateStatusPayload(BaseModel):
+    """Payload for updating event status."""
+
+    event_id: int = Field(..., ge=1)
+    status: EventStatus
+
+
+class ReminderListPayload(BaseModel):
+    """Payload for listing reminders."""
+
+    status: ReminderStatus | None = None
+    due_before: str | None = None
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class ReminderUpdateStatusPayload(BaseModel):
+    """Payload for updating reminder status."""
+
+    reminder_id: int = Field(..., ge=1)
+    status: ReminderStatus
+
+
+class EventParsePayload(BaseModel):
+    """Payload for rule-first event parsing."""
+
+    text: str = Field(..., min_length=1)
+    source_type: str | None = None
+    source_ref: str | None = None

@@ -22,6 +22,33 @@ TODO: steps to start local services, env vars, and health checks.
 ## Verification
 - Scheduler smoke test (no-op): run a short script or REPL and call
   `Scheduler(build_default_registry()).run_once("noop")`.
+- Reminders trigger smoke test (no-op DB state):
+  `Scheduler(build_default_registry()).run_once("reminder_tick")`.
+- Stage 3 plans/reminders smoke test (local):
+  0. Apply migrations (PowerShell):
+     `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+  1. Apply migrations (bash):
+     `PYTHONPATH=src python scripts/migrate.py apply`
+  2. Run Stage 3 smoke (PowerShell):
+     `$env:PYTHONPATH="src"; python scripts/plan_reminder_smoke.py`
+  3. Run Stage 3 smoke (bash):
+     `PYTHONPATH=src python scripts/plan_reminder_smoke.py`
+  3a. Run Stage 3 parse-only smoke (PowerShell):
+     `$env:PYTHONPATH="src"; $env:STAGE3_SMOKE_MODE="parse"; python scripts/plan_reminder_smoke.py`
+  3b. Run Stage 3 parse-only smoke (bash):
+     `PYTHONPATH=src STAGE3_SMOKE_MODE=parse python scripts/plan_reminder_smoke.py`
+  3c. Expected output (parse-only):
+     `stage3_parse_smoke_ok`
+     `parsed_title=Stage 3 parse smoke`
+     `parsed_start_at=2026-02-23T23:00:00+00:00`
+     `parsed_remind_at=2026-02-23T23:00:00+00:00`
+     `parsed_event_id=1`
+     `parsed_reminder_id=1`
+     `parse_logs=1`
+  4. Verify rows (PowerShell):
+     `$env:PYTHONPATH="src"; python - <<'PY'\nimport sqlite3\nfrom d_brain.config import get_settings\ns = get_settings()\nwith sqlite3.connect(s.db_path) as c:\n    events = c.execute(\"SELECT COUNT(*) FROM events;\").fetchone()[0]\n    reminders = c.execute(\"SELECT COUNT(*) FROM event_reminders;\").fetchone()[0]\n    logs = c.execute(\"SELECT COUNT(*) FROM event_parse_logs;\").fetchone()[0]\n    print(f\"events={events}\")\n    print(f\"event_reminders={reminders}\")\n    print(f\"event_parse_logs={logs}\")\nPY`
+  5. Verify rows (bash):
+     `PYTHONPATH=src python - <<'PY'\nimport sqlite3\nfrom d_brain.config import get_settings\ns = get_settings()\nwith sqlite3.connect(s.db_path) as c:\n    events = c.execute(\"SELECT COUNT(*) FROM events;\").fetchone()[0]\n    reminders = c.execute(\"SELECT COUNT(*) FROM event_reminders;\").fetchone()[0]\n    logs = c.execute(\"SELECT COUNT(*) FROM event_parse_logs;\").fetchone()[0]\n    print(f\"events={events}\")\n    print(f\"event_reminders={reminders}\")\n    print(f\"event_parse_logs={logs}\")\nPY`
 - Stage 2 ingestion smoke test (local):
   Note: `ModuleNotFoundError` happens with a `src/` layout when `d_brain` is not on
   `PYTHONPATH` or installed in the environment. Use the commands below or run
