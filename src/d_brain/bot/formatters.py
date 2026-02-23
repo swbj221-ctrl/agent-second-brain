@@ -200,3 +200,36 @@ def format_empty_daily() -> str:
         "📭 <b>Нет записей для обработки</b>\n\n"
         "<i>Добавьте голосовые сообщения или текст в течение дня</i>"
     )
+
+
+def _format_briefing_item(item: dict[str, Any], index: int) -> str:
+    title = html.escape((item.get("title") or "Untitled").strip())
+    summary = html.escape((item.get("summary_text") or "").strip())
+    source_name = html.escape((item.get("source_name") or "Source").strip())
+    url = (item.get("url") or "").strip()
+    link = html.escape(url)
+    source_line = source_name
+    if link:
+        source_line = f'<a href="{link}">{source_name}</a>'
+    lines = [f"{index}. <b>{title}</b>"]
+    if summary:
+        lines.append(summary)
+    lines.append(f"Source: {source_line}")
+    return "\n".join(lines)
+
+
+def format_news_briefing(briefing: dict[str, Any], max_items: int = 5) -> str:
+    """Format a news briefing for Telegram (HTML-safe)."""
+    created_at = html.escape((briefing.get("created_at") or "").strip())
+    header = "<b>Morning Briefing</b>"
+    if created_at:
+        header = f"{header}\n<code>{created_at}</code>"
+
+    items = briefing.get("items") or []
+    lines = [header, ""]
+    for idx, item in enumerate(items[:max_items], start=1):
+        lines.append(_format_briefing_item(item, idx))
+        lines.append("")
+
+    message = "\n".join(lines).strip()
+    return truncate_html(message, max_length=4096)

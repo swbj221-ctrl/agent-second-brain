@@ -279,3 +279,30 @@ Acceptance Criteria
 - Manual verification checklist passes on MSI.
 Status
 - Implemented first pass; manual Telegram verification on MSI pending.
+
+### Stage 15: News Automation + Morning Briefing Delivery MVP (First Pass, Narrow Scope) (P1)
+Goals
+- Add scheduler-triggerable generation and Telegram delivery for the existing news briefing pipeline.
+- Keep delivery traceable with minimal persistence.
+
+Scope (first pass only)
+- Scheduler jobs: generate daily briefing + deliver latest briefing to Telegram.
+- Manual trigger path via Telegram commands for generate and deliver.
+- Global morning schedule only (no per-user timezones).
+- Delivery traceability via `heartbeat_logs`.
+
+Constraints
+- Reuse existing news ingestion, summarization, and briefing storage.
+- Do not rebuild selection or summarization logic.
+- No personalization or section UI changes.
+- No dashboard work.
+- Documentation remains English-only.
+
+Acceptance Criteria
+- Scheduler-compatible path exists to generate and deliver a morning briefing.
+- Telegram delivery sends latest briefing with 5 items and source links.
+- Delivery attempts are traceable via `heartbeat_logs`.
+- Existing news pipeline is reused without duplicated logic.
+- Runbook and integration docs updated during implementation.
+Status
+- Implemented first pass; manual Telegram verification on MSI pending.

@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 14: Books / Philosophy / Knowledge UX MVP (first pass) implemented; manual Telegram verification pending on MSI.
+- Stage 15: News Automation + Morning Briefing Delivery MVP (first pass) implemented; manual Telegram verification pending on MSI.
 
 ## Goals
 - Ship a stable, minimal core pipeline

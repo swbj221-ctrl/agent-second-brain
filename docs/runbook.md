@@ -243,5 +243,23 @@ TODO: steps to start local services, env vars, and health checks.
    7. Verify persistence in SQLite:
       - `artifacts`, `artifact_summaries`, `notes`, `note_categories`
 
+- Stage 15 News Automation + Morning Briefing Delivery MVP checklist (manual):
+   0. Apply migrations (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+   0a. Dependency note:
+      - Telegram delivery uses `httpx`. Install with `python -m pip install httpx` if missing.
+   1. Generate a briefing (Telegram):
+      `/news generate`
+   2. Deliver latest briefing (Telegram):
+      `/news deliver`
+   3. Validate message formatting:
+      - header shows "Morning Briefing"
+      - exactly 5 items
+      - each item includes a source link when available
+   4. Scheduler job sanity (local):
+      `PYTHONPATH=src python scripts/news_briefing_job.py --all`
+   5. Verify delivery traceability:
+      - Check `heartbeat_logs` for `event_type=news_delivery`
+
 ## Debugging
 TODO: logs, tracing, and common failure modes.

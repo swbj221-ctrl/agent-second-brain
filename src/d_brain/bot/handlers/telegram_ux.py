@@ -9,6 +9,7 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from d_brain.bot.formatters import format_news_briefing
 from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
 from d_brain.services.reflection_voice import ReflectionVoiceService
 from d_brain.services.sidecar_client import call_sidecar_action
@@ -423,24 +424,67 @@ async def cmd_topic(message: Message) -> None:
 @router.message(Command("news"))
 async def cmd_news(message: Message) -> None:
     text = message.text or ""
-    parts = _split_args(text, maxsplit=1)
-    if len(parts) < 2 or parts[1].lower() != "latest":
-        await message.answer("Usage: /news latest")
+    parts = _split_args(text, maxsplit=2)
+    if len(parts) < 2:
+        await message.answer("Usage: /news latest | /news generate | /news deliver")
         return
-    result = call_sidecar_action(
-        "news_briefing_get",
-        {"briefing_id": None},
-        _user_id(message),
-    )
-    if result.status != "ok":
-        await message.answer(_format_error(result.error_code, result.error_message))
+    sub = parts[1].lower()
+    if sub == "latest":
+        result = call_sidecar_action(
+            "news_briefing_get",
+            {"briefing_id": None},
+            _user_id(message),
+        )
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        items = (result.data or {}).get("items", [])
+        output = _render_list(
+            items,
+            lambda i: f"#{i['news_item_id']} {i.get('title') or 'Untitled'}",
+        )
+        await message.answer(output)
         return
-    items = (result.data or {}).get("items", [])
-    output = _render_list(
-        items,
-        lambda i: f"#{i['news_item_id']} {i.get('title') or 'Untitled'}",
-    )
-    await message.answer(output)
+    if sub == "generate":
+        result = call_sidecar_action(
+            "news_briefing_generate",
+            {"limit": 50},
+            _user_id(message),
+        )
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        briefing_id = result.data.get("briefing_id") if result.data else None
+        await message.answer(f"Briefing generated. id={briefing_id}")
+        return
+    if sub == "deliver":
+        result = call_sidecar_action(
+            "news_briefing_get",
+            {"briefing_id": None},
+            _user_id(message),
+        )
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        briefing = result.data or {}
+        formatted = format_news_briefing(briefing, max_items=5)
+        await message.answer(formatted, parse_mode="HTML", disable_web_page_preview=True)
+        call_sidecar_action(
+            "heartbeat_tick",
+            {
+                "event_type": "news_delivery",
+                "event_source": "telegram",
+                "event_details": {
+                    "briefing_id": briefing.get("id"),
+                    "chat_id": message.chat.id if message.chat else None,
+                    "status": "sent",
+                    "mode": "manual",
+                },
+            },
+            _user_id(message),
+        )
+        return
+    await message.answer("Usage: /news latest | /news generate | /news deliver")
 
 
 @router.message(Command("health"))

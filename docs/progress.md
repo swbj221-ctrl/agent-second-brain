@@ -34,6 +34,8 @@
 - 2026-02-23: Implemented Stage 13 Reflection Voice Loop MVP first pass (reflection voice service, reflection mode routing for voice/text, STT/TTS reuse, and documentation updates). Manual Telegram verification on MSI pending.
 - 2026-02-24: Started Stage 14 first pass (Books/Philosophy/Knowledge UX) with minimal note categories, sidecar actions, Telegram wiring, and docs updates.
 - 2026-02-24: Added note_categories migration, Stage 14 sidecar actions (books/philosophy/inbox), Telegram text commands, and documentation updates. Manual Telegram verification on MSI pending.
+- 2026-02-23: Implemented Stage 15 first pass (news briefing generation + Telegram delivery jobs, manual commands, scheduler script, systemd units, and docs updates).
+- 2026-02-23: Made Telegram delivery dependency import-safe with lazy `httpx` loading and documented the dependency note in the runbook.
 
 ## Next
 - Stage 6: News MVP (second pass: summaries + briefing pipeline + exactly 5 key events).

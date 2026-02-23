@@ -83,6 +83,7 @@ def generate_manual_briefing(
     source_id: int | None = None,
     limit: int = 50,
     target_count: int = 5,
+    briefing_mode: str = "manual",
 ) -> dict[str, Any]:
     candidates = store.list_news_items_for_briefing(section_id, source_id, limit)
     selected = select_briefing_items(candidates, target_count=target_count)
@@ -92,7 +93,7 @@ def generate_manual_briefing(
             f"Need {target_count} unique items to build a briefing.",
         )
     summarizer = HeuristicSummarizer()
-    briefing_id = store.create_news_briefing("manual")
+    briefing_id = store.create_news_briefing(briefing_mode)
     items: list[dict[str, Any]] = []
     for item in selected:
         summary = store.get_news_item_summary(item["id"])

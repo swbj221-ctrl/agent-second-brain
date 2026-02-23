@@ -1,0 +1,9 @@
+[Unit]
+Description=Run d-brain news briefing delivery
+
+[Service]
+Type=oneshot
+User=shima
+WorkingDirectory=/home/shima/projects/agent-second-brain
+ExecStart=/usr/bin/env python /home/shima/projects/agent-second-brain/scripts/news_briefing_job.py --all
+Environment=PYTHONUNBUFFERED=1

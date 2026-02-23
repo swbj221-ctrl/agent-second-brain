@@ -977,3 +977,18 @@ Optional:
 
 Response Data:
 - `note_id` (integer)
+
+## Stage 15: News Automation + Morning Briefing Delivery MVP (First Pass)
+Scope: scheduler-triggerable daily briefing generation and Telegram delivery.
+
+### Scheduler Jobs
+- `news_briefing_generate_daily` (job): generates a daily briefing using the existing pipeline.
+- `news_briefing_deliver_telegram` (job): delivers the latest briefing to Telegram.
+
+### Telegram Commands
+- `/news generate` -> `news_briefing_generate` (manual generation)
+- `/news deliver` -> fetch latest briefing and deliver to current chat
+
+### Delivery Traceability
+- Uses `heartbeat_logs` with `event_type=news_delivery`.
+- `event_details` includes `briefing_id`, `chat_id`, `status`, and optional `error`.
