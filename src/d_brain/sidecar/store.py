@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -21,6 +22,45 @@ def utc_now() -> str:
 def compute_hash(text: str) -> str:
     """Compute a sha256 hash for text content."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def normalize_whitespace(value: str) -> str:
+    """Trim and collapse internal whitespace."""
+    return " ".join(value.strip().split())
+
+
+def normalize_news_text(value: str | None, lower: bool = False) -> str | None:
+    """Normalize text for deterministic hashing."""
+    if value is None:
+        return None
+    cleaned = normalize_whitespace(value)
+    return cleaned.lower() if lower else cleaned
+
+
+def normalize_news_hash_payload(
+    title: str | None,
+    url: str | None,
+    published_at: str | None,
+    content_text: str | None,
+    external_id: str | None,
+    raw_payload: dict[str, Any] | None,
+) -> str:
+    """Normalize news item fields into a deterministic hash input."""
+    payload = {
+        "title": normalize_news_text(title, lower=True),
+        "url": normalize_news_text(url, lower=True),
+        "published_at": normalize_news_text(published_at, lower=False),
+        "content_text": normalize_news_text(content_text, lower=True),
+        "external_id": normalize_news_text(external_id, lower=False),
+        "raw_payload": raw_payload,
+    }
+    normalized = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    return compute_hash(normalized)
 
 
 @dataclass(slots=True)
@@ -656,3 +696,339 @@ class SQLiteStore:
             }
             for row in rows
         ]
+
+    def create_news_section(
+        self,
+        name: str,
+        description: str | None,
+        status: str,
+    ) -> int:
+        cleaned = name.strip()
+        if not cleaned:
+            raise SidecarError("invalid_payload", "Section name is required.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO news_sections (
+                    name,
+                    description,
+                    status,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?);
+                """,
+                (cleaned, description, status, timestamp, timestamp),
+            )
+            row = conn.execute(
+                "SELECT id FROM news_sections WHERE name = ?;",
+                (cleaned,),
+            ).fetchone()
+        if not row:
+            raise SidecarError("storage_error", "Failed to insert news section.")
+        return int(row[0])
+
+    def list_news_sections(
+        self,
+        status: str | None,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        query = (
+            "SELECT id, name, description, status, created_at, updated_at "
+            "FROM news_sections"
+        )
+        params: list[Any] = []
+        if status:
+            query += " WHERE status = ?"
+            params.append(status)
+        query += " ORDER BY id DESC LIMIT ? OFFSET ?;"
+        params.extend([limit, offset])
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "description": row[2],
+                "status": row[3],
+                "created_at": row[4],
+                "updated_at": row[5],
+            }
+            for row in rows
+        ]
+
+    def update_news_section(
+        self,
+        section_id: int,
+        name: str | None,
+        description: str | None,
+        status: str | None,
+    ) -> None:
+        updates: list[str] = []
+        params: list[Any] = []
+        if name is not None:
+            cleaned = name.strip()
+            if not cleaned:
+                raise SidecarError("invalid_payload", "Section name is required.")
+            updates.append("name = ?")
+            params.append(cleaned)
+        if description is not None:
+            updates.append("description = ?")
+            params.append(description)
+        if status is not None:
+            updates.append("status = ?")
+            params.append(status)
+        if not updates:
+            raise SidecarError("invalid_payload", "No updates provided.")
+        timestamp = utc_now()
+        updates.append("updated_at = ?")
+        params.append(timestamp)
+        params.append(section_id)
+        with self._connect() as conn:
+            cursor = conn.execute(
+                f"""
+                UPDATE news_sections
+                SET {", ".join(updates)}
+                WHERE id = ?;
+                """,
+                params,
+            )
+            if cursor.rowcount == 0:
+                raise SidecarError(
+                    "not_found", f"News section {section_id} not found."
+                )
+
+    def create_news_source(
+        self,
+        section_id: int,
+        name: str,
+        source_type: str,
+        source_ref: str | None,
+        status: str,
+    ) -> int:
+        cleaned = name.strip()
+        if not cleaned:
+            raise SidecarError("invalid_payload", "Source name is required.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM news_sections WHERE id = ?;",
+                (section_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError(
+                    "not_found", f"News section {section_id} not found."
+                )
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO news_sources (
+                    section_id,
+                    name,
+                    source_type,
+                    source_ref,
+                    status,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?);
+                """,
+                (section_id, cleaned, source_type, source_ref, status, timestamp, timestamp),
+            )
+            row = conn.execute(
+                """
+                SELECT id FROM news_sources
+                WHERE section_id = ? AND name = ?;
+                """,
+                (section_id, cleaned),
+            ).fetchone()
+        if not row:
+            raise SidecarError("storage_error", "Failed to insert news source.")
+        return int(row[0])
+
+    def list_news_sources(
+        self,
+        section_id: int | None,
+        status: str | None,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        query = (
+            "SELECT id, section_id, name, source_type, source_ref, status, created_at, updated_at "
+            "FROM news_sources"
+        )
+        params: list[Any] = []
+        conditions: list[str] = []
+        if section_id is not None:
+            conditions.append("section_id = ?")
+            params.append(section_id)
+        if status:
+            conditions.append("status = ?")
+            params.append(status)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY id DESC LIMIT ? OFFSET ?;"
+        params.extend([limit, offset])
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": row[0],
+                "section_id": row[1],
+                "name": row[2],
+                "source_type": row[3],
+                "source_ref": row[4],
+                "status": row[5],
+                "created_at": row[6],
+                "updated_at": row[7],
+            }
+            for row in rows
+        ]
+
+    def update_news_source(
+        self,
+        source_id: int,
+        section_id: int | None,
+        name: str | None,
+        source_type: str | None,
+        source_ref: str | None,
+        status: str | None,
+    ) -> None:
+        updates: list[str] = []
+        params: list[Any] = []
+        if section_id is not None:
+            with self._connect() as conn:
+                row = conn.execute(
+                    "SELECT id FROM news_sections WHERE id = ?;",
+                    (section_id,),
+                ).fetchone()
+            if not row:
+                raise SidecarError(
+                    "not_found", f"News section {section_id} not found."
+                )
+            updates.append("section_id = ?")
+            params.append(section_id)
+        if name is not None:
+            cleaned = name.strip()
+            if not cleaned:
+                raise SidecarError("invalid_payload", "Source name is required.")
+            updates.append("name = ?")
+            params.append(cleaned)
+        if source_type is not None:
+            updates.append("source_type = ?")
+            params.append(source_type)
+        if source_ref is not None:
+            updates.append("source_ref = ?")
+            params.append(source_ref)
+        if status is not None:
+            updates.append("status = ?")
+            params.append(status)
+        if not updates:
+            raise SidecarError("invalid_payload", "No updates provided.")
+        timestamp = utc_now()
+        updates.append("updated_at = ?")
+        params.append(timestamp)
+        params.append(source_id)
+        with self._connect() as conn:
+            cursor = conn.execute(
+                f"""
+                UPDATE news_sources
+                SET {", ".join(updates)}
+                WHERE id = ?;
+                """,
+                params,
+            )
+            if cursor.rowcount == 0:
+                raise SidecarError(
+                    "not_found", f"News source {source_id} not found."
+                )
+
+    def ingest_news_item(
+        self,
+        section_id: int,
+        source_id: int,
+        external_id: str | None,
+        title: str | None,
+        url: str | None,
+        published_at: str | None,
+        content_text: str | None,
+        raw_payload: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT section_id FROM news_sources WHERE id = ?;",
+                (source_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError("not_found", f"News source {source_id} not found.")
+            if int(row[0]) != section_id:
+                raise SidecarError(
+                    "invalid_payload",
+                    "Source does not belong to the provided section.",
+                )
+            row = conn.execute(
+                "SELECT id FROM news_sections WHERE id = ?;",
+                (section_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError(
+                    "not_found", f"News section {section_id} not found."
+                )
+            content_hash = normalize_news_hash_payload(
+                title=title,
+                url=url,
+                published_at=published_at,
+                content_text=content_text,
+                external_id=external_id,
+                raw_payload=raw_payload,
+            )
+            raw_payload_json = (
+                json.dumps(raw_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+                if raw_payload is not None
+                else None
+            )
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO news_items (
+                    section_id,
+                    source_id,
+                    external_id,
+                    title,
+                    url,
+                    published_at,
+                    content_text,
+                    content_hash,
+                    raw_payload,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    section_id,
+                    source_id,
+                    external_id,
+                    title,
+                    url,
+                    published_at,
+                    content_text,
+                    content_hash,
+                    raw_payload_json,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+            if cursor.rowcount == 0:
+                row = conn.execute(
+                    """
+                    SELECT id FROM news_items
+                    WHERE source_id = ? AND content_hash = ?;
+                    """,
+                    (source_id, content_hash),
+                ).fetchone()
+                if not row:
+                    raise SidecarError("storage_error", "Failed to insert news item.")
+                return {"news_item_id": int(row[0]), "deduped": True}
+            return {"news_item_id": int(cursor.lastrowid), "deduped": False}

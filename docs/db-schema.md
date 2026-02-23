@@ -27,6 +27,11 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `reflection_sessions`
 - `reflection_turns`
 
+## Entities (Stage 6)
+- `news_sections`
+- `news_sources`
+- `news_items`
+
 ## Fields (Minimal)
 - Common: `id` (PK), `created_at`/`updated_at` timestamps where applicable.
 - `artifacts`: `source_type`, `source_ref`, `content_type`, `content_path`, `content_hash`.
@@ -45,6 +50,19 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `english_session_word_usage`: `session_id` (FK), `word_id` (FK), `usage_count`.
 - `reflection_sessions`: `status`, `opened_at`, `closed_at`, `summary_text`.
 - `reflection_turns`: `session_id` (FK), `role`, `content`.
+- `news_sections`: `name` (unique), `description`, `status`.
+- `news_sources`: `section_id` (FK), `name`, `source_type`, `source_ref`, `status`.
+- `news_items`: `section_id` (FK), `source_id` (FK), `external_id`, `title`, `url`,
+  `published_at`, `content_text`, `content_hash`, `raw_payload`.
+
+## News Dedupe (Stage 6)
+Deterministic dedupe uses `content_hash` computed from a normalized JSON payload:
+- Normalize each field by trimming whitespace and collapsing internal whitespace.
+- Lowercase `title`, `url`, and `content_text` for hash input.
+- Include `published_at` and `external_id` as-is after trimming.
+- Build a JSON object with keys:
+  `title`, `url`, `published_at`, `content_text`, `external_id`, `raw_payload`.
+- Serialize with sorted keys and compact separators, then hash with sha256.
 
 ## Migrations
 - Tool: `scripts/migrate.py` (SQLite)

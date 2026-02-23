@@ -82,7 +82,7 @@ Tasks
 Acceptance Criteria
 - All user-facing templates and docs remain English-only.
 Status
-- In progress (first pass implemented; Stage 4 smoke test pending).
+- Completed (validated by local smoke test on MSI).
 
 ### Stage 5: Reflection MVP (P2)
 Goals
@@ -96,6 +96,8 @@ Tasks
 Acceptance Criteria
 - Reflection sessions can be created, appended, closed, and listed via sidecar actions.
 - Close-summary is stored for retrieval without context bloat.
+Status
+- Completed (validated by local smoke test on MSI).
 
 ### Stage 6: News MVP (P2)
 Goals
@@ -111,6 +113,8 @@ Tasks
 Acceptance Criteria
 - Each run outputs exactly 5 key events.
 - News entries persisted with sources.
+Status
+- In progress (first pass completed; second pass pending: summaries + briefing pipeline + exactly 5 key events).
 
 ### Stage 7: My Digest + Heartbeat + Local Utility Layer (P2)
 Goals

@@ -268,6 +268,113 @@ Optional:
 Response Data:
 - `sessions` (array): each item includes `id`, `status`, `opened_at`, `closed_at`, `summary_text`, `created_at`, `updated_at`.
 
+## Stage 6: News MVP Contract (First Pass)
+Scope: sections, sources, and raw item ingestion with deterministic dedupe.
+
+### Actions
+- `news_section_create`
+- `news_section_list`
+- `news_section_update`
+- `news_source_create`
+- `news_source_list`
+- `news_source_update`
+- `news_item_ingest`
+
+### Section Create Payload (action = news_section_create)
+Required:
+- `name` (string)
+
+Optional:
+- `description` (string)
+- `status` (string): `active` or `inactive`
+
+Response Data:
+- `section_id` (integer)
+
+### Section List Payload (action = news_section_list)
+Optional:
+- `status` (string): `active` or `inactive`
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `sections` (array): items include `id`, `name`, `description`, `status`, `created_at`, `updated_at`.
+
+### Section Update Payload (action = news_section_update)
+Required:
+- `section_id` (int)
+
+Optional (at least one):
+- `name` (string)
+- `description` (string)
+- `status` (string): `active` or `inactive`
+
+Response Data:
+- `section_id` (integer)
+
+### Source Create Payload (action = news_source_create)
+Required:
+- `section_id` (int)
+- `name` (string)
+- `source_type` (string) e.g., `rss`, `telegram`, `manual`
+
+Optional:
+- `source_ref` (string) e.g., url or channel handle
+- `status` (string): `active` or `inactive`
+
+Response Data:
+- `source_id` (integer)
+
+### Source List Payload (action = news_source_list)
+Optional:
+- `section_id` (int)
+- `status` (string): `active` or `inactive`
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `sources` (array): items include `id`, `section_id`, `name`, `source_type`, `source_ref`,
+  `status`, `created_at`, `updated_at`.
+
+### Source Update Payload (action = news_source_update)
+Required:
+- `source_id` (int)
+
+Optional (at least one):
+- `section_id` (int)
+- `name` (string)
+- `source_type` (string)
+- `source_ref` (string)
+- `status` (string): `active` or `inactive`
+
+Response Data:
+- `source_id` (integer)
+
+### News Item Ingest Payload (action = news_item_ingest)
+Required:
+- `section_id` (int)
+- `source_id` (int)
+
+Optional (at least one):
+- `external_id` (string)
+- `title` (string)
+- `url` (string)
+- `published_at` (string, ISO 8601)
+- `content_text` (string)
+- `raw_payload` (object)
+
+Response Data:
+- `news_item_id` (integer)
+- `deduped` (boolean)
+
+### Dedupe Hash Normalization
+Deterministic dedupe uses a sha256 hash of a normalized JSON object:
+- Normalize fields by trimming and collapsing internal whitespace.
+- Lowercase `title`, `url`, and `content_text` for hash input.
+- Include `published_at` and `external_id` after trimming (no lowercasing).
+- Include `raw_payload` as a JSON object.
+- Serialize with sorted keys and compact separators before hashing.
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.

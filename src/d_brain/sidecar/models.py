@@ -204,3 +204,105 @@ class ReflectionSessionListPayload(BaseModel):
     status: Literal["open", "closed"] | None = None
     limit: int = Field(default=50, ge=1, le=200)
     offset: int = Field(default=0, ge=0)
+
+
+NewsSectionStatus = Literal["active", "inactive"]
+NewsSourceStatus = Literal["active", "inactive"]
+
+
+class NewsSectionCreatePayload(BaseModel):
+    """Payload for creating a news section."""
+
+    name: str = Field(..., min_length=1)
+    description: str | None = None
+    status: NewsSectionStatus = "active"
+
+
+class NewsSectionListPayload(BaseModel):
+    """Payload for listing news sections."""
+
+    status: NewsSectionStatus | None = None
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class NewsSectionUpdatePayload(BaseModel):
+    """Payload for updating a news section."""
+
+    section_id: int = Field(..., ge=1)
+    name: str | None = None
+    description: str | None = None
+    status: NewsSectionStatus | None = None
+
+    @model_validator(mode="after")
+    def validate_updates(self) -> "NewsSectionUpdatePayload":
+        if self.name is None and self.description is None and self.status is None:
+            raise ValueError("Provide at least one field to update.")
+        return self
+
+
+class NewsSourceCreatePayload(BaseModel):
+    """Payload for creating a news source."""
+
+    section_id: int = Field(..., ge=1)
+    name: str = Field(..., min_length=1)
+    source_type: str = Field(..., min_length=1)
+    source_ref: str | None = None
+    status: NewsSourceStatus = "active"
+
+
+class NewsSourceListPayload(BaseModel):
+    """Payload for listing news sources."""
+
+    section_id: int | None = Field(default=None, ge=1)
+    status: NewsSourceStatus | None = None
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class NewsSourceUpdatePayload(BaseModel):
+    """Payload for updating a news source."""
+
+    source_id: int = Field(..., ge=1)
+    section_id: int | None = Field(default=None, ge=1)
+    name: str | None = None
+    source_type: str | None = None
+    source_ref: str | None = None
+    status: NewsSourceStatus | None = None
+
+    @model_validator(mode="after")
+    def validate_updates(self) -> "NewsSourceUpdatePayload":
+        if (
+            self.section_id is None
+            and self.name is None
+            and self.source_type is None
+            and self.source_ref is None
+            and self.status is None
+        ):
+            raise ValueError("Provide at least one field to update.")
+        return self
+
+
+class NewsItemIngestPayload(BaseModel):
+    """Payload for ingesting a news item."""
+
+    section_id: int = Field(..., ge=1)
+    source_id: int = Field(..., ge=1)
+    external_id: str | None = None
+    title: str | None = None
+    url: str | None = None
+    published_at: str | None = None
+    content_text: str | None = None
+    raw_payload: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def validate_content(self) -> "NewsItemIngestPayload":
+        if (
+            self.external_id is None
+            and self.title is None
+            and self.url is None
+            and self.content_text is None
+            and self.raw_payload is None
+        ):
+            raise ValueError("Provide at least one content field for ingestion.")
+        return self

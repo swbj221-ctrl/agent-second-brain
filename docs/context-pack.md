@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 5 in progress: Reflection MVP (session-based storage + close-summary flow).
+- Stage 6 second pass: news summaries, briefing pipeline, and exactly 5 key events per run.
 
 ## Goals
 - Ship a stable, minimal core pipeline

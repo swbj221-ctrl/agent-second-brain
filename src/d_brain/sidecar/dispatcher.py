@@ -24,6 +24,13 @@ from .models import (
     EventParsePayload,
     EventUpdateStatusPayload,
     IngestPayload,
+    NewsItemIngestPayload,
+    NewsSectionCreatePayload,
+    NewsSectionListPayload,
+    NewsSectionUpdatePayload,
+    NewsSourceCreatePayload,
+    NewsSourceListPayload,
+    NewsSourceUpdatePayload,
     ReflectionSessionClosePayload,
     ReflectionSessionCreatePayload,
     ReflectionSessionListPayload,
@@ -152,6 +159,71 @@ def handle_request(
             data = update_reminder_status(payload, store)
         elif request.action == "reminder_trigger_due":
             data = trigger_due_reminders(store)
+        elif request.action == "news_section_create":
+            payload = NewsSectionCreatePayload.model_validate(request.payload or {})
+            section_id = store.create_news_section(
+                payload.name, payload.description, payload.status
+            )
+            data = {"section_id": section_id}
+        elif request.action == "news_section_list":
+            payload = NewsSectionListPayload.model_validate(request.payload or {})
+            data = {
+                "sections": store.list_news_sections(
+                    payload.status, payload.limit, payload.offset
+                )
+            }
+        elif request.action == "news_section_update":
+            payload = NewsSectionUpdatePayload.model_validate(request.payload or {})
+            store.update_news_section(
+                payload.section_id,
+                payload.name,
+                payload.description,
+                payload.status,
+            )
+            data = {"section_id": payload.section_id}
+        elif request.action == "news_source_create":
+            payload = NewsSourceCreatePayload.model_validate(request.payload or {})
+            source_id = store.create_news_source(
+                payload.section_id,
+                payload.name,
+                payload.source_type,
+                payload.source_ref,
+                payload.status,
+            )
+            data = {"source_id": source_id}
+        elif request.action == "news_source_list":
+            payload = NewsSourceListPayload.model_validate(request.payload or {})
+            data = {
+                "sources": store.list_news_sources(
+                    payload.section_id,
+                    payload.status,
+                    payload.limit,
+                    payload.offset,
+                )
+            }
+        elif request.action == "news_source_update":
+            payload = NewsSourceUpdatePayload.model_validate(request.payload or {})
+            store.update_news_source(
+                payload.source_id,
+                payload.section_id,
+                payload.name,
+                payload.source_type,
+                payload.source_ref,
+                payload.status,
+            )
+            data = {"source_id": payload.source_id}
+        elif request.action == "news_item_ingest":
+            payload = NewsItemIngestPayload.model_validate(request.payload or {})
+            data = store.ingest_news_item(
+                payload.section_id,
+                payload.source_id,
+                payload.external_id,
+                payload.title,
+                payload.url,
+                payload.published_at,
+                payload.content_text,
+                payload.raw_payload,
+            )
         else:
             raise SidecarError("invalid_payload", f"Unsupported action: {request.action}")
         response = SidecarResponse(

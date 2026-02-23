@@ -15,8 +15,11 @@
 - 2026-02-23: Added Stage 4 English MVP smoke test script and runbook steps.
 - 2026-02-23: Documented Stage 4 English MVP sidecar actions in OpenClaw integration notes.
 - 2026-02-23: Stage 4 English MVP completed and validated by local smoke test on MSI.
-- 2026-02-23: Implemented Stage 5 Reflection MVP first pass (schema, sidecar actions, smoke test script); smoke test pending on MSI.
+- 2026-02-23: Implemented Stage 5 Reflection MVP first pass (schema, sidecar actions, smoke test script).
+- 2026-02-23: Stage 5 Reflection MVP completed and validated by local smoke test on MSI.
+- 2026-02-23: Started Stage 6 News MVP first pass (schema, sidecar actions, smoke test, docs updates).
+- 2026-02-23: Stage 6 News MVP first pass completed and validated by local smoke test on MSI.
 
 ## Next
-- Stage 4: English MVP.
+- Stage 6: News MVP (second pass: summaries + briefing pipeline + exactly 5 key events).
 - Confirm persistence choices and deployment workflow.
