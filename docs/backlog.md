@@ -369,3 +369,32 @@ Status
 ### Stage 17: Web Dashboard MVP (Postponed)
 Status
 - Postponed. Do not prioritize until Stage 16 is manually verified.
+
+### Stage 18: Projects & Tasks MVP (First Pass) (P1)
+Goals
+- Provide a minimal Projects/Tasks workflow with explicit schemas and Telegram UX.
+- Keep the design reuse-first and avoid new architectural surfaces.
+
+Scope (first pass)
+- Add schema migration for `projects` and `tasks`.
+- Add sidecar actions for create/list/update/move/note flows.
+- Wire Telegram commands with delimiter-based parsing.
+- Add smoke test script for Stage 18.
+
+Constraints
+- Dedicated tables for projects and tasks (do not reuse `events` / `event_reminders`).
+- Task statuses: `open`, `done`, `canceled`.
+- `due_at` is optional (nullable).
+- No reminder integration for tasks.
+- Reuse `notes` for task notes (`notes.source_type="task"`, `notes.source_ref=<task_id>`).
+- Command parsing uses delimiter-based format for `/task add`.
+- Documentation remains English-only.
+
+Acceptance Criteria
+- Migrations add `projects` and `tasks` tables with indexes.
+- Sidecar actions are implemented and validated.
+- Telegram commands are wired with clean error handling.
+- Smoke test script runs and prints `stage18_projects_tasks_smoke_ok`.
+- Runbook includes Stage 18 verification steps.
+Status
+- Implemented first pass; manual MSI verification pending.

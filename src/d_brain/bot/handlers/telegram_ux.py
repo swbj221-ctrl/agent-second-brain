@@ -62,6 +62,39 @@ def _note_title(item: dict[str, Any]) -> str:
     return body[:80] + ("..." if len(body) > 80 else "")
 
 
+def _parse_due_date(value: str) -> str | None:
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    try:
+        datetime.strptime(cleaned, "%Y-%m-%d")
+    except ValueError:
+        return None
+    return cleaned
+
+
+def _parse_task_add(raw: str) -> tuple[int, str, str | None] | None:
+    parts = [part.strip() for part in raw.split("|")]
+    if len(parts) < 2 or len(parts) > 3:
+        return None
+    if not parts[0].isdigit():
+        return None
+    project_id = int(parts[0])
+    title = parts[1].strip()
+    if not title:
+        return None
+    due_at = None
+    if len(parts) == 3:
+        token = parts[2].strip()
+        if not token.lower().startswith("due:"):
+            return None
+        due_raw = token[4:].strip()
+        due_at = _parse_due_date(due_raw)
+        if due_at is None:
+            return None
+    return project_id, title, due_at
+
+
 @router.message(Command("plan"))
 async def cmd_plan(message: Message) -> None:
     text = message.text or ""
@@ -180,6 +213,176 @@ async def cmd_note(message: Message) -> None:
         await message.answer(f"Saved. Summary: {summary_text}")
     else:
         await message.answer("Saved.")
+
+
+@router.message(Command("project"))
+async def cmd_project(message: Message) -> None:
+    text = message.text or ""
+    parts = _split_args(text, maxsplit=2)
+    if len(parts) < 2:
+        await message.answer("Usage: /project add <name> | /project list [status] | /project archive <project_id>")
+        return
+    sub = parts[1].lower()
+    if sub == "add":
+        if len(parts) < 3 or not parts[2].strip():
+            await message.answer("Usage: /project add <name>")
+            return
+        payload = {"name": parts[2].strip()}
+        result = call_sidecar_action("project_create", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        project_id = result.data.get("project_id") if result.data else None
+        await message.answer(f"Project created. id={project_id}")
+        return
+    if sub == "list":
+        status = None
+        if len(parts) > 2 and parts[2].strip():
+            status = parts[2].strip().lower()
+            if status not in {"active", "archived"}:
+                await message.answer("Usage: /project list [active|archived]")
+                return
+        result = call_sidecar_action(
+            "project_list",
+            {"status": status, "limit": 50, "offset": 0},
+            _user_id(message),
+        )
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        projects = (result.data or {}).get("projects", [])
+        output = _render_list(projects, lambda p: f"#{p['id']} {p['name']} ({p['status']})")
+        await message.answer(output)
+        return
+    if sub == "archive":
+        if len(parts) < 3 or not parts[2].isdigit():
+            await message.answer("Usage: /project archive <project_id>")
+            return
+        payload = {"project_id": int(parts[2]), "status": "archived"}
+        result = call_sidecar_action("project_update_status", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        await message.answer(f"Project archived. id={parts[2]}")
+        return
+    await message.answer("Usage: /project add <name> | /project list [status] | /project archive <project_id>")
+
+
+@router.message(Command("task"))
+async def cmd_task(message: Message) -> None:
+    text = message.text or ""
+    parts = _split_args(text, maxsplit=2)
+    if len(parts) < 2:
+        await message.answer(
+            "Usage: /task add <project_id> | <title> | due:YYYY-MM-DD | /task list [project_id] [status]"
+        )
+        return
+    sub = parts[1].lower()
+    if sub == "add":
+        if len(parts) < 3 or not parts[2].strip():
+            await message.answer("Usage: /task add <project_id> | <title> | due:YYYY-MM-DD")
+            return
+        parsed = _parse_task_add(parts[2])
+        if parsed is None:
+            await message.answer("Usage: /task add <project_id> | <title> | due:YYYY-MM-DD")
+            return
+        project_id, title, due_at = parsed
+        payload = {
+            "project_id": project_id,
+            "title": title,
+            "due_at": due_at,
+            "source_type": "telegram",
+            "source_ref": _source_ref(message),
+        }
+        result = call_sidecar_action("task_create", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        task_id = result.data.get("task_id") if result.data else None
+        await message.answer(f"Task created. id={task_id}")
+        return
+    if sub == "list":
+        project_id = None
+        status = None
+        if len(parts) > 2 and parts[2].strip():
+            tokens = parts[2].strip().split()
+            if tokens[0].isdigit():
+                project_id = int(tokens[0])
+                if len(tokens) > 1:
+                    status = tokens[1].lower()
+                if len(tokens) > 2:
+                    await message.answer("Usage: /task list [project_id] [status]")
+                    return
+            else:
+                status = tokens[0].lower()
+                if len(tokens) > 1:
+                    await message.answer("Usage: /task list [project_id] [status]")
+                    return
+        if status and status not in {"open", "done", "canceled"}:
+            await message.answer("Usage: /task list [project_id] [open|done|canceled]")
+            return
+        payload = {"project_id": project_id, "status": status, "limit": 50, "offset": 0}
+        result = call_sidecar_action("task_list", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        tasks = (result.data or {}).get("tasks", [])
+        output = _render_list(
+            tasks,
+            lambda t: (
+                f"#{t['id']} {t['title']} (project={t['project_id']}, status={t['status']}"
+                + (f", due={t['due_at']}" if t.get("due_at") else "")
+                + ")"
+            ),
+        )
+        await message.answer(output)
+        return
+    if sub in {"done", "reopen", "cancel"}:
+        if len(parts) < 3 or not parts[2].isdigit():
+            await message.answer(f"Usage: /task {sub} <task_id>")
+            return
+        status_map = {"done": "done", "reopen": "open", "cancel": "canceled"}
+        payload = {"task_id": int(parts[2]), "status": status_map[sub]}
+        result = call_sidecar_action("task_update_status", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        await message.answer(f"Task updated. id={parts[2]} status={status_map[sub]}")
+        return
+    if sub == "move":
+        if len(parts) < 3:
+            await message.answer("Usage: /task move <task_id> <project_id>")
+            return
+        tokens = parts[2].strip().split()
+        if len(tokens) != 2 or not tokens[0].isdigit() or not tokens[1].isdigit():
+            await message.answer("Usage: /task move <task_id> <project_id>")
+            return
+        payload = {"task_id": int(tokens[0]), "project_id": int(tokens[1])}
+        result = call_sidecar_action("task_update_project", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        await message.answer(f"Task moved. id={tokens[0]} project_id={tokens[1]}")
+        return
+    if sub == "note":
+        if len(parts) < 3:
+            await message.answer("Usage: /task note <task_id> <text>")
+            return
+        tokens = parts[2].strip().split(maxsplit=1)
+        if len(tokens) < 2 or not tokens[0].isdigit():
+            await message.answer("Usage: /task note <task_id> <text>")
+            return
+        payload = {"task_id": int(tokens[0]), "text": tokens[1].strip()}
+        result = call_sidecar_action("task_note_add", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        note_id = result.data.get("note_id") if result.data else None
+        await message.answer(f"Task note added. note_id={note_id}")
+        return
+    await message.answer(
+        "Usage: /task add <project_id> | <title> | due:YYYY-MM-DD | /task list [project_id] [status]"
+    )
 
 
 @router.message(Command("book"))

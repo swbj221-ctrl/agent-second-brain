@@ -2,6 +2,9 @@
 
 ## Log
 - 2026-02-23: Initialized documentation baseline.
+- 2026-02-23: Added Stage 18 Projects & Tasks MVP planning notes (schema, command map, and decision records).
+- 2026-02-23: Implemented Stage 18 Projects & Tasks MVP first pass (schema migration, sidecar actions, Telegram commands, smoke test, docs updates).
+- 2026-02-23: Ran Stage 18 smoke test on MSI and confirmed `stage18_projects_tasks_smoke_ok`.
 - 2026-02-24: Phase A hardening started: added startup config validation, lazy Deepgram import guard, and MSI quickstart/troubleshooting notes.
 - 2026-02-24: Phase B hardening: added sidecar internal error mapping, Telegram handler safety, bounded retries/timeouts for Telegram and STT, and logging polish notes.
 - 2026-02-24: Added Hardening Phase B QA checklist to runbook.

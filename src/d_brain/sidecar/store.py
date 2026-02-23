@@ -232,6 +232,8 @@ class SQLiteStore:
                 "news_item_summaries": self._count_table(conn, "news_item_summaries"),
                 "news_briefings": self._count_table(conn, "news_briefings"),
                 "heartbeat_logs": self._count_table(conn, "heartbeat_logs"),
+                "projects": self._count_table(conn, "projects"),
+                "tasks": self._count_table(conn, "tasks"),
             }
             latest = {
                 "last_heartbeat_at": self._max_timestamp(conn, "heartbeat_logs"),
@@ -2538,6 +2540,233 @@ class SQLiteStore:
             }
             for row in rows
         ]
+
+    def create_project(self, name: str, status: str) -> int:
+        cleaned = normalize_whitespace(name)
+        if not cleaned:
+            raise SidecarError("invalid_payload", "Project name is required.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO projects (
+                    name,
+                    status,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?);
+                """,
+                (cleaned, status, timestamp, timestamp),
+            )
+            return int(cursor.lastrowid)
+
+    def list_projects(
+        self,
+        status: str | None,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        query = "SELECT id, name, status, created_at, updated_at FROM projects"
+        params: list[Any] = []
+        if status:
+            query += " WHERE status = ?"
+            params.append(status)
+        query += " ORDER BY id DESC LIMIT ? OFFSET ?;"
+        params.extend([limit, offset])
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "status": row[2],
+                "created_at": row[3],
+                "updated_at": row[4],
+            }
+            for row in rows
+        ]
+
+    def update_project_status(self, project_id: int, status: str) -> None:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE projects
+                SET status = ?, updated_at = ?
+                WHERE id = ?;
+                """,
+                (status, timestamp, project_id),
+            )
+            if cursor.rowcount == 0:
+                raise SidecarError("not_found", f"Project {project_id} not found.")
+
+    def get_project(self, project_id: int) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, name, status, created_at, updated_at
+                FROM projects
+                WHERE id = ?;
+                """,
+                (project_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "name": row[1],
+            "status": row[2],
+            "created_at": row[3],
+            "updated_at": row[4],
+        }
+
+    def create_task(
+        self,
+        project_id: int,
+        title: str,
+        status: str,
+        due_at: str | None,
+        source_type: str | None,
+        source_ref: str | None,
+    ) -> int:
+        cleaned_title = normalize_whitespace(title)
+        if not cleaned_title:
+            raise SidecarError("invalid_payload", "Task title is required.")
+        cleaned_due = due_at.strip() if due_at and due_at.strip() else None
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM projects WHERE id = ?;",
+                (project_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError("not_found", f"Project {project_id} not found.")
+            cursor = conn.execute(
+                """
+                INSERT INTO tasks (
+                    project_id,
+                    title,
+                    status,
+                    due_at,
+                    source_type,
+                    source_ref,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    project_id,
+                    cleaned_title,
+                    status,
+                    cleaned_due,
+                    source_type,
+                    source_ref,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def list_tasks(
+        self,
+        project_id: int | None,
+        status: str | None,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        query = (
+            "SELECT id, project_id, title, status, due_at, source_type, source_ref, "
+            "created_at, updated_at FROM tasks"
+        )
+        params: list[Any] = []
+        conditions: list[str] = []
+        if project_id:
+            conditions.append("project_id = ?")
+            params.append(project_id)
+        if status:
+            conditions.append("status = ?")
+            params.append(status)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY id DESC LIMIT ? OFFSET ?;"
+        params.extend([limit, offset])
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": row[0],
+                "project_id": row[1],
+                "title": row[2],
+                "status": row[3],
+                "due_at": row[4],
+                "source_type": row[5],
+                "source_ref": row[6],
+                "created_at": row[7],
+                "updated_at": row[8],
+            }
+            for row in rows
+        ]
+
+    def update_task_status(self, task_id: int, status: str) -> None:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE tasks
+                SET status = ?, updated_at = ?
+                WHERE id = ?;
+                """,
+                (status, timestamp, task_id),
+            )
+            if cursor.rowcount == 0:
+                raise SidecarError("not_found", f"Task {task_id} not found.")
+
+    def update_task_project(self, task_id: int, project_id: int) -> None:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM projects WHERE id = ?;",
+                (project_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError("not_found", f"Project {project_id} not found.")
+            cursor = conn.execute(
+                """
+                UPDATE tasks
+                SET project_id = ?, updated_at = ?
+                WHERE id = ?;
+                """,
+                (project_id, timestamp, task_id),
+            )
+            if cursor.rowcount == 0:
+                raise SidecarError("not_found", f"Task {task_id} not found.")
+
+    def get_task(self, task_id: int) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, project_id, title, status, due_at, source_type, source_ref,
+                       created_at, updated_at
+                FROM tasks
+                WHERE id = ?;
+                """,
+                (task_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "project_id": row[1],
+            "title": row[2],
+            "status": row[3],
+            "due_at": row[4],
+            "source_type": row[5],
+            "source_ref": row[6],
+            "created_at": row[7],
+            "updated_at": row[8],
+        }
 
     def create_idea_research_job(
         self,

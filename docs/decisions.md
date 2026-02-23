@@ -9,6 +9,7 @@ Format: `YYYY-MM-DD | Decision | Status | Rationale`
 - 2026-02-23 | English-only project documentation | Accepted | Cyrillic rendering issues in current environment.
 - 2026-02-23 | Reflection voice loop uses in-memory active session state | Accepted | Matches Stage 12 pattern and keeps Telegram layer thin.
 - 2026-02-23 | SQLite backups via stdlib backup API + paired snapshot ZIP rotation | Accepted | Consistent DB snapshots without new deps; snapshots removed when matching DB backup is rotated out.
+- 2026-02-23 | Stage 18 Projects & Tasks use dedicated tables (`projects`, `tasks`) | Accepted | Avoids overloading events/reminders and keeps task status/due date semantics explicit.
 
 Documentation Language Contract:
 All docs and generated documentation must be in English only (no Cyrillic).

@@ -72,6 +72,8 @@ class SummaryResult(BaseModel):
 EventStatus = Literal["planned", "done", "canceled"]
 ReminderStatus = Literal["pending", "triggered", "canceled"]
 CalendarView = Literal["today", "upcoming", "date"]
+ProjectStatus = Literal["active", "archived"]
+TaskStatus = Literal["open", "done", "canceled"]
 
 
 class EventCreatePayload(BaseModel):
@@ -136,6 +138,80 @@ class CalendarViewPayload(BaseModel):
         if self.view == "date" and not (self.date and self.date.strip()):
             raise ValueError("date is required for view=date.")
         return self
+
+
+class ProjectCreatePayload(BaseModel):
+    """Payload for creating a project."""
+
+    name: str = Field(..., min_length=1)
+
+
+class ProjectListPayload(BaseModel):
+    """Payload for listing projects."""
+
+    status: ProjectStatus | None = None
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class ProjectUpdateStatusPayload(BaseModel):
+    """Payload for updating project status."""
+
+    project_id: int = Field(..., ge=1)
+    status: ProjectStatus
+
+
+class ProjectGetPayload(BaseModel):
+    """Payload for retrieving a project."""
+
+    project_id: int = Field(..., ge=1)
+
+
+class TaskCreatePayload(BaseModel):
+    """Payload for creating a task."""
+
+    project_id: int = Field(..., ge=1)
+    title: str = Field(..., min_length=1)
+    status: TaskStatus = "open"
+    due_at: str | None = None
+    source_type: str | None = None
+    source_ref: str | None = None
+
+
+class TaskListPayload(BaseModel):
+    """Payload for listing tasks."""
+
+    project_id: int | None = Field(default=None, ge=1)
+    status: TaskStatus | None = None
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class TaskUpdateStatusPayload(BaseModel):
+    """Payload for updating task status."""
+
+    task_id: int = Field(..., ge=1)
+    status: TaskStatus
+
+
+class TaskUpdateProjectPayload(BaseModel):
+    """Payload for moving a task to another project."""
+
+    task_id: int = Field(..., ge=1)
+    project_id: int = Field(..., ge=1)
+
+
+class TaskNoteAddPayload(BaseModel):
+    """Payload for adding a task note."""
+
+    task_id: int = Field(..., ge=1)
+    text: str = Field(..., min_length=1)
+
+
+class TaskGetPayload(BaseModel):
+    """Payload for retrieving a task."""
+
+    task_id: int = Field(..., ge=1)
 
 
 class EventParsePayload(BaseModel):

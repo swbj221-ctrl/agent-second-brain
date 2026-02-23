@@ -50,6 +50,16 @@ from .models import (
     EventListPayload,
     EventParsePayload,
     EventUpdateStatusPayload,
+    ProjectCreatePayload,
+    ProjectGetPayload,
+    ProjectListPayload,
+    ProjectUpdateStatusPayload,
+    TaskCreatePayload,
+    TaskGetPayload,
+    TaskListPayload,
+    TaskNoteAddPayload,
+    TaskUpdateProjectPayload,
+    TaskUpdateStatusPayload,
     HealthLabReportAddPayload,
     HealthLabReportListPayload,
     HealthMedicationAddPayload,
@@ -485,6 +495,75 @@ def handle_request(
         elif request.action == "event_parse":
             payload = EventParsePayload.model_validate(request.payload or {})
             data = parse_event_text(payload, store)
+        elif request.action == "project_create":
+            payload = ProjectCreatePayload.model_validate(request.payload or {})
+            project_id = store.create_project(payload.name, "active")
+            data = {"project_id": project_id}
+        elif request.action == "project_list":
+            payload = ProjectListPayload.model_validate(request.payload or {})
+            data = {
+                "projects": store.list_projects(payload.status, payload.limit, payload.offset)
+            }
+        elif request.action == "project_update_status":
+            payload = ProjectUpdateStatusPayload.model_validate(request.payload or {})
+            store.update_project_status(payload.project_id, payload.status)
+            data = {"project_id": payload.project_id}
+        elif request.action == "project_get":
+            payload = ProjectGetPayload.model_validate(request.payload or {})
+            project = store.get_project(payload.project_id)
+            if project is None:
+                raise SidecarError(
+                    "not_found",
+                    f"Project {payload.project_id} not found.",
+                )
+            data = {"project": project}
+        elif request.action == "task_create":
+            payload = TaskCreatePayload.model_validate(request.payload or {})
+            task_id = store.create_task(
+                payload.project_id,
+                payload.title,
+                payload.status,
+                payload.due_at,
+                payload.source_type,
+                payload.source_ref,
+            )
+            data = {"task_id": task_id}
+        elif request.action == "task_list":
+            payload = TaskListPayload.model_validate(request.payload or {})
+            data = {
+                "tasks": store.list_tasks(
+                    payload.project_id,
+                    payload.status,
+                    payload.limit,
+                    payload.offset,
+                )
+            }
+        elif request.action == "task_update_status":
+            payload = TaskUpdateStatusPayload.model_validate(request.payload or {})
+            store.update_task_status(payload.task_id, payload.status)
+            data = {"task_id": payload.task_id}
+        elif request.action == "task_update_project":
+            payload = TaskUpdateProjectPayload.model_validate(request.payload or {})
+            store.update_task_project(payload.task_id, payload.project_id)
+            data = {"task_id": payload.task_id, "project_id": payload.project_id}
+        elif request.action == "task_note_add":
+            payload = TaskNoteAddPayload.model_validate(request.payload or {})
+            task = store.get_task(payload.task_id)
+            if task is None:
+                raise SidecarError("not_found", f"Task {payload.task_id} not found.")
+            note_id = store.create_note(
+                title=make_note_title(payload.text),
+                body=payload.text,
+                source_type="task",
+                source_ref=str(payload.task_id),
+            )
+            data = {"note_id": note_id, "task_id": payload.task_id}
+        elif request.action == "task_get":
+            payload = TaskGetPayload.model_validate(request.payload or {})
+            task = store.get_task(payload.task_id)
+            if task is None:
+                raise SidecarError("not_found", f"Task {payload.task_id} not found.")
+            data = {"task": task}
         elif request.action == "reminder_list":
             payload = ReminderListPayload.model_validate(request.payload or {})
             data = {

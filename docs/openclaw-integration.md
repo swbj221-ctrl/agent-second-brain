@@ -1039,3 +1039,60 @@ Response Data:
 ### Delivery Traceability
 - Uses `heartbeat_logs` with `event_type=reminder_delivery`.
 - `event_details` includes `status`, `reminder_id`, `event_id`, `chat_id`, optional `error`.
+
+## Stage 18: Projects & Tasks MVP (First Pass)
+Scope: minimal projects/tasks workflow with dedicated tables. No reminder integration.
+
+### Telegram Command Map
+- `/project add <name>` -> `project_create`
+- `/project list [status]` -> `project_list`
+- `/project archive <project_id>` -> `project_update_status` (`status=archived`)
+- `/task add <project_id> | <title>` -> `task_create`
+- `/task add <project_id> | <title> | due:YYYY-MM-DD` -> `task_create`
+- `/task list [project_id] [status]` -> `task_list`
+- `/task done <task_id>` -> `task_update_status` (`status=done`)
+- `/task reopen <task_id>` -> `task_update_status` (`status=open`)
+- `/task cancel <task_id>` -> `task_update_status` (`status=canceled`)
+- `/task note <task_id> <text>` -> `task_note_add`
+- `/task move <task_id> <project_id>` -> `task_update_project`
+
+### Parsing Notes (MVP)
+- Prefer delimiter-based parsing for add commands: `/task add <project_id> | <title>`.
+- Optional due date uses a suffix: `/task add <project_id> | <title> | due:YYYY-MM-DD`.
+- Use strict date format for due date parsing.
+
+### Actions
+- `project_create`
+- `project_list`
+- `project_update_status`
+- `project_get` (optional)
+- `task_create`
+- `task_list`
+- `task_update_status`
+- `task_update_project`
+- `task_note_add`
+- `task_get` (optional)
+
+### Payload Sketch (MVP)
+- `project_create`: `{ "name": string }`
+- `project_list`: `{ "status"?: "active" | "archived", "limit"?: int, "offset"?: int }`
+- `project_update_status`: `{ "project_id": int, "status": "active" | "archived" }`
+- `project_get`: `{ "project_id": int }`
+- `task_create`: `{ "project_id": int, "title": string, "due_at"?: string (YYYY-MM-DD), "source_type"?: string, "source_ref"?: string }`
+- `task_list`: `{ "project_id"?: int, "status"?: "open" | "done" | "canceled", "limit"?: int, "offset"?: int }`
+- `task_update_status`: `{ "task_id": int, "status": "open" | "done" | "canceled" }`
+- `task_update_project`: `{ "task_id": int, "project_id": int }`
+- `task_note_add`: `{ "task_id": int, "text": string }`
+- `task_get`: `{ "task_id": int }`
+
+### Response Data (MVP)
+- `project_create`: `{ "project_id": int }`
+- `project_list`: `{ "projects": array }`
+- `project_update_status`: `{ "project_id": int }`
+- `project_get`: `{ "project": object }`
+- `task_create`: `{ "task_id": int }`
+- `task_list`: `{ "tasks": array }`
+- `task_update_status`: `{ "task_id": int }`
+- `task_update_project`: `{ "task_id": int, "project_id": int }`
+- `task_note_add`: `{ "note_id": int, "task_id": int }`
+- `task_get`: `{ "task": object }`

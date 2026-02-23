@@ -304,6 +304,17 @@ Troubleshooting note:
       `$env:PYTHONPATH="src"; python scripts/idea_research_smoke.py`
    3. Run Stage 10 smoke (bash):
       `PYTHONPATH=src python scripts/idea_research_smoke.py`
+- Stage 18 Projects & Tasks smoke test (local):
+   0. Apply migrations (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+   1. Apply migrations (bash):
+      `PYTHONPATH=src python scripts/migrate.py apply`
+   2. Run Stage 18 smoke (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/projects_tasks_smoke.py`
+   3. Run Stage 18 smoke (bash):
+      `PYTHONPATH=src python scripts/projects_tasks_smoke.py`
+   4. Expected output includes:
+      `stage18_projects_tasks_smoke_ok`
 - Stage 11 Telegram UX wiring checklist (manual):
    0. Apply migrations (PowerShell):
       `$env:PYTHONPATH="src"; python scripts/migrate.py apply`

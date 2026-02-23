@@ -59,6 +59,10 @@ Purpose: persist minimal state needed by the sidecar backend.
 ## Entities (Stage 14)
 - `note_categories`
 
+## Entities (Stage 18)
+- `projects`
+- `tasks`
+
 ## Fields (Minimal)
 - Common: `id` (PK), `created_at`/`updated_at` timestamps where applicable.
 - `artifacts`: `source_type`, `source_ref`, `content_type`, `content_path`, `content_hash`.
@@ -110,6 +114,8 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `idea_research_reports`: `run_id` (FK), `report_text`, `report_format`,
   `created_at`, `updated_at`.
 - `note_categories`: `note_id` (FK), `category`, `created_at`, `updated_at`.
+- `projects`: `name`, `status`, `created_at`, `updated_at`.
+- `tasks`: `project_id` (FK), `title`, `status`, `due_at`, `source_type`, `source_ref`, `created_at`, `updated_at`.
 
 ## News Dedupe (Stage 6)
 Deterministic dedupe uses `content_hash` computed from a normalized JSON payload:
@@ -127,3 +133,5 @@ Deterministic dedupe uses `content_hash` computed from a normalized JSON payload
 
 ## Notes
 - Keep schema minimal; avoid storing large context blobs.
+- Stage 18 statuses: projects use `active`/`archived`; tasks use `open`/`done`/`canceled`.
+- `tasks.due_at` is optional (nullable).
