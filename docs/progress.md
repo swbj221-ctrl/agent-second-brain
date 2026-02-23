@@ -37,6 +37,7 @@
 - 2026-02-23: Implemented Stage 15 first pass (news briefing generation + Telegram delivery jobs, manual commands, scheduler script, systemd units, and docs updates).
 - 2026-02-23: Made Telegram delivery dependency import-safe with lazy `httpx` loading and documented the dependency note in the runbook.
 - 2026-02-23: Implemented Stage 16 first pass (reminder delivery job, calendar-style Telegram views, heartbeat traceability, and docs updates). Manual Telegram verification on MSI pending before marking completed.
+- 2026-02-23: Implemented Stage 16B Backup & Restore MVP (backup config, scheduler job, backup script, docs snapshot ZIP, and Windows Task Scheduler runbook section). Manual MSI verification pending (backup creation + restore integrity check).
 
 ## Next
 - Stage 6: News MVP (second pass: summaries + briefing pipeline + exactly 5 key events).

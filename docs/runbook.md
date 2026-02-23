@@ -19,6 +19,84 @@ TODO: steps to start local services, env vars, and health checks.
 - Rollback: `python scripts/migrate.py rollback`
 - Status: `python scripts/migrate.py status`
 
+## Backup & Restore (SQLite)
+### Backup (manual, Windows PowerShell)
+1. Create a backup (direct helper):
+   `$env:PYTHONPATH="src"; python scripts/db_backup_job.py --run`
+2. Create a backup (scheduler job):
+   `$env:PYTHONPATH="src"; python scripts/db_backup_job.py --job db_backup_weekly`
+
+Output includes:
+- `backup_path=...`
+- `snapshot_path=...` (if enabled)
+- `integrity_check=ok` (if check ran)
+
+### Backup Configuration (env)
+- `BACKUP_DIR` (default: `./data/backups`)
+- `BACKUP_PREFIX` (default: `db_backup`)
+- `BACKUP_RETENTION` (default: `6`)
+- `BACKUP_SNAPSHOT_ENABLED` (default: `true`)
+- `BACKUP_SNAPSHOT_PATHS` (default: `["docs"]`)
+
+### Rotation Policy
+- Rotation keeps the newest `BACKUP_RETENTION` DB backups.
+- When a DB backup is rotated out, its paired snapshot ZIP (same timestamp) is removed as well.
+
+### Restore Verification (manual, Windows PowerShell)
+1. Stop the bot/sidecar process.
+2. Copy the backup file to a restore target:
+   `Copy-Item .\data\backups\db_backup_YYYYMMDD_HHMMSSZ.sqlite .\data\app_restored.db`
+3. Run integrity check on the restored DB:
+   `$env:PYTHONPATH="src"; python - <<'PY'\nimport sqlite3\nwith sqlite3.connect(\"data/app_restored.db\") as conn:\n    row = conn.execute(\"PRAGMA integrity_check;\").fetchone()\n    print(row[0])\nPY`
+   Expected output: `ok`
+4. Optional sanity query:
+   `$env:PYTHONPATH="src"; python - <<'PY'\nimport sqlite3\nwith sqlite3.connect(\"data/app_restored.db\") as conn:\n    print(conn.execute(\"SELECT COUNT(*) FROM artifacts;\").fetchone()[0])\nPY`
+5. If you want to restore in place:
+   - Stop all processes using the DB.
+   - Replace `data/app.db` with `data/app_restored.db`.
+
+### Scheduling (Windows Task Scheduler)
+- Program/script: `python`
+- Arguments:
+  `scripts/db_backup_job.py --run`
+- Start in: `D:\openclaw_bot\agent-second-brain`
+
+### Windows Task Scheduler Setup (Weekly Backups)
+1. Open Task Scheduler.
+2. Click `Create Task...` (not "Create Basic Task").
+3. **General** tab:
+   - Name: `OpenClaw Weekly SQLite Backup`
+   - Description: `Weekly local SQLite backup via db_backup_job.py`
+   - Security options: select `Run whether user is logged on or not`.
+   - Check `Run with highest privileges`.
+4. **Triggers** tab:
+   - Click `New...`
+   - Begin the task: `On a schedule`
+   - Settings: `Weekly`
+   - Select the desired day and time
+   - Enabled: checked
+5. **Actions** tab:
+   - Click `New...`
+   - Action: `Start a program`
+   - Program/script: `D:\openclaw_bot\agent-second-brain\scripts\run_weekly_backup.bat`
+   - Add arguments: (leave empty)
+   - Start in: `D:\openclaw_bot\agent-second-brain`
+6. **Conditions** tab:
+   - Optional: uncheck `Start the task only if the computer is on AC power` (if you want it to run on battery).
+7. **Settings** tab:
+   - Check `Allow task to be run on demand`.
+   - Check `If the task fails, restart every` and set `5 minutes` for `3` attempts.
+   - Check `Stop the task if it runs longer than` and set `1 hour`.
+
+### Task Scheduler Verification
+1. Right-click the task -> `Run`.
+2. Confirm a new backup appears in `data\backups`.
+3. Check the log file:
+   - `logs\backup_weekly.log`
+4. If it fails, review:
+   - `logs\backup_weekly.log`
+   - Task History tab (enable `All Tasks History` if disabled)
+
 ## Verification
 - Scheduler smoke test (no-op): run a short script or REPL and call
   `Scheduler(build_default_registry()).run_once("noop")`.

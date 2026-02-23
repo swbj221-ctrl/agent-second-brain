@@ -65,6 +65,26 @@ class Settings(BaseSettings):
         default=32_768,
         description="Max JSON payload size for sidecar requests in bytes.",
     )
+    backup_dir: Path = Field(
+        default=Path("./data/backups"),
+        description="Directory where database backups are stored.",
+    )
+    backup_prefix: str = Field(
+        default="db_backup",
+        description="Filename prefix for database backups.",
+    )
+    backup_retention: int = Field(
+        default=6,
+        description="How many recent backups to keep (rotation).",
+    )
+    backup_snapshot_enabled: bool = Field(
+        default=True,
+        description="Whether to create a project snapshot ZIP alongside DB backups.",
+    )
+    backup_snapshot_paths: list[str] = Field(
+        default_factory=lambda: ["docs"],
+        description="Project-relative paths to include in backup snapshot ZIP.",
+    )
 
     @property
     def daily_path(self) -> Path:

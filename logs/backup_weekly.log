@@ -1,0 +1,22 @@
+backup_path=data\backups\db_backup_20260223_224018Z.sqlite
+snapshot_path=data\backups\db_backup_20260223_224018Z_snapshot.zip
+integrity_check=ok
+Traceback (most recent call last):
+  File "D:\openclaw_bot\agent-second-brain\scripts\db_backup_job.py", line 48, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "D:\openclaw_bot\agent-second-brain\scripts\db_backup_job.py", line 31, in main
+    settings = get_settings()
+               ^^^^^^^^^^^^^^
+  File "D:\openclaw_bot\agent-second-brain\src\d_brain\config.py", line 107, in get_settings
+    return Settings()
+           ^^^^^^^^^^
+  File "D:\openclaw_bot\agent-second-brain\venv\Lib\site-packages\pydantic_settings\main.py", line 242, in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+  File "D:\openclaw_bot\agent-second-brain\venv\Lib\site-packages\pydantic\main.py", line 250, in __init__
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+telegram_bot_token
+  Field required [type=missing, input_value={}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing

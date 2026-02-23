@@ -10,6 +10,7 @@ from .jobs import (
     reminder_delivery_telegram_job,
     news_briefing_deliver_telegram_job,
     news_briefing_generate_daily_job,
+    db_backup_weekly_job,
 )
 
 JobFunc = Callable[[], None]
@@ -53,4 +54,5 @@ def build_default_registry() -> JobRegistry:
     registry.register("reminder_delivery_telegram", reminder_delivery_telegram_job)
     registry.register("news_briefing_generate_daily", news_briefing_generate_daily_job)
     registry.register("news_briefing_deliver_telegram", news_briefing_deliver_telegram_job)
+    registry.register("db_backup_weekly", db_backup_weekly_job)
     return registry

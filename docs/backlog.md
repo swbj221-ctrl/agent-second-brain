@@ -336,6 +336,36 @@ Acceptance Criteria
 Status
 - Implemented first pass; manual Telegram verification on MSI pending.
 
+### Stage 16B: Backup & Restore MVP (First Pass, Narrow Scope) (P1)
+Goals
+- Weekly SQLite backups with rotation.
+- Manual restore verification workflow (documented and repeatable).
+- Optional project snapshot ZIP for docs/ (and optional deploy/scripts).
+
+Scope (first pass only)
+- Local filesystem only.
+- No cloud backup integration.
+- No encryption.
+- Windows MSI first; Linux note optional.
+- Standard library only.
+
+Tasks
+- Add backup settings to config and `.env.example`.
+- Implement backup + rotation using SQLite backup API.
+- Add optional snapshot ZIP (docs/ default, configurable paths).
+- Add scheduler-compatible job and a direct backup script.
+- Document backup/restore and scheduling in runbook.
+
+Acceptance Criteria
+- Backup can be created manually on MSI and produces a valid SQLite backup file.
+- Rotation removes old backups based on configured retention.
+- Restore workflow is documented and manually verified (copy + integrity check path).
+- Scheduling path is documented (Windows Task Scheduler).
+- Docs updated during implementation.
+
+Status
+- Implemented first pass; manual MSI verification pending (backup creation + restore integrity check). Weekly backups are required operational control.
+
 ### Stage 17: Web Dashboard MVP (Postponed)
 Status
 - Postponed. Do not prioritize until Stage 16 is manually verified.

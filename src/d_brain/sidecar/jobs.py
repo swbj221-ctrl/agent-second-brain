@@ -15,6 +15,7 @@ from d_brain.services.telegram_delivery import (
     send_to_allowed_users,
     send_telegram_message,
 )
+from d_brain.services.db_backup import run_backup
 
 
 def noop_job() -> None:
@@ -165,3 +166,9 @@ def news_briefing_deliver_telegram_job() -> None:
                 "error": result.error,
             },
         )
+
+
+def db_backup_weekly_job() -> None:
+    """Create a weekly SQLite backup and optional project snapshot."""
+    settings = get_settings()
+    run_backup(settings, project_root=None)
