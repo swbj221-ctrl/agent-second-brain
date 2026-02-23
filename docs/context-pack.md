@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Establish a clean, English-only documentation baseline aligned with the approved architecture.
+- Stage 1 foundation: base schema migrations, minimal interface draft, and scheduler skeleton.
 
 ## Goals
 - Ship a stable, minimal core pipeline

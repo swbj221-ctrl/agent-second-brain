@@ -22,6 +22,14 @@ class Settings(BaseSettings):
         default=Path("./vault"),
         description="Path to Obsidian vault directory",
     )
+    db_path: Path = Field(
+        default=Path("./data/app.db"),
+        description="Path to SQLite database file",
+    )
+    migrations_path: Path = Field(
+        default=Path("./deploy/migrations"),
+        description="Path to SQL migration files",
+    )
     allowed_user_ids: list[int] = Field(
         default_factory=list,
         description="List of Telegram user IDs allowed to use the bot",

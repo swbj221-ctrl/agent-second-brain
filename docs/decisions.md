@@ -15,8 +15,11 @@ Reason: Cyrillic rendering is unreliable in the current environment.
 
 ## Pending
 - Persistence store selection
-- Migration toolchain
 - Interface contract between skill and sidecar
+
+## Updates
+- 2026-02-23 | Migration workflow using `scripts/migrate.py` + SQL files | Accepted | Simple, local SQLite-friendly baseline for Stage 1.
+- 2026-02-23 | Stage 1 base schema tables | Accepted | Use `artifacts`, `artifact_summaries`, `notes`, `jobs`, `app_settings`, `app_feature_flags`.
 
 # Architectural Decisions
 

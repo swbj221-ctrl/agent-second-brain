@@ -31,7 +31,7 @@ Goals
 
 Tasks
 - Define main skill boundaries and sidecar API contract.
-- Add base DB tables: `tasks`, `runs`, `artifacts`, `events`.
+- Add base DB tables: `artifacts`, `artifact_summaries`, `notes`, `jobs`, `app_settings`, `app_feature_flags`.
 - Implement migration workflow (create/apply/rollback).
 - Set up scheduler stub and job registry.
 - Add payload limits and validation to prevent context bloat.

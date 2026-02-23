@@ -10,10 +10,14 @@
 TODO: steps to start local services, env vars, and health checks.
 
 ## Migrations
-TODO: how to create, apply, and rollback migrations.
+- Create: `python scripts/migrate.py create <name>`
+- Apply: `python scripts/migrate.py apply`
+- Rollback: `python scripts/migrate.py rollback`
+- Status: `python scripts/migrate.py status`
 
 ## Verification
-TODO: tests, linters, and smoke checks.
+- Scheduler smoke test (no-op): run a short script or REPL and call
+  `Scheduler(build_default_registry()).run_once("noop")`.
 
 ## Debugging
 TODO: logs, tracing, and common failure modes.
