@@ -847,3 +847,24 @@ Provider-agnostic adapters are used for speech:
 4. Generate assistant reply via a reply generator boundary.
 5. Append assistant turn via `english_session_turn_append`.
 6. For voice: TTS output is returned if configured; otherwise send text reply.
+
+## Stage 13: Reflection Voice Loop MVP (First Pass)
+Scope: message-based reflection voice loop in Telegram using existing reflection session storage.
+
+### Telegram Entry Points
+- `/reflect start` opens a reflection session and activates reflection mode for the user.
+- `/reflect close <session_id> [summary]` closes the session and exits reflection mode.
+- While reflection mode is active, voice and text messages route to the reflection flow.
+
+### STT/TTS Adapters
+- Reuse the Stage 12 provider-agnostic STT adapter for transcript generation.
+- Reuse the Stage 12 provider-agnostic TTS adapter for voice replies.
+- Missing providers return structured errors; text fallback is always available.
+
+### Reflection Flow (Message-Based)
+1. Voice or text input received.
+2. For voice: STT transcript produced (default language).
+3. Append user turn via `reflection_turn_append`.
+4. Generate assistant reply via a reply generator boundary.
+5. Append assistant turn via `reflection_turn_append`.
+6. For voice: TTS output is returned if configured; otherwise send text reply.

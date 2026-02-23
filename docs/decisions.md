@@ -7,6 +7,7 @@ Format: `YYYY-MM-DD | Decision | Status | Rationale`
 - 2026-02-23 | Local LLM as utility layer | Accepted | Fast, cheap utility tasks; keep reasoning in Codex.
 - 2026-02-23 | Anti-context-bloat | Accepted | Reduce prompt drift and cost.
 - 2026-02-23 | English-only project documentation | Accepted | Cyrillic rendering issues in current environment.
+- 2026-02-23 | Reflection voice loop uses in-memory active session state | Accepted | Matches Stage 12 pattern and keeps Telegram layer thin.
 
 Documentation Language Contract:
 All docs and generated documentation must be in English only (no Cyrillic).

@@ -202,7 +202,7 @@ Behavior Requirements
 - Voice in -> transcript -> append user turn -> generate assistant reply -> append assistant turn -> TTS out (or mocked TTS response path).
 - Conversational practice style (not correcting every sentence).
 - Assistant continues conversation and asks questions.
-- Optional session metadata for target duration (10–20 min) if provided.
+- Optional session metadata for target duration (10-20 min) if provided.
 - No pronunciation scoring.
 - No aggressive grammar correction engine.
 - No spaced repetition logic.
@@ -223,3 +223,39 @@ Acceptance Criteria
 - Text fallback uses the same tutor flow and session storage.
 - STT/TTS adapters are provider-agnostic and return structured errors on missing config.
 - Minimal manual verification checklist is documented.
+
+### Stage 13: Reflection Voice Loop MVP (First Pass, Narrow Scope) (P1)
+Goals
+- Add a message-based reflection voice loop in Telegram that reuses Stage 12 voice plumbing and existing reflection storage.
+
+Scope (first pass only)
+- Telegram voice message intake path (message-based, not real-time call).
+- Reuse STT adapter and TTS adapter interfaces.
+- Reflection session wiring to existing `reflection_sessions` / `reflection_turns`.
+- Assistant reply generation path via existing integration boundary (Codex/adapter or placeholder).
+- Text fallback path for the same reflection flow.
+
+Behavior Requirements
+- Voice in -> transcript -> append user reflection turn -> generate assistant reply -> append assistant turn -> TTS out (or text fallback).
+- Reflection style is objective, calm, and structured (no flattery or always-agreeing).
+- No diagnosis/therapy claims.
+- No crisis workflow automation.
+- No advanced memory retrieval across reflections.
+- No real-time streaming/call mode yet.
+
+Constraints
+- Reuse existing Reflection MVP tables/actions where possible.
+- Keep Telegram layer thin.
+- Reuse Stage 12 STT/TTS adapters and patterns.
+- Local LLM remains utility-only.
+- Codex handles reflective reply generation.
+- Graceful errors if STT/TTS provider or credentials are missing.
+- Documentation remains English-only.
+- Update docs during implementation.
+
+Acceptance Criteria
+- Telegram can accept a voice message for Reflection MVP and route it through STT -> reflection session -> reply.
+- Assistant reply is persisted in `reflection_turns`.
+- TTS adapter interface is reused and text fallback works cleanly when unavailable.
+- Missing provider/credential errors are handled gracefully.
+- Manual verification checklist is documented in the runbook.

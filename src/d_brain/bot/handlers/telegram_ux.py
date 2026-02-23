@@ -10,6 +10,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
+from d_brain.services.reflection_voice import ReflectionVoiceService
 from d_brain.services.sidecar_client import call_sidecar_action
 
 router = Router(name="telegram_ux")
@@ -341,12 +342,15 @@ async def cmd_reflect(message: Message) -> None:
         return
     sub = parts[1].lower()
     if sub == "start":
-        result = call_sidecar_action("reflection_session_create", {}, _user_id(message))
-        if result.status != "ok":
-            await message.answer(_format_error(result.error_code, result.error_message))
+        service = ReflectionVoiceService()
+        session_id, error = service.start_session(_user_id(message), _source_ref(message))
+        if error:
+            await message.answer(error)
             return
-        session_id = result.data.get("session_id") if result.data else None
-        await message.answer(f"Reflection session started. id={session_id}")
+        await message.answer(
+            f"Reflection session started. id={session_id}. "
+            "Voice or text messages now route to reflection mode."
+        )
         return
     if sub == "add":
         if len(parts) < 4:
@@ -377,12 +381,10 @@ async def cmd_reflect(message: Message) -> None:
             await message.answer("Invalid session_id. Use an integer.")
             return
         summary = parts[3].strip() if len(parts) > 3 else None
-        payload = {"session_id": int(session_id_raw)}
-        if summary:
-            payload["summary_text"] = summary
-        result = call_sidecar_action("reflection_session_close", payload, _user_id(message))
-        if result.status != "ok":
-            await message.answer(_format_error(result.error_code, result.error_message))
+        service = ReflectionVoiceService()
+        error = service.close_session_by_id(_user_id(message), int(session_id_raw), summary)
+        if error:
+            await message.answer(error)
             return
         await message.answer(f"Reflection session closed. id={session_id_raw}")
         return

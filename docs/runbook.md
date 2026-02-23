@@ -180,7 +180,7 @@ TODO: steps to start local services, env vars, and health checks.
       `/topic add Travel`
       `/topic list`
    5. News:
-      `/news latest` (expect “No records found.” if empty)
+      `/news latest` (expect "No records found." if empty)
    6. Health:
       `/health add Headache`
       `/health list`
@@ -189,7 +189,7 @@ TODO: steps to start local services, env vars, and health checks.
       `/reflect add <session_id> Feeling focused today`
       `/reflect close <session_id>`
    8. Digest:
-      `/digest latest` (expect “No records found.” if empty)
+      `/digest latest` (expect "No records found." if empty)
    9. Codex usage:
       `/usage`
 
@@ -208,6 +208,20 @@ TODO: steps to start local services, env vars, and health checks.
       `/tutor status`
    6. Stop tutor session:
       `/tutor stop`
+
+- Stage 13 Reflection Voice Loop MVP checklist (manual):
+   0. Apply migrations (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+   1. Start the bot (same as current run flow).
+   2. Start reflection session:
+      `/reflect start`
+   3. Send a short text message and verify a reply is returned.
+   4. Send a voice message and verify:
+      - STT produces a transcript (or a clear STT error if not configured).
+      - Both user and assistant turns are stored in `reflection_turns`.
+      - If TTS is configured, a voice reply is returned; otherwise text fallback is returned.
+   5. Close reflection session:
+      `/reflect close <session_id> [summary]`
 
 ## Debugging
 TODO: logs, tracing, and common failure modes.

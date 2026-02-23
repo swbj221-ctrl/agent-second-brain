@@ -8,6 +8,10 @@ from aiogram.types import BufferedInputFile, Message
 
 from d_brain.config import get_settings
 from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
+from d_brain.services.reflection_voice import (
+    ReflectionVoiceService,
+    get_active_reflection_session,
+)
 from d_brain.services.session import SessionStore
 from d_brain.services.storage import VaultStorage
 from d_brain.services.transcription import build_stt_adapter
@@ -28,6 +32,7 @@ async def handle_voice(message: Message, bot: Bot) -> None:
     settings = get_settings()
     stt = build_stt_adapter(settings)
     tts = build_tts_adapter(settings)
+    reflection_service = ReflectionVoiceService()
     tutor_service = EnglishTutorService()
 
     try:
@@ -42,6 +47,34 @@ async def handle_voice(message: Message, bot: Bot) -> None:
             return
 
         audio_bytes = file_bytes.read()
+        reflection_state = get_active_reflection_session(message.from_user.id)
+        if reflection_state:
+            stt_result = await stt.transcribe(audio_bytes, language=settings.stt_language_default)
+            if not stt_result.ok:
+                await message.answer(
+                    stt_result.error_message or "STT is unavailable. Please try text."
+                )
+                return
+            transcript = stt_result.text.strip()
+            if not transcript:
+                await message.answer("Could not transcribe audio.")
+                return
+            reply_text, error = await reflection_service.handle_user_turn(
+                message.from_user.id, transcript
+            )
+            if error:
+                await message.answer(error)
+                return
+            tts_result = await tts.speak(reply_text or "", voice=settings.tts_voice)
+            if tts_result.ok and tts_result.audio_bytes:
+                voice_file = BufferedInputFile(
+                    tts_result.audio_bytes, filename="tutor-reply.ogg"
+                )
+                await message.answer_voice(voice=voice_file)
+            else:
+                await message.answer(reply_text or "")
+            return
+
         tutor_state = get_active_tutor_session(message.from_user.id)
         if tutor_state:
             stt_result = await stt.transcribe(audio_bytes, language="en")
