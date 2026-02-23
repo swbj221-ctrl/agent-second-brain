@@ -155,6 +155,8 @@ Tasks
 
 Acceptance Criteria
 - Health summary generated from structured inputs.
+Status
+- Completed (first pass implemented and validated on MSI).
 
 ### Stage 10: Idea Research / Product Factory (P3)
 Goals

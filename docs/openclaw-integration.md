@@ -592,6 +592,128 @@ Optional:
 Response Data:
 - `usage_logs` (array)
 
+## Stage 9: Health MVP (First Pass)
+Scope: structured health tracking and artifact linking only. No diagnosis or recommendations.
+
+### Actions
+- `health_record_add`
+- `health_record_list`
+- `health_medication_add`
+- `health_medication_list`
+- `health_treatment_add`
+- `health_treatment_list`
+- `health_observation_add`
+- `health_observation_list`
+- `health_lab_report_add`
+- `health_lab_report_list` (optional)
+
+### Health Record Add Payload (action = health_record_add)
+Required:
+- `title` (string)
+
+Optional:
+- `record_type` (string)
+- `notes` (string)
+- `occurred_at` (string, ISO 8601)
+- `source_type` (string)
+- `source_ref` (string)
+
+Response Data:
+- `record_id` (integer)
+
+### Health Record List Payload (action = health_record_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `records` (array)
+
+### Health Medication Add Payload (action = health_medication_add)
+Required:
+- `name` (string)
+
+Optional:
+- `dosage` (string)
+- `schedule` (string)
+- `started_at` (string, ISO 8601 or date)
+- `ended_at` (string, ISO 8601 or date)
+- `notes` (string)
+
+Response Data:
+- `medication_id` (integer)
+
+### Health Medication List Payload (action = health_medication_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `medications` (array)
+
+### Health Treatment Add Payload (action = health_treatment_add)
+Required:
+- `name` (string)
+
+Optional:
+- `description` (string)
+- `started_at` (string, ISO 8601 or date)
+- `ended_at` (string, ISO 8601 or date)
+- `notes` (string)
+
+Response Data:
+- `treatment_id` (integer)
+
+### Health Treatment List Payload (action = health_treatment_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `treatments` (array)
+
+### Health Observation Add Payload (action = health_observation_add)
+Required:
+- `observation_type` (string)
+
+Optional:
+- `value` (string)
+- `unit` (string)
+- `observed_at` (string, ISO 8601)
+- `notes` (string)
+
+Response Data:
+- `observation_id` (integer)
+
+### Health Observation List Payload (action = health_observation_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `observations` (array)
+
+### Health Lab Report Add Payload (action = health_lab_report_add)
+Required:
+- `artifact_id` (int)
+
+Optional:
+- `title` (string)
+- `report_date` (string, ISO 8601 or date)
+- `notes` (string)
+
+Response Data:
+- `lab_report_id` (integer)
+
+### Health Lab Report List Payload (action = health_lab_report_list)
+Optional:
+- `artifact_id` (int)
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `lab_reports` (array)
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.

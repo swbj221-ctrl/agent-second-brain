@@ -31,6 +31,16 @@ from .models import (
     EventListPayload,
     EventParsePayload,
     EventUpdateStatusPayload,
+    HealthLabReportAddPayload,
+    HealthLabReportListPayload,
+    HealthMedicationAddPayload,
+    HealthMedicationListPayload,
+    HealthObservationAddPayload,
+    HealthObservationListPayload,
+    HealthRecordAddPayload,
+    HealthRecordListPayload,
+    HealthTreatmentAddPayload,
+    HealthTreatmentListPayload,
     HeartbeatTickPayload,
     IngestPayload,
     NewsItemIngestPayload,
@@ -148,6 +158,80 @@ def handle_request(
             data = {
                 "sessions": store.list_reflection_sessions(
                     payload.status, payload.limit, payload.offset
+                )
+            }
+        elif request.action == "health_record_add":
+            payload = HealthRecordAddPayload.model_validate(request.payload or {})
+            record_id = store.create_health_record(
+                title=payload.title,
+                record_type=payload.record_type,
+                notes=payload.notes,
+                occurred_at=payload.occurred_at,
+                source_type=payload.source_type,
+                source_ref=payload.source_ref,
+            )
+            data = {"record_id": record_id}
+        elif request.action == "health_record_list":
+            payload = HealthRecordListPayload.model_validate(request.payload or {})
+            data = {"records": store.list_health_records(payload.limit, payload.offset)}
+        elif request.action == "health_medication_add":
+            payload = HealthMedicationAddPayload.model_validate(request.payload or {})
+            medication_id = store.create_health_medication(
+                name=payload.name,
+                dosage=payload.dosage,
+                schedule=payload.schedule,
+                started_at=payload.started_at,
+                ended_at=payload.ended_at,
+                notes=payload.notes,
+            )
+            data = {"medication_id": medication_id}
+        elif request.action == "health_medication_list":
+            payload = HealthMedicationListPayload.model_validate(request.payload or {})
+            data = {
+                "medications": store.list_health_medications(payload.limit, payload.offset)
+            }
+        elif request.action == "health_treatment_add":
+            payload = HealthTreatmentAddPayload.model_validate(request.payload or {})
+            treatment_id = store.create_health_treatment(
+                name=payload.name,
+                description=payload.description,
+                started_at=payload.started_at,
+                ended_at=payload.ended_at,
+                notes=payload.notes,
+            )
+            data = {"treatment_id": treatment_id}
+        elif request.action == "health_treatment_list":
+            payload = HealthTreatmentListPayload.model_validate(request.payload or {})
+            data = {"treatments": store.list_health_treatments(payload.limit, payload.offset)}
+        elif request.action == "health_observation_add":
+            payload = HealthObservationAddPayload.model_validate(request.payload or {})
+            observation_id = store.create_health_observation(
+                observation_type=payload.observation_type,
+                value=payload.value,
+                unit=payload.unit,
+                observed_at=payload.observed_at,
+                notes=payload.notes,
+            )
+            data = {"observation_id": observation_id}
+        elif request.action == "health_observation_list":
+            payload = HealthObservationListPayload.model_validate(request.payload or {})
+            data = {
+                "observations": store.list_health_observations(payload.limit, payload.offset)
+            }
+        elif request.action == "health_lab_report_add":
+            payload = HealthLabReportAddPayload.model_validate(request.payload or {})
+            report_id = store.create_health_lab_report(
+                artifact_id=payload.artifact_id,
+                title=payload.title,
+                report_date=payload.report_date,
+                notes=payload.notes,
+            )
+            data = {"lab_report_id": report_id}
+        elif request.action == "health_lab_report_list":
+            payload = HealthLabReportListPayload.model_validate(request.payload or {})
+            data = {
+                "lab_reports": store.list_health_lab_reports(
+                    payload.artifact_id, payload.limit, payload.offset
                 )
             }
         elif request.action == "heartbeat_tick":

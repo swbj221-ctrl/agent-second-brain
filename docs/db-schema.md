@@ -43,6 +43,13 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `codex_usage_logs`
 - `codex_limits_settings`
 
+## Entities (Stage 9)
+- `health_records`
+- `health_medications`
+- `health_treatments`
+- `health_observations`
+- `health_lab_reports`
+
 ## Fields (Minimal)
 - Common: `id` (PK), `created_at`/`updated_at` timestamps where applicable.
 - `artifacts`: `source_type`, `source_ref`, `content_type`, `content_path`, `content_hash`.
@@ -76,6 +83,16 @@ Purpose: persist minimal state needed by the sidecar backend.
   `created_at`.
 - `codex_limits_settings`: `scope_key`, `window_hours`, `max_tokens`, `max_requests`,
   `max_latency_ms`, `warn_ratio`, `critical_ratio`, `updated_at`.
+- `health_records`: `record_type`, `title`, `notes`, `occurred_at`, `source_type`,
+  `source_ref`, `created_at`, `updated_at`.
+- `health_medications`: `name`, `dosage`, `schedule`, `started_at`, `ended_at`,
+  `notes`, `created_at`, `updated_at`.
+- `health_treatments`: `name`, `description`, `started_at`, `ended_at`, `notes`,
+  `created_at`, `updated_at`.
+- `health_observations`: `observation_type`, `value`, `unit`, `observed_at`, `notes`,
+  `created_at`, `updated_at`.
+- `health_lab_reports`: `artifact_id` (FK), `title`, `report_date`, `notes`,
+  `created_at`, `updated_at`.
 
 ## News Dedupe (Stage 6)
 Deterministic dedupe uses `content_hash` computed from a normalized JSON payload:

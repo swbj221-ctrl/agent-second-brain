@@ -145,6 +145,15 @@ TODO: steps to start local services, env vars, and health checks.
       `$env:PYTHONPATH="src"; python scripts/codex_limits_smoke.py`
    3. Run Stage 8 smoke (bash):
       `PYTHONPATH=src python scripts/codex_limits_smoke.py`
+ - Stage 9 Health MVP smoke test (local):
+   0. Apply migrations (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+   1. Apply migrations (bash):
+      `PYTHONPATH=src python scripts/migrate.py apply`
+   2. Run Stage 9 smoke (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/health_mvp_smoke.py`
+   3. Run Stage 9 smoke (bash):
+      `PYTHONPATH=src python scripts/health_mvp_smoke.py`
 
 ## Debugging
 TODO: logs, tracing, and common failure modes.

@@ -1186,6 +1186,374 @@ class SQLiteStore:
             for row in rows
         ]
 
+    def create_health_record(
+        self,
+        title: str,
+        record_type: str | None,
+        notes: str | None,
+        occurred_at: str | None,
+        source_type: str | None,
+        source_ref: str | None,
+    ) -> int:
+        cleaned_title = title.strip()
+        if not cleaned_title:
+            raise SidecarError("invalid_payload", "Health record title is required.")
+        cleaned_type = record_type.strip() if record_type and record_type.strip() else None
+        cleaned_notes = notes.strip() if notes and notes.strip() else None
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO health_records (
+                    record_type,
+                    title,
+                    notes,
+                    occurred_at,
+                    source_type,
+                    source_ref,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    cleaned_type,
+                    cleaned_title,
+                    cleaned_notes,
+                    occurred_at,
+                    source_type,
+                    source_ref,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def list_health_records(self, limit: int, offset: int) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id,
+                       record_type,
+                       title,
+                       notes,
+                       occurred_at,
+                       source_type,
+                       source_ref,
+                       created_at,
+                       updated_at
+                FROM health_records
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (limit, offset),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "record_type": row[1],
+                "title": row[2],
+                "notes": row[3],
+                "occurred_at": row[4],
+                "source_type": row[5],
+                "source_ref": row[6],
+                "created_at": row[7],
+                "updated_at": row[8],
+            }
+            for row in rows
+        ]
+
+    def create_health_medication(
+        self,
+        name: str,
+        dosage: str | None,
+        schedule: str | None,
+        started_at: str | None,
+        ended_at: str | None,
+        notes: str | None,
+    ) -> int:
+        cleaned_name = name.strip()
+        if not cleaned_name:
+            raise SidecarError("invalid_payload", "Medication name is required.")
+        cleaned_notes = notes.strip() if notes and notes.strip() else None
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO health_medications (
+                    name,
+                    dosage,
+                    schedule,
+                    started_at,
+                    ended_at,
+                    notes,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    cleaned_name,
+                    dosage,
+                    schedule,
+                    started_at,
+                    ended_at,
+                    cleaned_notes,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def list_health_medications(self, limit: int, offset: int) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id,
+                       name,
+                       dosage,
+                       schedule,
+                       started_at,
+                       ended_at,
+                       notes,
+                       created_at,
+                       updated_at
+                FROM health_medications
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (limit, offset),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "dosage": row[2],
+                "schedule": row[3],
+                "started_at": row[4],
+                "ended_at": row[5],
+                "notes": row[6],
+                "created_at": row[7],
+                "updated_at": row[8],
+            }
+            for row in rows
+        ]
+
+    def create_health_treatment(
+        self,
+        name: str,
+        description: str | None,
+        started_at: str | None,
+        ended_at: str | None,
+        notes: str | None,
+    ) -> int:
+        cleaned_name = name.strip()
+        if not cleaned_name:
+            raise SidecarError("invalid_payload", "Treatment name is required.")
+        cleaned_notes = notes.strip() if notes and notes.strip() else None
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO health_treatments (
+                    name,
+                    description,
+                    started_at,
+                    ended_at,
+                    notes,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    cleaned_name,
+                    description,
+                    started_at,
+                    ended_at,
+                    cleaned_notes,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def list_health_treatments(self, limit: int, offset: int) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id,
+                       name,
+                       description,
+                       started_at,
+                       ended_at,
+                       notes,
+                       created_at,
+                       updated_at
+                FROM health_treatments
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (limit, offset),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "description": row[2],
+                "started_at": row[3],
+                "ended_at": row[4],
+                "notes": row[5],
+                "created_at": row[6],
+                "updated_at": row[7],
+            }
+            for row in rows
+        ]
+
+    def create_health_observation(
+        self,
+        observation_type: str,
+        value: str | None,
+        unit: str | None,
+        observed_at: str | None,
+        notes: str | None,
+    ) -> int:
+        cleaned_type = observation_type.strip()
+        if not cleaned_type:
+            raise SidecarError("invalid_payload", "Observation type is required.")
+        cleaned_notes = notes.strip() if notes and notes.strip() else None
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO health_observations (
+                    observation_type,
+                    value,
+                    unit,
+                    observed_at,
+                    notes,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    cleaned_type,
+                    value,
+                    unit,
+                    observed_at,
+                    cleaned_notes,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def list_health_observations(self, limit: int, offset: int) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id,
+                       observation_type,
+                       value,
+                       unit,
+                       observed_at,
+                       notes,
+                       created_at,
+                       updated_at
+                FROM health_observations
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (limit, offset),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "observation_type": row[1],
+                "value": row[2],
+                "unit": row[3],
+                "observed_at": row[4],
+                "notes": row[5],
+                "created_at": row[6],
+                "updated_at": row[7],
+            }
+            for row in rows
+        ]
+
+    def create_health_lab_report(
+        self,
+        artifact_id: int,
+        title: str | None,
+        report_date: str | None,
+        notes: str | None,
+    ) -> int:
+        cleaned_title = title.strip() if title and title.strip() else None
+        cleaned_notes = notes.strip() if notes and notes.strip() else None
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM artifacts WHERE id = ?;",
+                (artifact_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError(
+                    "not_found", f"Artifact {artifact_id} not found."
+                )
+            cursor = conn.execute(
+                """
+                INSERT INTO health_lab_reports (
+                    artifact_id,
+                    title,
+                    report_date,
+                    notes,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    artifact_id,
+                    cleaned_title,
+                    report_date,
+                    cleaned_notes,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def list_health_lab_reports(
+        self,
+        artifact_id: int | None,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        query = (
+            "SELECT id, artifact_id, title, report_date, notes, created_at, updated_at "
+            "FROM health_lab_reports"
+        )
+        params: list[Any] = []
+        if artifact_id is not None:
+            query += " WHERE artifact_id = ?"
+            params.append(artifact_id)
+        query += " ORDER BY id DESC LIMIT ? OFFSET ?;"
+        params.extend([limit, offset])
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": row[0],
+                "artifact_id": row[1],
+                "title": row[2],
+                "report_date": row[3],
+                "notes": row[4],
+                "created_at": row[5],
+                "updated_at": row[6],
+            }
+            for row in rows
+        ]
+
     def create_news_section(
         self,
         name: str,

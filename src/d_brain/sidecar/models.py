@@ -206,6 +206,93 @@ class ReflectionSessionListPayload(BaseModel):
     offset: int = Field(default=0, ge=0)
 
 
+class HealthRecordAddPayload(BaseModel):
+    """Payload for adding a generic health record."""
+
+    title: str = Field(..., min_length=1)
+    record_type: str | None = None
+    notes: str | None = None
+    occurred_at: str | None = None
+    source_type: str | None = None
+    source_ref: str | None = None
+
+
+class HealthRecordListPayload(BaseModel):
+    """Payload for listing health records."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class HealthMedicationAddPayload(BaseModel):
+    """Payload for adding a health medication."""
+
+    name: str = Field(..., min_length=1)
+    dosage: str | None = None
+    schedule: str | None = None
+    started_at: str | None = None
+    ended_at: str | None = None
+    notes: str | None = None
+
+
+class HealthMedicationListPayload(BaseModel):
+    """Payload for listing health medications."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class HealthTreatmentAddPayload(BaseModel):
+    """Payload for adding a health treatment."""
+
+    name: str = Field(..., min_length=1)
+    description: str | None = None
+    started_at: str | None = None
+    ended_at: str | None = None
+    notes: str | None = None
+
+
+class HealthTreatmentListPayload(BaseModel):
+    """Payload for listing health treatments."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class HealthObservationAddPayload(BaseModel):
+    """Payload for adding a health observation."""
+
+    observation_type: str = Field(..., min_length=1)
+    value: str | None = None
+    unit: str | None = None
+    observed_at: str | None = None
+    notes: str | None = None
+
+
+class HealthObservationListPayload(BaseModel):
+    """Payload for listing health observations."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class HealthLabReportAddPayload(BaseModel):
+    """Payload for linking a lab report artifact."""
+
+    artifact_id: int = Field(..., ge=1)
+    title: str | None = None
+    report_date: str | None = None
+    notes: str | None = None
+
+
+class HealthLabReportListPayload(BaseModel):
+    """Payload for listing lab report links."""
+
+    artifact_id: int | None = Field(default=None, ge=1)
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
 class HeartbeatTickPayload(BaseModel):
     """Payload for recording a heartbeat log entry."""
 
