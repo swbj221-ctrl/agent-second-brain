@@ -12,6 +12,13 @@ from d_brain.config import Settings, get_settings
 from .errors import SidecarError
 from .ingestion import ingest_payload
 from .models import (
+    EnglishSessionClosePayload,
+    EnglishSessionCreatePayload,
+    EnglishSessionTurnAppendPayload,
+    EnglishTopicAddPayload,
+    EnglishTopicListPayload,
+    EnglishWordAddPayload,
+    EnglishWordListPayload,
     EventCreatePayload,
     EventListPayload,
     EventParsePayload,
@@ -62,6 +69,37 @@ def handle_request(
         if request.action == "ingest":
             payload = IngestPayload.model_validate(request.payload or {})
             data = ingest_payload(payload, store)
+        elif request.action == "english_word_add":
+            payload = EnglishWordAddPayload.model_validate(request.payload or {})
+            word_id = store.create_english_word(payload.word)
+            data = {"word_id": word_id}
+        elif request.action == "english_word_list":
+            payload = EnglishWordListPayload.model_validate(request.payload or {})
+            data = {"words": store.list_english_words(payload.limit, payload.offset)}
+        elif request.action == "english_topic_add":
+            payload = EnglishTopicAddPayload.model_validate(request.payload or {})
+            topic_id = store.create_english_topic(payload.name)
+            data = {"topic_id": topic_id}
+        elif request.action == "english_topic_list":
+            payload = EnglishTopicListPayload.model_validate(request.payload or {})
+            data = {"topics": store.list_english_topics(payload.limit, payload.offset)}
+        elif request.action == "english_session_create":
+            payload = EnglishSessionCreatePayload.model_validate(request.payload or {})
+            session_id = store.create_english_session(payload.topic_id)
+            data = {"session_id": session_id}
+        elif request.action == "english_session_turn_append":
+            payload = EnglishSessionTurnAppendPayload.model_validate(request.payload or {})
+            turn_id = store.append_english_session_turn(
+                payload.session_id,
+                payload.role,
+                payload.content,
+            )
+            data = {"turn_id": turn_id}
+        elif request.action == "english_session_close":
+            payload = EnglishSessionClosePayload.model_validate(request.payload or {})
+            summary = (payload.summary_text or "").strip() or "Summary pending."
+            store.close_english_session(payload.session_id, summary)
+            data = {"session_id": payload.session_id, "summary_text": summary}
         elif request.action == "event_create":
             payload = EventCreatePayload.model_validate(request.payload or {})
             data = create_event_with_default_reminder(payload, store)

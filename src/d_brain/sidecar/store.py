@@ -346,3 +346,193 @@ class SQLiteStore:
                 ),
             )
             return int(cursor.lastrowid)
+
+    def create_english_word(self, word: str) -> int:
+        cleaned = word.strip().lower()
+        if not cleaned:
+            raise SidecarError("invalid_payload", "Word is required.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO english_words (
+                    word,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?);
+                """,
+                (cleaned, timestamp, timestamp),
+            )
+            row = conn.execute(
+                "SELECT id FROM english_words WHERE word = ?;",
+                (cleaned,),
+            ).fetchone()
+        if not row:
+            raise SidecarError("storage_error", "Failed to insert word.")
+        return int(row[0])
+
+    def list_english_words(self, limit: int, offset: int) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, word, created_at, updated_at
+                FROM english_words
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (limit, offset),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "word": row[1],
+                "created_at": row[2],
+                "updated_at": row[3],
+            }
+            for row in rows
+        ]
+
+    def create_english_topic(self, name: str) -> int:
+        cleaned = name.strip()
+        if not cleaned:
+            raise SidecarError("invalid_payload", "Topic name is required.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO english_topics (
+                    name,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?);
+                """,
+                (cleaned, timestamp, timestamp),
+            )
+            row = conn.execute(
+                "SELECT id FROM english_topics WHERE name = ?;",
+                (cleaned,),
+            ).fetchone()
+        if not row:
+            raise SidecarError("storage_error", "Failed to insert topic.")
+        return int(row[0])
+
+    def list_english_topics(self, limit: int, offset: int) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, name, created_at, updated_at
+                FROM english_topics
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (limit, offset),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "created_at": row[2],
+                "updated_at": row[3],
+            }
+            for row in rows
+        ]
+
+    def create_english_session(self, topic_id: int | None) -> int:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            if topic_id is not None:
+                row = conn.execute(
+                    "SELECT id FROM english_topics WHERE id = ?;",
+                    (topic_id,),
+                ).fetchone()
+                if not row:
+                    raise SidecarError(
+                        "not_found",
+                        f"English topic {topic_id} not found.",
+                    )
+            cursor = conn.execute(
+                """
+                INSERT INTO english_sessions (
+                    topic_id,
+                    status,
+                    opened_at,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?);
+                """,
+                (topic_id, "open", timestamp, timestamp, timestamp),
+            )
+            return int(cursor.lastrowid)
+
+    def append_english_session_turn(
+        self,
+        session_id: int,
+        role: str,
+        content: str,
+    ) -> int:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT status FROM english_sessions WHERE id = ?;",
+                (session_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError("not_found", f"English session {session_id} not found.")
+            if row[0] != "open":
+                raise SidecarError(
+                    "invalid_state",
+                    f"English session {session_id} is not open.",
+                )
+            cursor = conn.execute(
+                """
+                INSERT INTO english_session_turns (
+                    session_id,
+                    role,
+                    content,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?);
+                """,
+                (session_id, role, content, timestamp),
+            )
+            conn.execute(
+                """
+                UPDATE english_sessions
+                SET updated_at = ?
+                WHERE id = ?;
+                """,
+                (timestamp, session_id),
+            )
+            return int(cursor.lastrowid)
+
+    def close_english_session(self, session_id: int, summary_text: str) -> None:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE english_sessions
+                SET status = 'closed',
+                    closed_at = ?,
+                    summary_text = ?,
+                    updated_at = ?
+                WHERE id = ? AND status = 'open';
+                """,
+                (timestamp, summary_text, timestamp, session_id),
+            )
+            if cursor.rowcount == 0:
+                row = conn.execute(
+                    "SELECT id FROM english_sessions WHERE id = ?;",
+                    (session_id,),
+                ).fetchone()
+                if not row:
+                    raise SidecarError(
+                        "not_found",
+                        f"English session {session_id} not found.",
+                    )
+                raise SidecarError(
+                    "invalid_state",
+                    f"English session {session_id} is not open.",
+                )

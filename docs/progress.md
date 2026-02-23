@@ -11,6 +11,9 @@
 - 2026-02-23: Started Stage 3 plans/reminders with schema, dispatcher actions, and reminder tick job.
 - 2026-02-23: Added Stage 3 smoke tests including parse path and parse log validation.
 - 2026-02-23: Stage 3 completed and validated by local smoke tests on MSI (default + parse mode).
+- 2026-02-23: Added Stage 4 English MVP schema migration and sidecar actions (words, topics, sessions).
+- 2026-02-23: Added Stage 4 English MVP smoke test script and runbook steps.
+- 2026-02-23: Documented Stage 4 English MVP sidecar actions in OpenClaw integration notes.
 
 ## Next
 - Stage 4: English MVP.

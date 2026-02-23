@@ -122,3 +122,53 @@ class EventParsePayload(BaseModel):
     text: str = Field(..., min_length=1)
     source_type: str | None = None
     source_ref: str | None = None
+
+
+class EnglishWordAddPayload(BaseModel):
+    """Payload for adding an English word."""
+
+    word: str = Field(..., min_length=1)
+
+
+class EnglishWordListPayload(BaseModel):
+    """Payload for listing English words."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class EnglishTopicAddPayload(BaseModel):
+    """Payload for adding an English topic."""
+
+    name: str = Field(..., min_length=1)
+
+
+class EnglishTopicListPayload(BaseModel):
+    """Payload for listing English topics."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class EnglishSessionCreatePayload(BaseModel):
+    """Payload for creating an English session."""
+
+    topic_id: int | None = Field(default=None, ge=1)
+
+
+EnglishSessionRole = Literal["user", "assistant", "system"]
+
+
+class EnglishSessionTurnAppendPayload(BaseModel):
+    """Payload for appending a session turn."""
+
+    session_id: int = Field(..., ge=1)
+    role: EnglishSessionRole
+    content: str = Field(..., min_length=1)
+
+
+class EnglishSessionClosePayload(BaseModel):
+    """Payload for closing an English session."""
+
+    session_id: int = Field(..., ge=1)
+    summary_text: str | None = None

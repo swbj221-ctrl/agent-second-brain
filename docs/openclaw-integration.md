@@ -155,6 +155,75 @@ Required:
 ### Reminder Trigger (action = reminder_trigger_due)
 No payload. Triggers due reminders and marks them as `triggered`.
 
+## Stage 4: English MVP Contract (First Pass)
+Scope: English learning storage and session lifecycle. Reuse the Stage 1 request/response envelope.
+
+### Actions
+- `english_word_add`
+- `english_word_list`
+- `english_topic_add`
+- `english_topic_list`
+- `english_session_create`
+- `english_session_turn_append`
+- `english_session_close`
+
+### Word Add Payload (action = english_word_add)
+Required:
+- `word` (string)
+
+Response Data:
+- `word_id` (integer)
+
+### Word List Payload (action = english_word_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `words` (array): each item includes `id`, `word`, `created_at`, `updated_at`.
+
+### Topic Add Payload (action = english_topic_add)
+Required:
+- `name` (string)
+
+Response Data:
+- `topic_id` (integer)
+
+### Topic List Payload (action = english_topic_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `topics` (array): each item includes `id`, `name`, `created_at`, `updated_at`.
+
+### Session Create Payload (action = english_session_create)
+Optional:
+- `topic_id` (int)
+
+Response Data:
+- `session_id` (integer)
+
+### Session Turn Append Payload (action = english_session_turn_append)
+Required:
+- `session_id` (int)
+- `role` (string): `user`, `assistant`, or `system`
+- `content` (string)
+
+Response Data:
+- `turn_id` (integer)
+
+### Session Close Payload (action = english_session_close)
+Required:
+- `session_id` (int)
+
+Optional:
+- `summary_text` (string)
+
+Response Data:
+- `session_id` (integer)
+- `summary_text` (string)
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.

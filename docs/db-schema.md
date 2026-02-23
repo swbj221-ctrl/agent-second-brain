@@ -16,6 +16,13 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `event_reminders`
 - `event_parse_logs`
 
+## Entities (Stage 4)
+- `english_words`
+- `english_topics`
+- `english_sessions`
+- `english_session_turns`
+- `english_session_word_usage`
+
 ## Fields (Minimal)
 - Common: `id` (PK), `created_at`/`updated_at` timestamps where applicable.
 - `artifacts`: `source_type`, `source_ref`, `content_type`, `content_path`, `content_hash`.
@@ -27,6 +34,11 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `events`: `title`, `body`, `start_at`, `end_at`, `status`, `source_type`, `source_ref`.
 - `event_reminders`: `event_id` (FK), `remind_at`, `status`, `triggered_at`.
 - `event_parse_logs`: `source_type`, `source_ref`, `input_excerpt`, `input_hash`, `input_length`, `parse_status`, `error_message`, `event_id` (FK, nullable).
+- `english_words`: `word` (unique).
+- `english_topics`: `name` (unique).
+- `english_sessions`: `topic_id` (FK, nullable), `status`, `opened_at`, `closed_at`, `summary_text`.
+- `english_session_turns`: `session_id` (FK), `role`, `content`.
+- `english_session_word_usage`: `session_id` (FK), `word_id` (FK), `usage_count`.
 
 ## Migrations
 - Tool: `scripts/migrate.py` (SQLite)

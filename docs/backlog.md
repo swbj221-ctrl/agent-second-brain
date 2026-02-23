@@ -81,6 +81,8 @@ Tasks
 
 Acceptance Criteria
 - All user-facing templates and docs remain English-only.
+Status
+- In progress (first pass implemented; Stage 4 smoke test pending).
 
 ### Stage 5: Reflection MVP (P2)
 Goals
