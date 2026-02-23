@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 13: Reflection Voice Loop MVP (first pass) implemented; manual Telegram verification pending on MSI.
+- Stage 14: Books / Philosophy / Knowledge UX MVP (first pass) implemented; manual Telegram verification pending on MSI.
 
 ## Goals
 - Ship a stable, minimal core pipeline
@@ -48,6 +48,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 11 Telegram UX wiring MVP completed; manual Telegram verification on MSI pending
 - Stage 12 Voice English Tutor MVP first pass implemented; manual Telegram verification on MSI pending
 - Stage 13 Reflection Voice Loop MVP first pass implemented; manual Telegram verification on MSI pending
+- Stage 14 Books / Philosophy / Knowledge UX MVP first pass implemented; manual Telegram verification on MSI pending
 
 ## Key Paths
 - `docs/` operational documentation

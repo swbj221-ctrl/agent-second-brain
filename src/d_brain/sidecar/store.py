@@ -209,6 +209,7 @@ class SQLiteStore:
                 "artifacts": self._count_table(conn, "artifacts"),
                 "artifact_summaries": self._count_table(conn, "artifact_summaries"),
                 "notes": self._count_table(conn, "notes"),
+                "note_categories": self._count_table(conn, "note_categories"),
                 "events": self._count_table(conn, "events"),
                 "event_reminders": self._count_table(conn, "event_reminders"),
                 "english_words": self._count_table(conn, "english_words"),
@@ -596,6 +597,94 @@ class SQLiteStore:
                 ),
             )
             return int(cursor.lastrowid)
+
+    def get_artifact(self, artifact_id: int) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, external_id, source_type, source_ref, content_type,
+                       content_path, content_hash, created_at, updated_at
+                FROM artifacts
+                WHERE id = ?;
+                """,
+                (artifact_id,),
+            ).fetchone()
+        if not row:
+            raise SidecarError("not_found", f"Artifact {artifact_id} not found.")
+        return {
+            "id": row[0],
+            "external_id": row[1],
+            "source_type": row[2],
+            "source_ref": row[3],
+            "content_type": row[4],
+            "content_path": row[5],
+            "content_hash": row[6],
+            "created_at": row[7],
+            "updated_at": row[8],
+        }
+
+    def get_artifact_summary(self, artifact_id: int) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, summary_text, summary_format, model_ref, created_at, updated_at
+                FROM artifact_summaries
+                WHERE artifact_id = ?
+                ORDER BY id DESC
+                LIMIT 1;
+                """,
+                (artifact_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "summary_text": row[1],
+            "summary_format": row[2],
+            "model_ref": row[3],
+            "created_at": row[4],
+            "updated_at": row[5],
+        }
+
+    def list_artifacts_by_source_type(
+        self,
+        source_type: str,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        cleaned = normalize_whitespace(source_type)
+        if not cleaned:
+            raise SidecarError("invalid_payload", "source_type is required.")
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT a.id, a.source_type, a.source_ref, a.content_type,
+                       a.content_path, a.content_hash, a.created_at, a.updated_at,
+                       s.summary_text, s.summary_format, s.model_ref
+                FROM artifacts a
+                LEFT JOIN artifact_summaries s ON s.artifact_id = a.id
+                WHERE a.source_type = ?
+                ORDER BY a.id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (cleaned, limit, offset),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "source_type": row[1],
+                "source_ref": row[2],
+                "content_type": row[3],
+                "content_path": row[4],
+                "content_hash": row[5],
+                "created_at": row[6],
+                "updated_at": row[7],
+                "summary_text": row[8],
+                "summary_format": row[9],
+                "model_ref": row[10],
+            }
+            for row in rows
+        ]
 
     def create_summary(
         self,
@@ -2223,6 +2312,78 @@ class SQLiteStore:
                 (title, body, source_type, source_ref, timestamp, timestamp),
             )
             return int(cursor.lastrowid)
+
+    def add_note_category(self, note_id: int, category: str) -> int:
+        cleaned = normalize_whitespace(category)
+        if not cleaned:
+            raise SidecarError("invalid_payload", "Category is required.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM notes WHERE id = ?;",
+                (note_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError("not_found", f"Note {note_id} not found.")
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO note_categories (
+                    note_id,
+                    category,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?);
+                """,
+                (note_id, cleaned, timestamp, timestamp),
+            )
+            note_category_id = int(cursor.lastrowid or 0)
+            if note_category_id:
+                return note_category_id
+            row = conn.execute(
+                """
+                SELECT id FROM note_categories
+                WHERE note_id = ? AND category = ?;
+                """,
+                (note_id, cleaned),
+            ).fetchone()
+            return int(row[0]) if row else 0
+
+    def list_notes_by_category(
+        self,
+        category: str,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        cleaned = normalize_whitespace(category)
+        if not cleaned:
+            raise SidecarError("invalid_payload", "Category is required.")
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT n.id, n.title, n.body, n.source_type, n.source_ref,
+                       n.created_at, n.updated_at
+                FROM notes n
+                JOIN note_categories nc ON nc.note_id = n.id
+                WHERE nc.category = ?
+                ORDER BY n.id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (cleaned, limit, offset),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "title": row[1],
+                "body": row[2],
+                "source_type": row[3],
+                "source_ref": row[4],
+                "created_at": row[5],
+                "updated_at": row[6],
+                "category": cleaned,
+            }
+            for row in rows
+        ]
 
     def create_idea_research_job(
         self,

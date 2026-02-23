@@ -223,5 +223,25 @@ TODO: steps to start local services, env vars, and health checks.
    5. Close reflection session:
       `/reflect close <session_id> [summary]`
 
+- Stage 14 Books / Philosophy / Knowledge UX MVP checklist (manual):
+   0. Apply migrations (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+   1. Start the bot (same as current run flow).
+   2. Books:
+      `/book add Deep Work by Cal Newport`
+      `/book list`
+   3. Philosophy:
+      `/philosophy add https://example.com/stoicism`
+      `/philosophy list`
+   4. Knowledge inbox:
+      `/inbox add https://example.com/interesting.pdf`
+      `/inbox list`
+   5. Summarize:
+      `/inbox summarize <artifact_id>`
+   6. Save:
+      `/inbox save <artifact_id> [Optional title]`
+   7. Verify persistence in SQLite:
+      - `artifacts`, `artifact_summaries`, `notes`, `note_categories`
+
 ## Debugging
 TODO: logs, tracing, and common failure modes.

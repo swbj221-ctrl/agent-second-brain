@@ -206,6 +206,63 @@ class ReflectionSessionListPayload(BaseModel):
     offset: int = Field(default=0, ge=0)
 
 
+class BooksAddPayload(BaseModel):
+    """Payload for adding a book entry."""
+
+    content: str = Field(..., min_length=1)
+    source_ref: str | None = None
+
+
+class BooksListPayload(BaseModel):
+    """Payload for listing book entries."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class PhilosophyAddPayload(BaseModel):
+    """Payload for adding a philosophy entry."""
+
+    content: str = Field(..., min_length=1)
+    source_ref: str | None = None
+
+
+class PhilosophyListPayload(BaseModel):
+    """Payload for listing philosophy entries."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class KnowledgeInboxAddPayload(BaseModel):
+    """Payload for adding a knowledge inbox item."""
+
+    content: str = Field(..., min_length=1)
+    summary_format: str = Field(default="plain", min_length=1)
+    source_ref: str | None = None
+    external_id: str | None = None
+
+
+class KnowledgeInboxListPayload(BaseModel):
+    """Payload for listing knowledge inbox items."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class KnowledgeItemSummarizePayload(BaseModel):
+    """Payload for retrieving a knowledge item summary."""
+
+    artifact_id: int = Field(..., ge=1)
+
+
+class KnowledgeItemSavePayload(BaseModel):
+    """Payload for saving a knowledge item to notes."""
+
+    artifact_id: int = Field(..., ge=1)
+    note_title: str | None = None
+
+
 class HealthRecordAddPayload(BaseModel):
     """Payload for adding a generic health record."""
 

@@ -868,3 +868,112 @@ Scope: message-based reflection voice loop in Telegram using existing reflection
 4. Generate assistant reply via a reply generator boundary.
 5. Append assistant turn via `reflection_turn_append`.
 6. For voice: TTS output is returned if configured; otherwise send text reply.
+
+## Stage 14: Books / Philosophy / Knowledge UX MVP (First Pass)
+Scope: text-only UX with reuse-first storage. No new heavy schema.
+
+### Storage Strategy
+- Knowledge inbox items use `artifacts` + `artifact_summaries` via the existing ingest pipeline.
+- Durable saved entries use `notes`.
+- Categorization uses a minimal `note_categories` link table.
+
+### Telegram Entry Points
+- `/book add <text or url>` -> `books_add`
+- `/book list` -> `books_list`
+- `/philosophy add <text or url>` -> `philosophy_add`
+- `/philosophy list` -> `philosophy_list`
+- `/inbox add <text or url>` -> `knowledge_inbox_add`
+- `/inbox list` -> `knowledge_inbox_list`
+- `/inbox summarize <id>` -> `knowledge_item_summarize`
+- `/inbox save <id> [title]` -> `knowledge_item_save_to_db`
+
+### Actions
+- `books_add`
+- `books_list`
+- `philosophy_add`
+- `philosophy_list`
+- `knowledge_inbox_add`
+- `knowledge_inbox_list`
+- `knowledge_item_summarize`
+- `knowledge_item_save_to_db`
+
+### Books Add Payload (action = books_add)
+Required:
+- `content` (string)
+
+Optional:
+- `source_ref` (string)
+
+Response Data:
+- `note_id` (integer)
+
+### Books List Payload (action = books_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `books` (array of notes)
+
+### Philosophy Add Payload (action = philosophy_add)
+Required:
+- `content` (string)
+
+Optional:
+- `source_ref` (string)
+
+Response Data:
+- `note_id` (integer)
+
+### Philosophy List Payload (action = philosophy_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `items` (array of notes)
+
+### Knowledge Inbox Add Payload (action = knowledge_inbox_add)
+Required:
+- `content` (string)
+
+Optional:
+- `summary_format` (string, default `plain`)
+- `source_ref` (string)
+- `external_id` (string)
+
+Response Data:
+- `artifact_id` (integer)
+- `summary_id` (integer)
+- `summary_text` (string)
+- `summary_format` (string)
+- `model_ref` (string)
+
+### Knowledge Inbox List Payload (action = knowledge_inbox_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `items` (array of artifacts with summaries)
+
+### Knowledge Item Summarize Payload (action = knowledge_item_summarize)
+Required:
+- `artifact_id` (int)
+
+Response Data:
+- `artifact_id` (integer)
+- `summary_id` (integer)
+- `summary_text` (string)
+- `summary_format` (string)
+- `model_ref` (string)
+
+### Knowledge Item Save Payload (action = knowledge_item_save_to_db)
+Required:
+- `artifact_id` (int)
+
+Optional:
+- `note_title` (string)
+
+Response Data:
+- `note_id` (integer)

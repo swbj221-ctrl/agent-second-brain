@@ -24,6 +24,14 @@ from .models import (
     EnglishTopicListPayload,
     EnglishWordAddPayload,
     EnglishWordListPayload,
+    BooksAddPayload,
+    BooksListPayload,
+    PhilosophyAddPayload,
+    PhilosophyListPayload,
+    KnowledgeInboxAddPayload,
+    KnowledgeInboxListPayload,
+    KnowledgeItemSummarizePayload,
+    KnowledgeItemSavePayload,
     DigestGeneratePayload,
     DigestGetLatestPayload,
     DigestListPayload,
@@ -91,6 +99,13 @@ def payload_size_bytes(payload: dict[str, Any]) -> int:
     """Calculate JSON-encoded payload size in bytes."""
     raw = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
     return len(raw.encode("utf-8"))
+
+
+def make_note_title(content: str, max_len: int = 80) -> str:
+    cleaned = " ".join(content.strip().split())
+    if len(cleaned) <= max_len:
+        return cleaned
+    return f"{cleaned[: max_len - 3]}..."
 
 
 def enforce_payload_limit(payload: dict[str, Any] | None, limit_bytes: int) -> None:
@@ -171,6 +186,102 @@ def handle_request(
                     payload.status, payload.limit, payload.offset
                 )
             }
+        elif request.action == "books_add":
+            payload = BooksAddPayload.model_validate(request.payload or {})
+            content = payload.content.strip()
+            title = make_note_title(content)
+            note_id = store.create_note(
+                title=title,
+                body=content,
+                source_type="books",
+                source_ref=payload.source_ref,
+            )
+            store.add_note_category(note_id, "books")
+            data = {"note_id": note_id}
+        elif request.action == "books_list":
+            payload = BooksListPayload.model_validate(request.payload or {})
+            data = {
+                "books": store.list_notes_by_category(
+                    "books",
+                    payload.limit,
+                    payload.offset,
+                )
+            }
+        elif request.action == "philosophy_add":
+            payload = PhilosophyAddPayload.model_validate(request.payload or {})
+            content = payload.content.strip()
+            title = make_note_title(content)
+            note_id = store.create_note(
+                title=title,
+                body=content,
+                source_type="philosophy",
+                source_ref=payload.source_ref,
+            )
+            store.add_note_category(note_id, "philosophy")
+            data = {"note_id": note_id}
+        elif request.action == "philosophy_list":
+            payload = PhilosophyListPayload.model_validate(request.payload or {})
+            data = {
+                "items": store.list_notes_by_category(
+                    "philosophy",
+                    payload.limit,
+                    payload.offset,
+                )
+            }
+        elif request.action == "knowledge_inbox_add":
+            payload = KnowledgeInboxAddPayload.model_validate(request.payload or {})
+            ingest = IngestPayload(
+                source_type="knowledge_inbox",
+                content_type="text",
+                summary_format=payload.summary_format,
+                external_id=payload.external_id,
+                source_ref=payload.source_ref,
+                content=payload.content,
+            )
+            data = ingest_payload(ingest, store)
+        elif request.action == "knowledge_inbox_list":
+            payload = KnowledgeInboxListPayload.model_validate(request.payload or {})
+            data = {
+                "items": store.list_artifacts_by_source_type(
+                    "knowledge_inbox",
+                    payload.limit,
+                    payload.offset,
+                )
+            }
+        elif request.action == "knowledge_item_summarize":
+            payload = KnowledgeItemSummarizePayload.model_validate(request.payload or {})
+            summary = store.get_artifact_summary(payload.artifact_id)
+            if summary is None:
+                raise SidecarError(
+                    "not_found",
+                    f"No summary found for artifact {payload.artifact_id}.",
+                )
+            data = {
+                "artifact_id": payload.artifact_id,
+                "summary_id": summary["id"],
+                "summary_text": summary["summary_text"],
+                "summary_format": summary["summary_format"],
+                "model_ref": summary["model_ref"],
+            }
+        elif request.action == "knowledge_item_save_to_db":
+            payload = KnowledgeItemSavePayload.model_validate(request.payload or {})
+            artifact = store.get_artifact(payload.artifact_id)
+            summary = store.get_artifact_summary(payload.artifact_id)
+            if summary is None:
+                raise SidecarError(
+                    "not_found",
+                    f"No summary found for artifact {payload.artifact_id}.",
+                )
+            title = payload.note_title or f"Knowledge item {payload.artifact_id}"
+            source_ref = artifact.get("source_ref") or f"artifact:{payload.artifact_id}"
+            note_id = store.create_note(
+                title=title,
+                body=summary["summary_text"],
+                source_type="knowledge_inbox",
+                source_ref=source_ref,
+            )
+            store.add_note_category(note_id, "knowledge")
+            data = {"note_id": note_id}
         elif request.action == "health_record_add":
             payload = HealthRecordAddPayload.model_validate(request.payload or {})
             record_id = store.create_health_record(

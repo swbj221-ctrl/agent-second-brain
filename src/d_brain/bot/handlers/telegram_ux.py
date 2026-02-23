@@ -52,6 +52,14 @@ def _render_list(items: list[dict[str, Any]], line_builder) -> str:
     return "\n".join(lines[:50])
 
 
+def _note_title(item: dict[str, Any]) -> str:
+    title = (item.get("title") or "").strip()
+    if title:
+        return title
+    body = (item.get("body") or "").strip()
+    return body[:80] + ("..." if len(body) > 80 else "")
+
+
 @router.message(Command("plan"))
 async def cmd_plan(message: Message) -> None:
     text = message.text or ""
@@ -143,6 +151,151 @@ async def cmd_note(message: Message) -> None:
         await message.answer(f"Saved. Summary: {summary_text}")
     else:
         await message.answer("Saved.")
+
+
+@router.message(Command("book"))
+async def cmd_book(message: Message) -> None:
+    text = message.text or ""
+    parts = _split_args(text, maxsplit=2)
+    if len(parts) < 2:
+        await message.answer("Usage: /book add <text or url> | /book list")
+        return
+    sub = parts[1].lower()
+    if sub == "add":
+        if len(parts) < 3:
+            await message.answer("Usage: /book add <text or url>")
+            return
+        payload = {"content": parts[2].strip(), "source_ref": _source_ref(message)}
+        result = call_sidecar_action("books_add", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        note_id = result.data.get("note_id") if result.data else None
+        await message.answer(f"Book added. id={note_id}")
+        return
+    if sub == "list":
+        result = call_sidecar_action(
+            "books_list",
+            {"limit": 50, "offset": 0},
+            _user_id(message),
+        )
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        books = (result.data or {}).get("books", [])
+        output = _render_list(books, lambda b: f"#{b['id']} {_note_title(b)}")
+        await message.answer(output)
+        return
+    await message.answer("Usage: /book add <text or url> | /book list")
+
+
+@router.message(Command("philosophy"))
+async def cmd_philosophy(message: Message) -> None:
+    text = message.text or ""
+    parts = _split_args(text, maxsplit=2)
+    if len(parts) < 2:
+        await message.answer("Usage: /philosophy add <text or url> | /philosophy list")
+        return
+    sub = parts[1].lower()
+    if sub == "add":
+        if len(parts) < 3:
+            await message.answer("Usage: /philosophy add <text or url>")
+            return
+        payload = {"content": parts[2].strip(), "source_ref": _source_ref(message)}
+        result = call_sidecar_action("philosophy_add", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        note_id = result.data.get("note_id") if result.data else None
+        await message.answer(f"Philosophy entry added. id={note_id}")
+        return
+    if sub == "list":
+        result = call_sidecar_action(
+            "philosophy_list",
+            {"limit": 50, "offset": 0},
+            _user_id(message),
+        )
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        items = (result.data or {}).get("items", [])
+        output = _render_list(items, lambda i: f"#{i['id']} {_note_title(i)}")
+        await message.answer(output)
+        return
+    await message.answer("Usage: /philosophy add <text or url> | /philosophy list")
+
+
+@router.message(Command("inbox"))
+async def cmd_inbox(message: Message) -> None:
+    text = message.text or ""
+    parts = _split_args(text, maxsplit=3)
+    if len(parts) < 2:
+        await message.answer(
+            "Usage: /inbox add <text or url> | /inbox list | /inbox summarize <id> | /inbox save <id> [title]"
+        )
+        return
+    sub = parts[1].lower()
+    if sub == "add":
+        if len(parts) < 3:
+            await message.answer("Usage: /inbox add <text or url>")
+            return
+        payload = {"content": parts[2].strip(), "source_ref": _source_ref(message)}
+        result = call_sidecar_action("knowledge_inbox_add", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        artifact_id = result.data.get("artifact_id") if result.data else None
+        summary_text = (result.data or {}).get("summary_text", "")
+        summary_text = summary_text.strip()
+        if summary_text:
+            await message.answer(f"Inbox item saved. id={artifact_id}\nSummary: {summary_text}")
+        else:
+            await message.answer(f"Inbox item saved. id={artifact_id}")
+        return
+    if sub == "list":
+        result = call_sidecar_action(
+            "knowledge_inbox_list",
+            {"limit": 50, "offset": 0},
+            _user_id(message),
+        )
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        items = (result.data or {}).get("items", [])
+        output = _render_list(
+            items,
+            lambda i: f"#{i['id']} {(i.get('source_ref') or '').strip() or 'inbox item'}",
+        )
+        await message.answer(output)
+        return
+    if sub == "summarize":
+        if len(parts) < 3 or not parts[2].isdigit():
+            await message.answer("Usage: /inbox summarize <id>")
+            return
+        payload = {"artifact_id": int(parts[2])}
+        result = call_sidecar_action("knowledge_item_summarize", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        summary_text = (result.data or {}).get("summary_text", "")
+        await message.answer(summary_text or "Summary not available.")
+        return
+    if sub == "save":
+        if len(parts) < 3 or not parts[2].isdigit():
+            await message.answer("Usage: /inbox save <id> [title]")
+            return
+        note_title = parts[3].strip() if len(parts) > 3 else None
+        payload = {"artifact_id": int(parts[2]), "note_title": note_title}
+        result = call_sidecar_action("knowledge_item_save_to_db", payload, _user_id(message))
+        if result.status != "ok":
+            await message.answer(_format_error(result.error_code, result.error_message))
+            return
+        note_id = result.data.get("note_id") if result.data else None
+        await message.answer(f"Inbox item saved to notes. note_id={note_id}")
+        return
+    await message.answer(
+        "Usage: /inbox add <text or url> | /inbox list | /inbox summarize <id> | /inbox save <id> [title]"
+    )
 
 
 @router.message(Command("word"))

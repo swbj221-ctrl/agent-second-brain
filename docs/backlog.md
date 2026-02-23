@@ -259,3 +259,23 @@ Acceptance Criteria
 - TTS adapter interface is reused and text fallback works cleanly when unavailable.
 - Missing provider/credential errors are handled gracefully.
 - Manual verification checklist is documented in the runbook.
+
+### Stage 14: Books / Philosophy / Knowledge UX MVP (First Pass, Narrow Scope) (P1)
+Goals
+- Provide text-only UX for books, philosophy notes, and a knowledge inbox.
+- Reuse existing ingestion + summary pipeline and durable notes storage.
+- Keep categorization minimal via a lightweight link table.
+
+Tasks
+- Add minimal `note_categories` link table for tags (`books`, `philosophy`, `knowledge`).
+- Add sidecar actions for books/philosophy add/list and knowledge inbox add/list/summarize/save.
+- Wire Telegram commands for the new actions with clear responses and IDs.
+- Update runbook checklist and integration docs.
+
+Acceptance Criteria
+- Books, Philosophy, and Knowledge inbox are usable via Telegram text commands.
+- Existing ingestion/summary pipeline is reused where appropriate.
+- No heavy parallel knowledge schema is introduced.
+- Manual verification checklist passes on MSI.
+Status
+- Implemented first pass; manual Telegram verification on MSI pending.

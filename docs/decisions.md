@@ -22,6 +22,7 @@ Reason: Cyrillic rendering is unreliable in the current environment.
 - 2026-02-23 | Migration workflow using `scripts/migrate.py` + SQL files | Accepted | Simple, local SQLite-friendly baseline for Stage 1.
 - 2026-02-23 | Stage 1 base schema tables | Accepted | Use `artifacts`, `artifact_summaries`, `notes`, `jobs`, `app_settings`, `app_feature_flags`.
 - 2026-02-23 | Stage 12 uses provider-agnostic STT/TTS adapters with graceful fallback | Accepted | Keep Telegram thin while allowing provider swaps; missing providers return structured errors and fall back to text.
+- 2026-02-24 | Stage 14 uses minimal `note_categories` link table | Accepted | Reuse `notes` and avoid a new knowledge schema while enabling categorization.
 
 # Architectural Decisions
 
