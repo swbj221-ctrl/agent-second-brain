@@ -171,13 +171,17 @@ Acceptance Criteria
 Status
 - Completed (manual pipeline skeleton + smoke test validated on MSI).
 
-### Stage 11: Universal Lists (P3)
+### Stage 11: Telegram UX Wiring MVP (P3)
 Goals
-- Wishlist/watchlist and other universal lists.
+- Text-only Telegram wiring for core sidecar actions.
+- Thin adapter layer with no duplicated business logic.
 
 Tasks
-- Add list entities and CRUD.
-- Add list retrieval and summarization.
+- Wire Telegram commands to existing sidecar actions.
+- Add minimal command parsing and clear error responses.
+- Document manual verification checklist in the runbook.
 
 Acceptance Criteria
-- Lists can be created, updated, and summarized.
+- Telegram layer can call existing sidecar actions for core MVP flows.
+- Errors are surfaced clearly without crashing the bot loop.
+- Minimal command mapping documented and verified manually.

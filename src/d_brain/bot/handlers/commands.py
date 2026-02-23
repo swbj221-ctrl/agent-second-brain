@@ -18,19 +18,7 @@ router = Router(name="commands")
 async def cmd_start(message: Message) -> None:
     """Handle /start command."""
     await message.answer(
-        "<b>d-brain</b> - твой голосовой дневник\n\n"
-        "Отправляй мне:\n"
-        "🎤 Голосовые сообщения\n"
-        "💬 Текст\n"
-        "📷 Фото\n"
-        "↩️ Пересланные сообщения\n\n"
-        "Всё будет сохранено и обработано.\n\n"
-        "<b>Команды:</b>\n"
-        "/status - статус сегодняшнего дня\n"
-        "/process - обработать записи\n"
-        "/do - выполнить произвольный запрос\n"
-        "/weekly - недельный дайджест\n"
-        "/help - справка",
+        "<b>d-brain</b> - capture and organize your notes\n\nSend me:\n- voice messages\n- text\n- photos\n- forwarded messages\n\nEverything will be stored and processed.\n\n<b>Commands:</b>\n/status - daily status\n/process - process daily notes\n/do - run an arbitrary request\n/weekly - weekly digest\n/plan - plans and reminders\n/note - ingest text or URL\n/word - english words\n/topic - english topics\n/news - latest briefing\n/health - health records\n/reflect - reflection sessions\n/digest - latest digest\n/usage - codex usage status\n/help - help",
         reply_markup=get_main_keyboard(),
     )
 
@@ -39,19 +27,7 @@ async def cmd_start(message: Message) -> None:
 async def cmd_help(message: Message) -> None:
     """Handle /help command."""
     await message.answer(
-        "<b>Как использовать d-brain:</b>\n\n"
-        "1. Отправь голосовое — я транскрибирую и сохраню\n"
-        "2. Отправь текст — сохраню как есть\n"
-        "3. Отправь фото — сохраню в attachments\n"
-        "4. Перешли сообщение — сохраню с источником\n\n"
-        "Вечером используй /process для обработки:\n"
-        "Мысли → Obsidian, Задачи → Todoist\n\n"
-        "<b>Команды:</b>\n"
-        "/status - сколько записей сегодня\n"
-        "/process - обработать записи\n"
-        "/do - выполнить произвольный запрос\n"
-        "/weekly - недельный дайджест\n\n"
-        "<i>Пример: /do перенеси просроченные задачи на понедельник</i>"
+        "<b>How to use d-brain:</b>\n\n1. Send voice - it will be transcribed and stored\n2. Send text - it will be stored as-is\n3. Send a photo - it will be stored in attachments\n4. Forward a message - it will be stored with source info\n\nUse /process to process daily notes into outputs.\n\n<b>Commands:</b>\n/status - daily status\n/process - process daily notes\n/do - run an arbitrary request\n/weekly - weekly digest\n/plan add <title>\n/plan list\n/reminder list\n/note <text or url>\n/word add <word>\n/word list\n/topic add <name>\n/topic list\n/news latest\n/health add <title>\n/health list\n/reflect start\n/reflect add <session_id> <text>\n/reflect close <session_id> [summary]\n/digest latest\n/usage"
     )
 
 

@@ -794,6 +794,27 @@ Optional (one required):
 Response Data:
 - `id`, `run_id`, `report_text`, `report_format`, `created_at`, `updated_at`
 
+## Stage 11: Telegram UX Wiring MVP (First Pass)
+Scope: text-only Telegram commands wired to existing sidecar actions with a thin adapter.
+
+### Command Map
+- `/plan add <title>` -> `event_create`
+- `/plan list` -> `event_list`
+- `/reminder list` -> `reminder_list`
+- `/note <text or url>` -> `ingest`
+- `/word add <word>` -> `english_word_add`
+- `/word list` -> `english_word_list`
+- `/topic add <name>` -> `english_topic_add`
+- `/topic list` -> `english_topic_list`
+- `/news latest` -> `news_briefing_get`
+- `/health add <title>` -> `health_record_add`
+- `/health list` -> `health_record_list`
+- `/reflect start` -> `reflection_session_create`
+- `/reflect add <session_id> <text>` -> `reflection_turn_append`
+- `/reflect close <session_id> [summary]` -> `reflection_session_close`
+- `/digest latest` -> `digest_get_latest`
+- `/usage` -> `codex_usage_status_get`
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.

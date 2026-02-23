@@ -154,7 +154,7 @@ TODO: steps to start local services, env vars, and health checks.
       `$env:PYTHONPATH="src"; python scripts/health_mvp_smoke.py`
    3. Run Stage 9 smoke (bash):
       `PYTHONPATH=src python scripts/health_mvp_smoke.py`
- - Stage 10 Idea Research smoke test (local):
+- Stage 10 Idea Research smoke test (local):
    0. Apply migrations (PowerShell):
       `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
    1. Apply migrations (bash):
@@ -163,6 +163,35 @@ TODO: steps to start local services, env vars, and health checks.
       `$env:PYTHONPATH="src"; python scripts/idea_research_smoke.py`
    3. Run Stage 10 smoke (bash):
       `PYTHONPATH=src python scripts/idea_research_smoke.py`
+- Stage 11 Telegram UX wiring checklist (manual):
+   0. Apply migrations (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+   1. Start the bot (same as current run flow).
+   2. Plans/reminders:
+      `/plan add Test plan`
+      `/plan list`
+      `/reminder list`
+   3. Notes/ingest:
+      `/note This is a test note`
+      `/note https://example.com`
+   4. English:
+      `/word add hello`
+      `/word list`
+      `/topic add Travel`
+      `/topic list`
+   5. News:
+      `/news latest` (expect “No records found.” if empty)
+   6. Health:
+      `/health add Headache`
+      `/health list`
+   7. Reflection:
+      `/reflect start` (capture session id)
+      `/reflect add <session_id> Feeling focused today`
+      `/reflect close <session_id>`
+   8. Digest:
+      `/digest latest` (expect “No records found.” if empty)
+   9. Codex usage:
+      `/usage`
 
 ## Debugging
 TODO: logs, tracing, and common failure modes.
