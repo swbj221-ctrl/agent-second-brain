@@ -22,6 +22,11 @@ from .models import (
     DigestGeneratePayload,
     DigestGetLatestPayload,
     DigestListPayload,
+    CodexLimitsSettingsGetPayload,
+    CodexLimitsSettingsUpsertPayload,
+    CodexUsageListPayload,
+    CodexUsageLogAddPayload,
+    CodexUsageStatusGetPayload,
     EventCreatePayload,
     EventListPayload,
     EventParsePayload,
@@ -166,6 +171,50 @@ def handle_request(
         elif request.action == "digest_list":
             payload = DigestListPayload.model_validate(request.payload or {})
             data = {"digests": store.list_digests(payload.limit, payload.offset)}
+        elif request.action == "codex_usage_log_add":
+            payload = CodexUsageLogAddPayload.model_validate(request.payload or {})
+            data = store.create_codex_usage_log(
+                scope_key=payload.scope_key,
+                request_id=payload.request_id,
+                user_id=payload.user_id,
+                model_ref=payload.model_ref,
+                context=payload.context,
+                tokens_in=payload.tokens_in,
+                tokens_out=payload.tokens_out,
+                total_tokens=payload.total_tokens,
+                latency_ms=payload.latency_ms,
+                request_count=payload.request_count,
+                metadata=payload.metadata,
+            )
+        elif request.action == "codex_usage_status_get":
+            payload = CodexUsageStatusGetPayload.model_validate(request.payload or {})
+            data = store.get_codex_usage_status(payload.scope_key)
+        elif request.action == "codex_limits_settings_upsert":
+            payload = CodexLimitsSettingsUpsertPayload.model_validate(request.payload or {})
+            data = store.upsert_codex_limits_settings(
+                scope_key=payload.scope_key,
+                window_hours=payload.window_hours,
+                max_tokens=payload.max_tokens,
+                max_requests=payload.max_requests,
+                max_latency_ms=payload.max_latency_ms,
+                warn_ratio=payload.warn_ratio,
+                critical_ratio=payload.critical_ratio,
+            )
+        elif request.action == "codex_limits_settings_get":
+            payload = CodexLimitsSettingsGetPayload.model_validate(request.payload or {})
+            data = store.get_codex_limits_settings(payload.scope_key)
+            if data is None:
+                raise SidecarError(
+                    "not_found",
+                    f"Codex limits settings not found for scope {payload.scope_key}.",
+                )
+        elif request.action == "codex_usage_list":
+            payload = CodexUsageListPayload.model_validate(request.payload or {})
+            data = {
+                "usage_logs": store.list_codex_usage_logs(
+                    payload.scope_key, payload.limit, payload.offset
+                )
+            }
         elif request.action == "event_create":
             payload = EventCreatePayload.model_validate(request.payload or {})
             data = create_event_with_default_reminder(payload, store)

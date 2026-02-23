@@ -142,6 +142,8 @@ Tasks
 
 Acceptance Criteria
 - System can switch to economy mode with measurable savings.
+Status
+- Completed (first pass: usage logs, limits settings, advisory status, smoke test; validated on MSI).
 
 ### Stage 9: Health MVP (P3)
 Goals

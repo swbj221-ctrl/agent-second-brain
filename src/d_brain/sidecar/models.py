@@ -368,3 +368,57 @@ class NewsItemSavePayload(BaseModel):
 
     news_item_id: int = Field(..., ge=1)
     note_title: str | None = None
+
+
+class CodexUsageLogAddPayload(BaseModel):
+    """Payload for recording Codex usage metrics."""
+
+    scope_key: str = Field(default="global", min_length=1)
+    request_id: str | None = None
+    user_id: str | None = None
+    model_ref: str | None = None
+    context: str | None = None
+    tokens_in: int = Field(default=0, ge=0)
+    tokens_out: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+    latency_ms: int = Field(default=0, ge=0)
+    request_count: int = Field(default=1, ge=1)
+    metadata: dict[str, Any] | None = None
+
+
+class CodexUsageStatusGetPayload(BaseModel):
+    """Payload for retrieving Codex usage status."""
+
+    scope_key: str = Field(default="global", min_length=1)
+
+
+class CodexLimitsSettingsUpsertPayload(BaseModel):
+    """Payload for upserting Codex limits settings."""
+
+    scope_key: str = Field(default="global", min_length=1)
+    window_hours: int = Field(default=24, ge=1, le=720)
+    max_tokens: int = Field(default=0, ge=0)
+    max_requests: int = Field(default=0, ge=0)
+    max_latency_ms: int = Field(default=0, ge=0)
+    warn_ratio: float = Field(default=0.70, ge=0.0, le=1.0)
+    critical_ratio: float = Field(default=0.90, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_ratios(self) -> "CodexLimitsSettingsUpsertPayload":
+        if self.critical_ratio < self.warn_ratio:
+            raise ValueError("critical_ratio must be >= warn_ratio.")
+        return self
+
+
+class CodexLimitsSettingsGetPayload(BaseModel):
+    """Payload for retrieving Codex limits settings."""
+
+    scope_key: str = Field(default="global", min_length=1)
+
+
+class CodexUsageListPayload(BaseModel):
+    """Payload for listing recent Codex usage logs."""
+
+    scope_key: str = Field(default="global", min_length=1)
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)

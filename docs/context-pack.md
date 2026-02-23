@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 8: Codex limits indicator and economy mode.
+- Stage 8: Codex limits indicator and economy mode (first pass).
 
 ## Goals
 - Ship a stable, minimal core pipeline
@@ -42,6 +42,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 5 Reflection MVP completed and validated by local smoke test on MSI
 - Stage 6 News MVP first pass completed; second pass slice implemented (briefing schema, manual briefing, summaries)
 - Stage 7 Digest + Heartbeat first pass completed and validated by local smoke test on MSI
+- Stage 8 Codex limits indicator + economy mode first pass completed and validated by local smoke test on MSI
 
 ## Key Paths
 - `docs/` operational documentation

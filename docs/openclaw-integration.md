@@ -499,6 +499,99 @@ Optional:
 Response Data:
 - `digests` (array): each item includes `id`, `digest_type`, `created_at`, `updated_at`.
 
+## Stage 8: Codex Limits Indicator + Economy Mode (First Pass)
+Scope: usage logging, limits settings, and advisory status only. No automatic routing.
+
+### Actions
+- `codex_usage_log_add`
+- `codex_usage_status_get`
+- `codex_limits_settings_upsert`
+- `codex_limits_settings_get`
+- `codex_usage_list` (optional, first pass)
+
+### Codex Usage Log Add Payload (action = codex_usage_log_add)
+Optional:
+- `scope_key` (string, default `global`)
+- `request_id` (string)
+- `user_id` (string)
+- `model_ref` (string)
+- `context` (string)
+- `tokens_in` (int, default 0)
+- `tokens_out` (int, default 0)
+- `total_tokens` (int, default 0; if 0, uses tokens_in + tokens_out)
+- `latency_ms` (int, default 0)
+- `request_count` (int, default 1)
+- `metadata` (object)
+
+Response Data:
+- `usage_log_id` (integer)
+- `scope_key` (string)
+- `created_at` (string, ISO 8601)
+- `total_tokens` (int)
+
+### Codex Limits Settings Upsert Payload (action = codex_limits_settings_upsert)
+Optional:
+- `scope_key` (string, default `global`)
+- `window_hours` (int, default 24)
+- `max_tokens` (int, default 0)
+- `max_requests` (int, default 0)
+- `max_latency_ms` (int, default 0)
+- `warn_ratio` (float, default 0.70)
+- `critical_ratio` (float, default 0.90)
+
+Response Data:
+- `settings_id` (integer)
+- `scope_key` (string)
+- `window_hours` (int)
+- `max_tokens` (int)
+- `max_requests` (int)
+- `max_latency_ms` (int)
+- `warn_ratio` (float)
+- `critical_ratio` (float)
+- `updated_at` (string, ISO 8601)
+
+### Codex Limits Settings Get Payload (action = codex_limits_settings_get)
+Optional:
+- `scope_key` (string, default `global`)
+
+Response Data:
+- `settings_id` (integer)
+- `scope_key` (string)
+- `window_hours` (int)
+- `max_tokens` (int)
+- `max_requests` (int)
+- `max_latency_ms` (int)
+- `warn_ratio` (float)
+- `critical_ratio` (float)
+- `updated_at` (string, ISO 8601)
+
+### Codex Usage Status Get Payload (action = codex_usage_status_get)
+Optional:
+- `scope_key` (string, default `global`)
+
+Response Data:
+- `scope_key` (string)
+- `window_hours` (int, default 24)
+- `window_start` / `window_end` (string, ISO 8601)
+- `usage` (object: `total_tokens`, `total_requests`, `total_latency_ms`)
+- `limits` (object: `max_tokens`, `max_requests`, `max_latency_ms`)
+- `percent_used` (object: `tokens`, `requests`, `latency_ms`; null if limit is 0)
+- `warn_ratio` (float, default 0.70)
+- `critical_ratio` (float, default 0.90)
+- `status_level` (string: `no_limits`, `ok`, `warn`, `critical`)
+- `warnings` (array of strings)
+- `economy_mode_consider` (boolean)
+- `economy_mode_recommended` (boolean)
+
+### Codex Usage List Payload (action = codex_usage_list)
+Optional:
+- `scope_key` (string, default `global`)
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `usage_logs` (array)
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.

@@ -39,6 +39,10 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `digests`
 - `heartbeat_logs`
 
+## Entities (Stage 8)
+- `codex_usage_logs`
+- `codex_limits_settings`
+
 ## Fields (Minimal)
 - Common: `id` (PK), `created_at`/`updated_at` timestamps where applicable.
 - `artifacts`: `source_type`, `source_ref`, `content_type`, `content_path`, `content_hash`.
@@ -67,6 +71,11 @@ Purpose: persist minimal state needed by the sidecar backend.
   `title`, `url`, `published_at`, `summary_text`.
 - `digests`: `digest_type`, `payload` (JSON), `created_at`, `updated_at`.
 - `heartbeat_logs`: `event_type`, `event_source`, `event_details` (JSON), `created_at`.
+- `codex_usage_logs`: `scope_key`, `request_id`, `user_id`, `model_ref`, `context`,
+  `tokens_in`, `tokens_out`, `total_tokens`, `latency_ms`, `request_count`, `metadata`,
+  `created_at`.
+- `codex_limits_settings`: `scope_key`, `window_hours`, `max_tokens`, `max_requests`,
+  `max_latency_ms`, `warn_ratio`, `critical_ratio`, `updated_at`.
 
 ## News Dedupe (Stage 6)
 Deterministic dedupe uses `content_hash` computed from a normalized JSON payload:

@@ -6,7 +6,7 @@ import hashlib
 import json
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -246,6 +246,323 @@ class SQLiteStore:
             "status": {"db_path": str(self.db_path)},
         }
         return self.create_digest("system_state", payload)
+
+    def create_codex_usage_log(
+        self,
+        scope_key: str,
+        request_id: str | None,
+        user_id: str | None,
+        model_ref: str | None,
+        context: str | None,
+        tokens_in: int,
+        tokens_out: int,
+        total_tokens: int,
+        latency_ms: int,
+        request_count: int,
+        metadata: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        timestamp = utc_now()
+        cleaned_scope = (scope_key or "global").strip() or "global"
+        total = total_tokens if total_tokens > 0 else max(tokens_in + tokens_out, 0)
+        payload_json = dumps_json(metadata)
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO codex_usage_logs (
+                    scope_key,
+                    request_id,
+                    user_id,
+                    model_ref,
+                    context,
+                    tokens_in,
+                    tokens_out,
+                    total_tokens,
+                    latency_ms,
+                    request_count,
+                    metadata,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    cleaned_scope,
+                    request_id,
+                    user_id,
+                    model_ref,
+                    context,
+                    tokens_in,
+                    tokens_out,
+                    total,
+                    latency_ms,
+                    request_count,
+                    payload_json,
+                    timestamp,
+                ),
+            )
+            log_id = int(cursor.lastrowid)
+        return {
+            "usage_log_id": log_id,
+            "scope_key": cleaned_scope,
+            "created_at": timestamp,
+            "total_tokens": total,
+        }
+
+    def upsert_codex_limits_settings(
+        self,
+        scope_key: str,
+        window_hours: int,
+        max_tokens: int,
+        max_requests: int,
+        max_latency_ms: int,
+        warn_ratio: float,
+        critical_ratio: float,
+    ) -> dict[str, Any]:
+        timestamp = utc_now()
+        cleaned_scope = (scope_key or "global").strip() or "global"
+        with self._connect() as conn:
+            existing = conn.execute(
+                "SELECT id FROM codex_limits_settings WHERE scope_key = ?;",
+                (cleaned_scope,),
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    """
+                    UPDATE codex_limits_settings
+                    SET window_hours = ?,
+                        max_tokens = ?,
+                        max_requests = ?,
+                        max_latency_ms = ?,
+                        warn_ratio = ?,
+                        critical_ratio = ?,
+                        updated_at = ?
+                    WHERE scope_key = ?;
+                    """,
+                    (
+                        window_hours,
+                        max_tokens,
+                        max_requests,
+                        max_latency_ms,
+                        warn_ratio,
+                        critical_ratio,
+                        timestamp,
+                        cleaned_scope,
+                    ),
+                )
+                settings_id = int(existing[0])
+            else:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO codex_limits_settings (
+                        scope_key,
+                        window_hours,
+                        max_tokens,
+                        max_requests,
+                        max_latency_ms,
+                        warn_ratio,
+                        critical_ratio,
+                        updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                    """,
+                    (
+                        cleaned_scope,
+                        window_hours,
+                        max_tokens,
+                        max_requests,
+                        max_latency_ms,
+                        warn_ratio,
+                        critical_ratio,
+                        timestamp,
+                    ),
+                )
+                settings_id = int(cursor.lastrowid)
+        return {
+            "settings_id": settings_id,
+            "scope_key": cleaned_scope,
+            "window_hours": window_hours,
+            "max_tokens": max_tokens,
+            "max_requests": max_requests,
+            "max_latency_ms": max_latency_ms,
+            "warn_ratio": warn_ratio,
+            "critical_ratio": critical_ratio,
+            "updated_at": timestamp,
+        }
+
+    def get_codex_limits_settings(self, scope_key: str) -> dict[str, Any] | None:
+        cleaned_scope = (scope_key or "global").strip() or "global"
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id,
+                       scope_key,
+                       window_hours,
+                       max_tokens,
+                       max_requests,
+                       max_latency_ms,
+                       warn_ratio,
+                       critical_ratio,
+                       updated_at
+                FROM codex_limits_settings
+                WHERE scope_key = ?;
+                """,
+                (cleaned_scope,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "settings_id": row[0],
+            "scope_key": row[1],
+            "window_hours": row[2],
+            "max_tokens": row[3],
+            "max_requests": row[4],
+            "max_latency_ms": row[5],
+            "warn_ratio": row[6],
+            "critical_ratio": row[7],
+            "updated_at": row[8],
+        }
+
+    def list_codex_usage_logs(
+        self,
+        scope_key: str,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        cleaned_scope = (scope_key or "global").strip() or "global"
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id,
+                       scope_key,
+                       request_id,
+                       user_id,
+                       model_ref,
+                       context,
+                       tokens_in,
+                       tokens_out,
+                       total_tokens,
+                       latency_ms,
+                       request_count,
+                       metadata,
+                       created_at
+                FROM codex_usage_logs
+                WHERE scope_key = ?
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (cleaned_scope, limit, offset),
+            ).fetchall()
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            metadata = json.loads(row[11]) if row[11] else None
+            items.append(
+                {
+                    "id": row[0],
+                    "scope_key": row[1],
+                    "request_id": row[2],
+                    "user_id": row[3],
+                    "model_ref": row[4],
+                    "context": row[5],
+                    "tokens_in": row[6],
+                    "tokens_out": row[7],
+                    "total_tokens": row[8],
+                    "latency_ms": row[9],
+                    "request_count": row[10],
+                    "metadata": metadata,
+                    "created_at": row[12],
+                }
+            )
+        return items
+
+    def get_codex_usage_status(self, scope_key: str) -> dict[str, Any]:
+        settings = self.get_codex_limits_settings(scope_key)
+        if settings is None:
+            settings = {
+                "scope_key": (scope_key or "global").strip() or "global",
+                "window_hours": 24,
+                "max_tokens": 0,
+                "max_requests": 0,
+                "max_latency_ms": 0,
+                "warn_ratio": 0.70,
+                "critical_ratio": 0.90,
+            }
+        window_hours = int(settings["window_hours"])
+        now_dt = datetime.now(timezone.utc).replace(microsecond=0)
+        window_start_dt = now_dt - timedelta(hours=window_hours)
+        window_start = window_start_dt.isoformat()
+        window_end = now_dt.isoformat()
+        cleaned_scope = settings["scope_key"]
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT COALESCE(SUM(total_tokens), 0),
+                       COALESCE(SUM(request_count), 0),
+                       COALESCE(SUM(latency_ms), 0)
+                FROM codex_usage_logs
+                WHERE scope_key = ? AND created_at >= ?;
+                """,
+                (cleaned_scope, window_start),
+            ).fetchone()
+        total_tokens = int(row[0]) if row else 0
+        total_requests = int(row[1]) if row else 0
+        total_latency_ms = int(row[2]) if row else 0
+        usage = {
+            "total_tokens": total_tokens,
+            "total_requests": total_requests,
+            "total_latency_ms": total_latency_ms,
+        }
+        limits = {
+            "max_tokens": int(settings["max_tokens"]),
+            "max_requests": int(settings["max_requests"]),
+            "max_latency_ms": int(settings["max_latency_ms"]),
+        }
+        warn_ratio = float(settings["warn_ratio"])
+        critical_ratio = float(settings["critical_ratio"])
+        percent_used: dict[str, float | None] = {}
+        warnings: list[str] = []
+        levels: list[str] = []
+
+        def evaluate(metric: str, used: int, limit: int) -> None:
+            if limit <= 0:
+                percent_used[metric] = None
+                return
+            ratio = used / float(limit)
+            percent_used[metric] = ratio
+            if ratio >= critical_ratio:
+                warnings.append(f"{metric}_critical")
+                levels.append("critical")
+            elif ratio >= warn_ratio:
+                warnings.append(f"{metric}_warn")
+                levels.append("warn")
+            else:
+                levels.append("ok")
+
+        evaluate("tokens", total_tokens, limits["max_tokens"])
+        evaluate("requests", total_requests, limits["max_requests"])
+        evaluate("latency_ms", total_latency_ms, limits["max_latency_ms"])
+
+        status_level = "ok"
+        if "critical" in levels:
+            status_level = "critical"
+        elif "warn" in levels:
+            status_level = "warn"
+        elif all(value is None for value in percent_used.values()):
+            status_level = "no_limits"
+
+        return {
+            "scope_key": cleaned_scope,
+            "window_hours": window_hours,
+            "window_start": window_start,
+            "window_end": window_end,
+            "usage": usage,
+            "limits": limits,
+            "percent_used": percent_used,
+            "warn_ratio": warn_ratio,
+            "critical_ratio": critical_ratio,
+            "status_level": status_level,
+            "warnings": warnings,
+            "economy_mode_consider": status_level == "warn",
+            "economy_mode_recommended": status_level == "critical",
+        }
 
     def create_artifact(self, payload: IngestPayload) -> int:
         timestamp = utc_now()
