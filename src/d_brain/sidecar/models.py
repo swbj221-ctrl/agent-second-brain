@@ -172,3 +172,35 @@ class EnglishSessionClosePayload(BaseModel):
 
     session_id: int = Field(..., ge=1)
     summary_text: str | None = None
+
+
+ReflectionSessionRole = Literal["user", "assistant", "system"]
+
+
+class ReflectionSessionCreatePayload(BaseModel):
+    """Payload for creating a reflection session."""
+
+    pass
+
+
+class ReflectionSessionTurnAppendPayload(BaseModel):
+    """Payload for appending a reflection session turn."""
+
+    session_id: int = Field(..., ge=1)
+    role: ReflectionSessionRole
+    content: str = Field(..., min_length=1)
+
+
+class ReflectionSessionClosePayload(BaseModel):
+    """Payload for closing a reflection session."""
+
+    session_id: int = Field(..., ge=1)
+    summary_text: str | None = None
+
+
+class ReflectionSessionListPayload(BaseModel):
+    """Payload for listing reflection sessions."""
+
+    status: Literal["open", "closed"] | None = None
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)

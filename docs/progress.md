@@ -14,6 +14,8 @@
 - 2026-02-23: Added Stage 4 English MVP schema migration and sidecar actions (words, topics, sessions).
 - 2026-02-23: Added Stage 4 English MVP smoke test script and runbook steps.
 - 2026-02-23: Documented Stage 4 English MVP sidecar actions in OpenClaw integration notes.
+- 2026-02-23: Stage 4 English MVP completed and validated by local smoke test on MSI.
+- 2026-02-23: Implemented Stage 5 Reflection MVP first pass (schema, sidecar actions, smoke test script); smoke test pending on MSI.
 
 ## Next
 - Stage 4: English MVP.

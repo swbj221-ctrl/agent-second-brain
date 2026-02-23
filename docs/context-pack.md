@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 4 in progress: English MVP first pass (data model, sidecar actions, smoke test pending).
+- Stage 5 in progress: Reflection MVP (session-based storage + close-summary flow).
 
 ## Goals
 - Ship a stable, minimal core pipeline
@@ -38,7 +38,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 1 foundation complete
 - Stage 2 ingestion + summary pipeline complete with smoke test
 - Stage 3 plans/reminders complete with smoke tests (default + parse)
- - Stage 4 English MVP first pass in progress (smoke test pending)
+- Stage 4 English MVP completed and validated by local smoke test on MSI
 
 ## Key Paths
 - `docs/` operational documentation

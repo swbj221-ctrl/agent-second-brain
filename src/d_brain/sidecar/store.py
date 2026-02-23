@@ -536,3 +536,123 @@ class SQLiteStore:
                     "invalid_state",
                     f"English session {session_id} is not open.",
                 )
+
+    def create_reflection_session(self) -> int:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO reflection_sessions (
+                    status,
+                    opened_at,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?);
+                """,
+                ("open", timestamp, timestamp, timestamp),
+            )
+            return int(cursor.lastrowid)
+
+    def append_reflection_turn(
+        self,
+        session_id: int,
+        role: str,
+        content: str,
+    ) -> int:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT status FROM reflection_sessions WHERE id = ?;",
+                (session_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError(
+                    "not_found", f"Reflection session {session_id} not found."
+                )
+            if row[0] != "open":
+                raise SidecarError(
+                    "invalid_state",
+                    f"Reflection session {session_id} is not open.",
+                )
+            cursor = conn.execute(
+                """
+                INSERT INTO reflection_turns (
+                    session_id,
+                    role,
+                    content,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?);
+                """,
+                (session_id, role, content, timestamp),
+            )
+            conn.execute(
+                """
+                UPDATE reflection_sessions
+                SET updated_at = ?
+                WHERE id = ?;
+                """,
+                (timestamp, session_id),
+            )
+            return int(cursor.lastrowid)
+
+    def close_reflection_session(self, session_id: int, summary_text: str) -> None:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE reflection_sessions
+                SET status = 'closed',
+                    closed_at = ?,
+                    summary_text = ?,
+                    updated_at = ?
+                WHERE id = ? AND status = 'open';
+                """,
+                (timestamp, summary_text, timestamp, session_id),
+            )
+            if cursor.rowcount == 0:
+                row = conn.execute(
+                    "SELECT id FROM reflection_sessions WHERE id = ?;",
+                    (session_id,),
+                ).fetchone()
+                if not row:
+                    raise SidecarError(
+                        "not_found",
+                        f"Reflection session {session_id} not found.",
+                    )
+                raise SidecarError(
+                    "invalid_state",
+                    f"Reflection session {session_id} is not open.",
+                )
+
+    def list_reflection_sessions(
+        self,
+        status: str | None,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        query = (
+            "SELECT id, status, opened_at, closed_at, summary_text, created_at, updated_at "
+            "FROM reflection_sessions"
+        )
+        params: list[Any] = []
+        if status:
+            query += " WHERE status = ?"
+            params.append(status)
+        query += " ORDER BY id DESC LIMIT ? OFFSET ?;"
+        params.extend([limit, offset])
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": row[0],
+                "status": row[1],
+                "opened_at": row[2],
+                "closed_at": row[3],
+                "summary_text": row[4],
+                "created_at": row[5],
+                "updated_at": row[6],
+            }
+            for row in rows
+        ]

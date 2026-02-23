@@ -91,7 +91,7 @@ TODO: steps to start local services, env vars, and health checks.
          print(f"artifact_summaries={b}")
      PY
      ```
- - Stage 4 English MVP smoke test (local):
+- Stage 4 English MVP smoke test (local):
    0. Apply migrations (PowerShell):
       `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
    1. Apply migrations (bash):
@@ -100,6 +100,15 @@ TODO: steps to start local services, env vars, and health checks.
       `$env:PYTHONPATH="src"; python scripts/english_mvp_smoke.py`
    3. Run Stage 4 smoke (bash):
       `PYTHONPATH=src python scripts/english_mvp_smoke.py`
+ - Stage 5 Reflection MVP smoke test (local):
+   0. Apply migrations (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+   1. Apply migrations (bash):
+      `PYTHONPATH=src python scripts/migrate.py apply`
+   2. Run Stage 5 smoke (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/reflection_smoke.py`
+   3. Run Stage 5 smoke (bash):
+      `PYTHONPATH=src python scripts/reflection_smoke.py`
 
 ## Debugging
 TODO: logs, tracing, and common failure modes.

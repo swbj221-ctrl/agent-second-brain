@@ -86,14 +86,16 @@ Status
 
 ### Stage 5: Reflection MVP (P2)
 Goals
-- Daily/weekly reflection summaries.
+- Session-based reflection dialogue storage and close-summary flow.
 
 Tasks
-- Add reflection generator using summaries and events.
-- Store reflection artifacts.
+- Add reflection session storage (sessions + turns).
+- Implement minimal sidecar actions to create sessions, append turns, close sessions, and list sessions.
+- Add local smoke test for Stage 5.
 
 Acceptance Criteria
-- Reflection artifacts generated on schedule.
+- Reflection sessions can be created, appended, closed, and listed via sidecar actions.
+- Close-summary is stored for retrieval without context bloat.
 
 ### Stage 6: News MVP (P2)
 Goals

@@ -224,6 +224,50 @@ Response Data:
 - `session_id` (integer)
 - `summary_text` (string)
 
+## Stage 5: Reflection MVP Contract (First Pass)
+Scope: session-based reflection storage and close-summary flow. Reuse the Stage 1 request/response envelope.
+
+### Actions
+- `reflection_session_create`
+- `reflection_turn_append`
+- `reflection_session_close`
+- `reflection_session_list`
+
+### Session Create Payload (action = reflection_session_create)
+No payload required.
+
+Response Data:
+- `session_id` (integer)
+
+### Session Turn Append Payload (action = reflection_turn_append)
+Required:
+- `session_id` (int)
+- `role` (string): `user`, `assistant`, or `system`
+- `content` (string)
+
+Response Data:
+- `turn_id` (integer)
+
+### Session Close Payload (action = reflection_session_close)
+Required:
+- `session_id` (int)
+
+Optional:
+- `summary_text` (string)
+
+Response Data:
+- `session_id` (integer)
+- `summary_text` (string)
+
+### Session List Payload (action = reflection_session_list)
+Optional:
+- `status` (string): `open` or `closed`
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `sessions` (array): each item includes `id`, `status`, `opened_at`, `closed_at`, `summary_text`, `created_at`, `updated_at`.
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.

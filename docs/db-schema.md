@@ -23,6 +23,10 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `english_session_turns`
 - `english_session_word_usage`
 
+## Entities (Stage 5)
+- `reflection_sessions`
+- `reflection_turns`
+
 ## Fields (Minimal)
 - Common: `id` (PK), `created_at`/`updated_at` timestamps where applicable.
 - `artifacts`: `source_type`, `source_ref`, `content_type`, `content_path`, `content_hash`.
@@ -39,6 +43,8 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `english_sessions`: `topic_id` (FK, nullable), `status`, `opened_at`, `closed_at`, `summary_text`.
 - `english_session_turns`: `session_id` (FK), `role`, `content`.
 - `english_session_word_usage`: `session_id` (FK), `word_id` (FK), `usage_count`.
+- `reflection_sessions`: `status`, `opened_at`, `closed_at`, `summary_text`.
+- `reflection_turns`: `session_id` (FK), `role`, `content`.
 
 ## Migrations
 - Tool: `scripts/migrate.py` (SQLite)

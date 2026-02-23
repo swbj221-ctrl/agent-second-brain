@@ -24,6 +24,10 @@ from .models import (
     EventParsePayload,
     EventUpdateStatusPayload,
     IngestPayload,
+    ReflectionSessionClosePayload,
+    ReflectionSessionCreatePayload,
+    ReflectionSessionListPayload,
+    ReflectionSessionTurnAppendPayload,
     ReminderListPayload,
     ReminderUpdateStatusPayload,
     SidecarErrorData,
@@ -100,6 +104,30 @@ def handle_request(
             summary = (payload.summary_text or "").strip() or "Summary pending."
             store.close_english_session(payload.session_id, summary)
             data = {"session_id": payload.session_id, "summary_text": summary}
+        elif request.action == "reflection_session_create":
+            ReflectionSessionCreatePayload.model_validate(request.payload or {})
+            session_id = store.create_reflection_session()
+            data = {"session_id": session_id}
+        elif request.action == "reflection_turn_append":
+            payload = ReflectionSessionTurnAppendPayload.model_validate(request.payload or {})
+            turn_id = store.append_reflection_turn(
+                payload.session_id,
+                payload.role,
+                payload.content,
+            )
+            data = {"turn_id": turn_id}
+        elif request.action == "reflection_session_close":
+            payload = ReflectionSessionClosePayload.model_validate(request.payload or {})
+            summary = (payload.summary_text or "").strip() or "Summary pending."
+            store.close_reflection_session(payload.session_id, summary)
+            data = {"session_id": payload.session_id, "summary_text": summary}
+        elif request.action == "reflection_session_list":
+            payload = ReflectionSessionListPayload.model_validate(request.payload or {})
+            data = {
+                "sessions": store.list_reflection_sessions(
+                    payload.status, payload.limit, payload.offset
+                )
+            }
         elif request.action == "event_create":
             payload = EventCreatePayload.model_validate(request.payload or {})
             data = create_event_with_default_reminder(payload, store)
