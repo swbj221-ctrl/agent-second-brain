@@ -375,6 +375,72 @@ Deterministic dedupe uses a sha256 hash of a normalized JSON object:
 - Include `raw_payload` as a JSON object.
 - Serialize with sorted keys and compact separators before hashing.
 
+## Stage 6: News MVP Contract (Second Pass)
+Scope: news summaries and manual briefing generation with exactly 5 key events.
+
+### Actions
+- `news_item_summarize`
+- `news_briefing_generate`
+- `news_briefing_get`
+- `news_briefing_list`
+- `news_item_save_to_db`
+
+### News Item Summarize Payload (action = news_item_summarize)
+Required:
+- `news_item_id` (int)
+
+Optional:
+- `summary_format` (string, default `plain`)
+
+Response Data:
+- `summary_id` (integer)
+- `news_item_id` (integer)
+- `summary_text` (string)
+- `summary_format` (string)
+- `model_ref` (string)
+
+### News Briefing Generate Payload (action = news_briefing_generate)
+Optional:
+- `section_id` (int)
+- `source_id` (int)
+- `limit` (int, default 50, min 5, max 500)
+
+Behavior:
+- Manual-only generation (no scheduler).
+- Dedupe-aware selection uses normalized title/url/content_text.
+- Exactly 5 unique items are required; generation fails if fewer than 5 exist.
+
+Response Data:
+- `briefing_id` (integer)
+- `items` (array of briefed items with source fields and summaries)
+
+### News Briefing Get Payload (action = news_briefing_get)
+Optional:
+- `briefing_id` (int, default latest)
+
+Response Data:
+- `id`, `briefing_mode`, `created_at`, `updated_at`
+- `items` (array with `news_item_id`, `source_id`, `title`, `url`, `published_at`,
+  `summary_text`, `source_name`, `source_type`, `source_ref`)
+
+### News Briefing List Payload (action = news_briefing_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `briefings` (array of briefings)
+
+### News Item Save Payload (action = news_item_save_to_db)
+Required:
+- `news_item_id` (int)
+
+Optional:
+- `note_title` (string)
+
+Response Data:
+- `note_id` (integer)
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.

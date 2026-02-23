@@ -1032,3 +1032,337 @@ class SQLiteStore:
                     raise SidecarError("storage_error", "Failed to insert news item.")
                 return {"news_item_id": int(row[0]), "deduped": True}
             return {"news_item_id": int(cursor.lastrowid), "deduped": False}
+
+    def get_news_item(self, news_item_id: int) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT ni.id,
+                       ni.section_id,
+                       ni.source_id,
+                       ni.title,
+                       ni.url,
+                       ni.published_at,
+                       ni.content_text,
+                       ni.created_at,
+                       ni.updated_at,
+                       ns.name,
+                       ns.source_type,
+                       ns.source_ref
+                FROM news_items ni
+                JOIN news_sources ns ON ns.id = ni.source_id
+                WHERE ni.id = ?;
+                """,
+                (news_item_id,),
+            ).fetchone()
+        if not row:
+            raise SidecarError("not_found", f"News item {news_item_id} not found.")
+        return {
+            "id": row[0],
+            "section_id": row[1],
+            "source_id": row[2],
+            "title": row[3],
+            "url": row[4],
+            "published_at": row[5],
+            "content_text": row[6],
+            "created_at": row[7],
+            "updated_at": row[8],
+            "source_name": row[9],
+            "source_type": row[10],
+            "source_ref": row[11],
+        }
+
+    def list_news_items_for_briefing(
+        self,
+        section_id: int | None,
+        source_id: int | None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        query = (
+            "SELECT ni.id, ni.section_id, ni.source_id, ni.title, ni.url, "
+            "ni.published_at, ni.content_text, ni.created_at, ni.updated_at, "
+            "ns.name, ns.source_type, ns.source_ref "
+            "FROM news_items ni "
+            "JOIN news_sources ns ON ns.id = ni.source_id"
+        )
+        params: list[Any] = []
+        conditions: list[str] = []
+        if section_id is not None:
+            conditions.append("ni.section_id = ?")
+            params.append(section_id)
+        if source_id is not None:
+            conditions.append("ni.source_id = ?")
+            params.append(source_id)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += (
+            " ORDER BY (ni.published_at IS NULL) ASC, "
+            "ni.published_at DESC, ni.created_at DESC, ni.id DESC "
+            "LIMIT ?;"
+        )
+        params.append(limit)
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": row[0],
+                "section_id": row[1],
+                "source_id": row[2],
+                "title": row[3],
+                "url": row[4],
+                "published_at": row[5],
+                "content_text": row[6],
+                "created_at": row[7],
+                "updated_at": row[8],
+                "source_name": row[9],
+                "source_type": row[10],
+                "source_ref": row[11],
+            }
+            for row in rows
+        ]
+
+    def get_news_item_summary(self, news_item_id: int) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, summary_text, summary_format, model_ref, created_at, updated_at
+                FROM news_item_summaries
+                WHERE news_item_id = ?;
+                """,
+                (news_item_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "summary_text": row[1],
+            "summary_format": row[2],
+            "model_ref": row[3],
+            "created_at": row[4],
+            "updated_at": row[5],
+        }
+
+    def upsert_news_item_summary(
+        self,
+        news_item_id: int,
+        summary_text: str,
+        summary_format: str,
+        model_ref: str,
+    ) -> int:
+        if not summary_text.strip():
+            raise SidecarError("summary_error", "Summary text is empty.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM news_items WHERE id = ?;",
+                (news_item_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError(
+                    "not_found", f"News item {news_item_id} not found."
+                )
+            existing = conn.execute(
+                "SELECT id FROM news_item_summaries WHERE news_item_id = ?;",
+                (news_item_id,),
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    """
+                    UPDATE news_item_summaries
+                    SET summary_text = ?,
+                        summary_format = ?,
+                        model_ref = ?,
+                        updated_at = ?
+                    WHERE news_item_id = ?;
+                    """,
+                    (summary_text, summary_format, model_ref, timestamp, news_item_id),
+                )
+                return int(existing[0])
+            cursor = conn.execute(
+                """
+                INSERT INTO news_item_summaries (
+                    news_item_id,
+                    summary_text,
+                    summary_format,
+                    model_ref,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?);
+                """,
+                (news_item_id, summary_text, summary_format, model_ref, timestamp, timestamp),
+            )
+            return int(cursor.lastrowid)
+
+    def create_news_briefing(self, briefing_mode: str) -> int:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO news_briefings (
+                    briefing_mode,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?);
+                """,
+                (briefing_mode, timestamp, timestamp),
+            )
+            return int(cursor.lastrowid)
+
+    def add_news_briefing_item(
+        self,
+        briefing_id: int,
+        news_item_id: int,
+        source_id: int,
+        title: str | None,
+        url: str | None,
+        published_at: str | None,
+        summary_text: str,
+    ) -> int:
+        if not summary_text.strip():
+            raise SidecarError("summary_error", "Summary text is empty.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO news_briefing_items (
+                    briefing_id,
+                    news_item_id,
+                    source_id,
+                    title,
+                    url,
+                    published_at,
+                    summary_text,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    briefing_id,
+                    news_item_id,
+                    source_id,
+                    title,
+                    url,
+                    published_at,
+                    summary_text,
+                    timestamp,
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def get_briefing(self, briefing_id: int) -> dict[str, Any]:
+        with self._connect() as conn:
+            briefing = conn.execute(
+                """
+                SELECT id, briefing_mode, created_at, updated_at
+                FROM news_briefings
+                WHERE id = ?;
+                """,
+                (briefing_id,),
+            ).fetchone()
+            if not briefing:
+                raise SidecarError("not_found", f"Briefing {briefing_id} not found.")
+            items = conn.execute(
+                """
+                SELECT nbi.id,
+                       nbi.news_item_id,
+                       nbi.source_id,
+                       nbi.title,
+                       nbi.url,
+                       nbi.published_at,
+                       nbi.summary_text,
+                       nbi.created_at,
+                       ns.name,
+                       ns.source_type,
+                       ns.source_ref
+                FROM news_briefing_items nbi
+                JOIN news_sources ns ON ns.id = nbi.source_id
+                WHERE nbi.briefing_id = ?
+                ORDER BY nbi.id ASC;
+                """,
+                (briefing_id,),
+            ).fetchall()
+        return {
+            "id": briefing[0],
+            "briefing_mode": briefing[1],
+            "created_at": briefing[2],
+            "updated_at": briefing[3],
+            "items": [
+                {
+                    "id": row[0],
+                    "news_item_id": row[1],
+                    "source_id": row[2],
+                    "title": row[3],
+                    "url": row[4],
+                    "published_at": row[5],
+                    "summary_text": row[6],
+                    "created_at": row[7],
+                    "source_name": row[8],
+                    "source_type": row[9],
+                    "source_ref": row[10],
+                }
+                for row in items
+            ],
+        }
+
+    def get_latest_briefing(self) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id FROM news_briefings
+                ORDER BY id DESC
+                LIMIT 1;
+                """,
+            ).fetchone()
+        if not row:
+            raise SidecarError("not_found", "No briefings found.")
+        return self.get_briefing(int(row[0]))
+
+    def list_briefings(self, limit: int, offset: int) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, briefing_mode, created_at, updated_at
+                FROM news_briefings
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (limit, offset),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "briefing_mode": row[1],
+                "created_at": row[2],
+                "updated_at": row[3],
+            }
+            for row in rows
+        ]
+
+    def create_note(
+        self,
+        title: str | None,
+        body: str,
+        source_type: str | None,
+        source_ref: str | None,
+    ) -> int:
+        if not body.strip():
+            raise SidecarError("invalid_payload", "Note body is required.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO notes (
+                    title,
+                    body,
+                    source_type,
+                    source_ref,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?);
+                """,
+                (title, body, source_type, source_ref, timestamp, timestamp),
+            )
+            return int(cursor.lastrowid)

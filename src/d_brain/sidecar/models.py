@@ -306,3 +306,38 @@ class NewsItemIngestPayload(BaseModel):
         ):
             raise ValueError("Provide at least one content field for ingestion.")
         return self
+
+
+class NewsItemSummarizePayload(BaseModel):
+    """Payload for summarizing a news item."""
+
+    news_item_id: int = Field(..., ge=1)
+    summary_format: str = Field(default="plain", min_length=1)
+
+
+class NewsBriefingGeneratePayload(BaseModel):
+    """Payload for generating a manual news briefing."""
+
+    section_id: int | None = Field(default=None, ge=1)
+    source_id: int | None = Field(default=None, ge=1)
+    limit: int = Field(default=50, ge=5, le=500)
+
+
+class NewsBriefingGetPayload(BaseModel):
+    """Payload for retrieving a briefing."""
+
+    briefing_id: int | None = Field(default=None, ge=1)
+
+
+class NewsBriefingListPayload(BaseModel):
+    """Payload for listing briefings."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class NewsItemSavePayload(BaseModel):
+    """Payload for saving a news item to notes."""
+
+    news_item_id: int = Field(..., ge=1)
+    note_title: str | None = None

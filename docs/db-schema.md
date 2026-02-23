@@ -31,6 +31,9 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `news_sections`
 - `news_sources`
 - `news_items`
+- `news_item_summaries`
+- `news_briefings`
+- `news_briefing_items`
 
 ## Fields (Minimal)
 - Common: `id` (PK), `created_at`/`updated_at` timestamps where applicable.
@@ -54,6 +57,10 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `news_sources`: `section_id` (FK), `name`, `source_type`, `source_ref`, `status`.
 - `news_items`: `section_id` (FK), `source_id` (FK), `external_id`, `title`, `url`,
   `published_at`, `content_text`, `content_hash`, `raw_payload`.
+- `news_item_summaries`: `news_item_id` (FK, unique), `summary_text`, `summary_format`, `model_ref`.
+- `news_briefings`: `briefing_mode`.
+- `news_briefing_items`: `briefing_id` (FK), `news_item_id` (FK), `source_id` (FK),
+  `title`, `url`, `published_at`, `summary_text`.
 
 ## News Dedupe (Stage 6)
 Deterministic dedupe uses `content_hash` computed from a normalized JSON payload:

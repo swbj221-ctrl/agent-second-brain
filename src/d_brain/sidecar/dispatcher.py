@@ -25,6 +25,11 @@ from .models import (
     EventUpdateStatusPayload,
     IngestPayload,
     NewsItemIngestPayload,
+    NewsItemSavePayload,
+    NewsItemSummarizePayload,
+    NewsBriefingGeneratePayload,
+    NewsBriefingGetPayload,
+    NewsBriefingListPayload,
     NewsSectionCreatePayload,
     NewsSectionListPayload,
     NewsSectionUpdatePayload,
@@ -48,6 +53,7 @@ from .plans import (
     update_event_status,
     update_reminder_status,
 )
+from .news import generate_manual_briefing, summarize_news_item
 from .store import SQLiteStore
 
 
@@ -224,6 +230,49 @@ def handle_request(
                 payload.content_text,
                 payload.raw_payload,
             )
+        elif request.action == "news_item_summarize":
+            payload = NewsItemSummarizePayload.model_validate(request.payload or {})
+            data = summarize_news_item(
+                store,
+                payload.news_item_id,
+                summary_format=payload.summary_format,
+            )
+        elif request.action == "news_briefing_generate":
+            payload = NewsBriefingGeneratePayload.model_validate(request.payload or {})
+            data = generate_manual_briefing(
+                store,
+                section_id=payload.section_id,
+                source_id=payload.source_id,
+                limit=payload.limit,
+            )
+        elif request.action == "news_briefing_get":
+            payload = NewsBriefingGetPayload.model_validate(request.payload or {})
+            if payload.briefing_id is None:
+                data = store.get_latest_briefing()
+            else:
+                data = store.get_briefing(payload.briefing_id)
+        elif request.action == "news_briefing_list":
+            payload = NewsBriefingListPayload.model_validate(request.payload or {})
+            data = {"briefings": store.list_briefings(payload.limit, payload.offset)}
+        elif request.action == "news_item_save_to_db":
+            payload = NewsItemSavePayload.model_validate(request.payload or {})
+            item = store.get_news_item(payload.news_item_id)
+            summary = store.get_news_item_summary(payload.news_item_id)
+            if summary is None:
+                summary = summarize_news_item(
+                    store,
+                    payload.news_item_id,
+                    summary_format="plain",
+                )
+            title = payload.note_title or item.get("title") or f"News item {item['id']}"
+            source_ref = item.get("url") or f"news_item:{item['id']}"
+            note_id = store.create_note(
+                title=title,
+                body=summary["summary_text"],
+                source_type="news_item",
+                source_ref=source_ref,
+            )
+            data = {"note_id": note_id}
         else:
             raise SidecarError("invalid_payload", f"Unsupported action: {request.action}")
         response = SidecarResponse(
