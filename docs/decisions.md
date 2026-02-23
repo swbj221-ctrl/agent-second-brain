@@ -7,9 +7,6 @@ Format: `YYYY-MM-DD | Decision | Status | Rationale`
 - 2026-02-23 | Local LLM as utility layer | Accepted | Fast, cheap utility tasks; keep reasoning in Codex.
 - 2026-02-23 | Anti-context-bloat | Accepted | Reduce prompt drift and cost.
 - 2026-02-23 | English-only project documentation | Accepted | Cyrillic rendering issues in current environment.
-- 2026-02-23 | Reuse-tested solutions first | Accepted | Prefer stable OpenClaw components, marketplace skills, and proven libraries.
-- 2026-02-23 | Anti-hardcode policy | Accepted | Use configs/adapters/feature flags and explicit migrations.
-- 2026-02-23 | Voice priority (human-like + low latency) | Accepted | Optimize UX for natural output and fast responses.
 
 Documentation Language Contract:
 All docs and generated documentation must be in English only (no Cyrillic).
@@ -20,3 +17,51 @@ Reason: Cyrillic rendering is unreliable in the current environment.
 - Persistence store selection
 - Migration toolchain
 - Interface contract between skill and sidecar
+
+# Architectural Decisions
+
+## Decision: Reuse-tested solutions first
+We prefer tested implementations from OpenClaw core, marketplace skills, or stable libraries before writing custom code.
+Custom code is allowed only when necessary to preserve business logic of project sections.
+
+## Decision: One main skill + sidecar backend
+The project uses:
+- one main OpenClaw skill for domain workflows and Telegram interaction
+- one sidecar backend for storage, workers, scheduling, collectors, and utility services
+
+This reduces maintenance complexity and improves compatibility with OpenClaw updates.
+
+## Decision: Anti-hardcode policy
+Avoid hardcoding when a config/adaptor/extension pattern is possible.
+Prefer:
+- config files
+- feature flags
+- adapters
+- explicit migrations
+over hardcoded logic and dynamic schema mutation.
+
+## Decision: Anti-context-bloat memory design
+Do not send full vault history or long transcripts into LLM prompts.
+Use:
+1. structured retrieval first (SQL / indexed lookup)
+2. summaries over raw transcripts
+3. top-k relevant chunks only
+4. feature-specific context builders
+
+If OpenClaw memory/FTS is better suited for retrieval, prefer it as the retrieval layer.
+
+## Decision: LLM routing layers
+- Local LLM = utility layer (heartbeat, light search, simple classification, preprocessing)
+- Codex = reasoning/dialog/final synthesis (English tutor, reflection, final briefing assembly, deep summaries)
+
+## Decision: Voice stack should prioritize human-like output and low latency
+Voice integrations must be adapter-based (STT/TTS adapters) and should prioritize:
+- natural sounding output
+- low latency
+- provider swap flexibility
+
+## Decision: Documentation language is English-only
+Documentation Language Contract:
+All docs and generated documentation must be in English only (no Cyrillic).
+This includes markdown files, comments in documentation templates, progress notes, context packs, runbooks, and architecture notes.
+Reason: Cyrillic rendering is unreliable in the current environment.
