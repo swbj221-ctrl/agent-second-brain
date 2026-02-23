@@ -1,6 +1,8 @@
 # Progress
 
 ## Log
+- 2026-02-23: Recreated MSI venv with Python 3.12 and started the bot; Stage 18 manual Telegram verification still pending.
+- 2026-02-23: Added Stage 18 manual Telegram verification checklist to the runbook.
 - 2026-02-23: Close-session check-in; no code changes made in this session.
 - 2026-02-23: Initialized documentation baseline.
 - 2026-02-23: Added Stage 18 Projects & Tasks MVP planning notes (schema, command map, and decision records).

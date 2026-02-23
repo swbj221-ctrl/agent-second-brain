@@ -315,6 +315,29 @@ Troubleshooting note:
       `PYTHONPATH=src python scripts/projects_tasks_smoke.py`
    4. Expected output includes:
       `stage18_projects_tasks_smoke_ok`
+- Stage 18 Projects & Tasks Telegram checklist (manual):
+   0. Apply migrations (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+   1. Start the bot (same as current run flow).
+   2. Projects:
+      `/project add Alpha`
+      `/project list`
+      `/project archive <project_id>`
+      `/project list archived`
+   3. Tasks:
+      `/task add <project_id> | First task`
+      `/task add <project_id> | Second task | due:2026-03-01`
+      `/task list`
+      `/task list <project_id> open`
+      `/task done <task_id>`
+      `/task reopen <task_id>`
+      `/task cancel <task_id>`
+      `/task note <task_id> Add a short note`
+      `/task move <task_id> <project_id>`
+   4. Expect:
+      - Clean success responses with created IDs.
+      - Lists reflect updated statuses.
+      - Due date parsed only for strict `YYYY-MM-DD` format.
 - Stage 11 Telegram UX wiring checklist (manual):
    0. Apply migrations (PowerShell):
       `$env:PYTHONPATH="src"; python scripts/migrate.py apply`

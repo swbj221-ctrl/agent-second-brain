@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 16B: Backup & Restore MVP (first pass) implemented; manual MSI verification pending (backup creation + restore integrity check).
+- Stage 18: Projects & Tasks MVP first pass implemented; MSI smoke test verified.
 
 ## Goals
 - Ship a stable, minimal core pipeline
@@ -50,6 +50,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 13 Reflection Voice Loop MVP first pass implemented; manual Telegram verification on MSI pending
 - Stage 14 Books / Philosophy / Knowledge UX MVP first pass implemented; manual Telegram verification on MSI pending
 - Stage 16B Backup & Restore MVP implemented; manual MSI verification pending
+- Stage 18 Projects & Tasks MVP first pass implemented; MSI smoke test verified; manual Telegram verification pending
 
 ## Key Paths
 - `docs/` operational documentation
