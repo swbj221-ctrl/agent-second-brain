@@ -185,3 +185,41 @@ Acceptance Criteria
 - Telegram layer can call existing sidecar actions for core MVP flows.
 - Errors are surfaced clearly without crashing the bot loop.
 - Minimal command mapping documented and verified manually.
+
+### Stage 12: Voice English Tutor MVP (First Pass, Narrow Scope) (P1)
+Goals
+- Implement a message-based voice English tutor loop in Telegram that reuses existing English session storage and sidecar architecture.
+
+Scope (first pass only)
+- Telegram voice message intake path (message-based, not real-time call).
+- STT adapter interface (provider-agnostic).
+- TTS adapter interface (provider-agnostic).
+- English tutor flow wiring to existing English session actions/tables.
+- Basic assistant reply generation path (Codex/adapter boundary or placeholder integration if direct call is not wired yet).
+- Text fallback path for the same tutor flow.
+
+Behavior Requirements
+- Voice in -> transcript -> append user turn -> generate assistant reply -> append assistant turn -> TTS out (or mocked TTS response path).
+- Conversational practice style (not correcting every sentence).
+- Assistant continues conversation and asks questions.
+- Optional session metadata for target duration (10–20 min) if provided.
+- No pronunciation scoring.
+- No aggressive grammar correction engine.
+- No spaced repetition logic.
+- No real-time streaming/call mode yet.
+
+Constraints
+- Reuse existing English MVP tables/actions where possible.
+- Keep Telegram layer thin.
+- Use adapter pattern for STT/TTS (swap providers later).
+- Local LLM remains utility-only.
+- Codex handles dialog/reasoning reply generation.
+- Graceful errors if STT/TTS credentials/provider are missing.
+- Documentation remains English-only.
+- Update docs during implementation.
+
+Acceptance Criteria
+- Telegram voice message flow creates/uses an English session, appends user and assistant turns, and returns TTS output (or mocked TTS) for the assistant reply.
+- Text fallback uses the same tutor flow and session storage.
+- STT/TTS adapters are provider-agnostic and return structured errors on missing config.
+- Minimal manual verification checklist is documented.

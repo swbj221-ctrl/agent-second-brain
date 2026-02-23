@@ -20,6 +20,26 @@ class Settings(BaseSettings):
         default="",
         description="Deepgram API key for transcription (required for voice/STT only).",
     )
+    stt_provider: str = Field(
+        default="deepgram",
+        description="STT provider name (default: deepgram).",
+    )
+    stt_language_default: str = Field(
+        default="ru",
+        description="Default STT language code for non-tutor voice capture.",
+    )
+    stt_deepgram_model: str = Field(
+        default="nova-3",
+        description="Deepgram model name for STT.",
+    )
+    tts_provider: str = Field(
+        default="none",
+        description="TTS provider name (default: none).",
+    )
+    tts_voice: str = Field(
+        default="",
+        description="Default TTS voice name.",
+    )
     todoist_api_key: str = Field(default="", description="Todoist API key for tasks")
     vault_path: Path = Field(
         default=Path("./vault"),

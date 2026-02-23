@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 10: Idea Research / Product Factory (first pass) completed.
+- Stage 12: Voice English Tutor MVP (first pass) implemented; manual Telegram verification pending on MSI.
 
 ## Goals
 - Ship a stable, minimal core pipeline
@@ -45,6 +45,8 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 8 Codex limits indicator + economy mode first pass completed and validated by local smoke test on MSI
 - Stage 9 Health MVP first pass completed and validated by local smoke test on MSI
 - Stage 10 Idea Research first pass completed and validated by local smoke test on MSI
+- Stage 11 Telegram UX wiring MVP completed; manual Telegram verification on MSI pending
+- Stage 12 Voice English Tutor MVP first pass implemented; manual Telegram verification on MSI pending
 
 ## Key Paths
 - `docs/` operational documentation

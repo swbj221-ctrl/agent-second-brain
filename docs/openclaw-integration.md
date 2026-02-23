@@ -824,3 +824,26 @@ Scope: text-only Telegram commands wired to existing sidecar actions with a thin
 - No hardcoding in skills or sidecar.
 - Migrations are explicit and versioned.
 - Context payloads are validated and size-limited.
+
+## Stage 12: Voice English Tutor MVP (First Pass)
+Scope: message-based voice English tutor loop in Telegram using existing English session storage.
+
+### Telegram Entry Points
+- `/tutor start [target_minutes]` to open a tutor session.
+- `/tutor stop` to close the session.
+- `/tutor status` to check the current session.
+- Voice messages route to the tutor flow only when a tutor session is active.
+- Text messages follow the tutor flow only when a tutor session is active.
+
+### STT/TTS Adapters
+Provider-agnostic adapters are used for speech:
+- STT adapter returns structured `STTResult` with errors when unavailable.
+- TTS adapter returns structured `TTSResult`; missing provider falls back to text reply.
+
+### Tutor Flow (Message-Based)
+1. Voice or text input received.
+2. For voice: STT transcript produced (English language).
+3. Append user turn via `english_session_turn_append`.
+4. Generate assistant reply via a reply generator boundary.
+5. Append assistant turn via `english_session_turn_append`.
+6. For voice: TTS output is returned if configured; otherwise send text reply.

@@ -12,7 +12,7 @@ from d_brain.bot.formatters import format_process_report
 from d_brain.bot.states import DoCommandState
 from d_brain.config import get_settings
 from d_brain.services.processor import ClaudeProcessor
-from d_brain.services.transcription import DeepgramTranscriber
+from d_brain.services.transcription import build_stt_adapter
 
 router = Router(name="do")
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ async def handle_do_input(message: Message, bot: Bot, state: FSMContext) -> None
     if message.voice:
         await message.chat.do(action="typing")
         settings = get_settings()
-        transcriber = DeepgramTranscriber(settings.deepgram_api_key)
+        stt = build_stt_adapter(settings)
 
         try:
             file = await bot.get_file(message.voice.file_id)
@@ -61,7 +61,15 @@ async def handle_do_input(message: Message, bot: Bot, state: FSMContext) -> None
                 return
 
             audio_bytes = file_bytes.read()
-            prompt = await transcriber.transcribe(audio_bytes)
+            stt_result = await stt.transcribe(
+                audio_bytes, language=settings.stt_language_default
+            )
+            if not stt_result.ok:
+                await message.answer(
+                    stt_result.error_message or "STT is unavailable."
+                )
+                return
+            prompt = stt_result.text
         except Exception as e:
             logger.exception("Failed to transcribe voice for /do")
             await message.answer(f"❌ Не удалось транскрибировать: {e}")

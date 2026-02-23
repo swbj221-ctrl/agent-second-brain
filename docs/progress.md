@@ -29,6 +29,8 @@
 - 2026-02-23: Implemented Stage 10 Idea Research first pass (schema, sidecar actions, smoke test, docs updates).
 - 2026-02-23: Stage 10 Idea Research first pass validated by local smoke test on MSI.
 - 2026-02-23: Implemented Stage 11 Telegram UX wiring MVP (text-only command routing, thin adapter, manual checklist). Manual Telegram verification on MSI pending before marking completed.
+- 2026-02-23: Started Stage 12 Voice English Tutor MVP (STT/TTS adapters, Telegram tutor flow wiring, and runbook updates in progress).
+- 2026-02-23: Implemented Stage 12 first pass wiring (provider-agnostic STT/TTS adapters, tutor session flow, Telegram /tutor commands, voice/text routing, runbook and integration docs updates). Manual Telegram verification on MSI pending before marking completed.
 
 ## Next
 - Stage 6: News MVP (second pass: summaries + briefing pipeline + exactly 5 key events).

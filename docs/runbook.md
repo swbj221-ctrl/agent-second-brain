@@ -193,5 +193,21 @@ TODO: steps to start local services, env vars, and health checks.
    9. Codex usage:
       `/usage`
 
+- Stage 12 Voice English Tutor MVP checklist (manual):
+   0. Apply migrations (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+   1. Start the bot (same as current run flow).
+   2. Start tutor session:
+      `/tutor start 15`
+   3. Send a short text message and verify a reply is returned.
+   4. Send a voice message and verify:
+      - STT produces a transcript (or a clear STT error if not configured).
+      - Both user and assistant turns are stored in `english_session_turns`.
+      - If TTS is configured, a voice reply is returned; otherwise text fallback is returned.
+   5. Check tutor status:
+      `/tutor status`
+   6. Stop tutor session:
+      `/tutor stop`
+
 ## Debugging
 TODO: logs, tracing, and common failure modes.

@@ -4,12 +4,14 @@ import logging
 from datetime import datetime
 
 from aiogram import Bot, Router
-from aiogram.types import Message
+from aiogram.types import BufferedInputFile, Message
 
 from d_brain.config import get_settings
+from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
 from d_brain.services.session import SessionStore
 from d_brain.services.storage import VaultStorage
-from d_brain.services.transcription import DeepgramTranscriber
+from d_brain.services.transcription import build_stt_adapter
+from d_brain.services.tts import build_tts_adapter
 
 router = Router(name="voice")
 logger = logging.getLogger(__name__)
@@ -24,8 +26,9 @@ async def handle_voice(message: Message, bot: Bot) -> None:
     await message.chat.do(action="typing")
 
     settings = get_settings()
-    storage = VaultStorage(settings.vault_path)
-    transcriber = DeepgramTranscriber(settings.deepgram_api_key)
+    stt = build_stt_adapter(settings)
+    tts = build_tts_adapter(settings)
+    tutor_service = EnglishTutorService()
 
     try:
         file = await bot.get_file(message.voice.file_id)
@@ -39,16 +42,47 @@ async def handle_voice(message: Message, bot: Bot) -> None:
             return
 
         audio_bytes = file_bytes.read()
-        transcript = await transcriber.transcribe(audio_bytes)
+        tutor_state = get_active_tutor_session(message.from_user.id)
+        if tutor_state:
+            stt_result = await stt.transcribe(audio_bytes, language="en")
+            if not stt_result.ok:
+                await message.answer(
+                    stt_result.error_message or "STT is unavailable. Please try text."
+                )
+                return
+            transcript = stt_result.text.strip()
+            if not transcript:
+                await message.answer("Could not transcribe audio.")
+                return
+            reply_text, error = await tutor_service.handle_user_turn(
+                message.from_user.id, transcript
+            )
+            if error:
+                await message.answer(error)
+                return
+            tts_result = await tts.speak(reply_text or "", voice=settings.tts_voice)
+            if tts_result.ok and tts_result.audio_bytes:
+                voice_file = BufferedInputFile(
+                    tts_result.audio_bytes, filename="tutor-reply.ogg"
+                )
+                await message.answer_voice(voice=voice_file)
+            else:
+                await message.answer(reply_text or "")
+            return
 
+        stt_result = await stt.transcribe(audio_bytes, language=settings.stt_language_default)
+        if not stt_result.ok:
+            await message.answer(stt_result.error_message or "Could not transcribe audio")
+            return
+        transcript = stt_result.text.strip()
         if not transcript:
             await message.answer("Could not transcribe audio")
             return
 
+        storage = VaultStorage(settings.vault_path)
         timestamp = datetime.fromtimestamp(message.date.timestamp())
         storage.append_to_daily(transcript, timestamp, "[voice]")
 
-        # Log to session
         session = SessionStore(settings.vault_path)
         session.append(
             message.from_user.id,
@@ -58,7 +92,7 @@ async def handle_voice(message: Message, bot: Bot) -> None:
             msg_id=message.message_id,
         )
 
-        await message.answer(f"🎤 {transcript}\n\n✓ Сохранено")
+        await message.answer(f"рџЋ¤ {transcript}\n\nвњ“ РЎРѕС…СЂР°РЅРµРЅРѕ")
         logger.info("Voice message saved: %d chars", len(transcript))
 
     except Exception as e:

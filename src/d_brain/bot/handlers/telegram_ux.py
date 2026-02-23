@@ -9,6 +9,7 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
 from d_brain.services.sidecar_client import call_sidecar_action
 
 router = Router(name="telegram_ux")
@@ -180,6 +181,50 @@ async def cmd_word(message: Message) -> None:
         await message.answer(output)
         return
     await message.answer("Usage: /word add <word> | /word list")
+
+
+@router.message(Command("tutor"))
+async def cmd_tutor(message: Message) -> None:
+    text = message.text or ""
+    parts = _split_args(text, maxsplit=3)
+    if len(parts) < 2:
+        await message.answer("Usage: /tutor start [target_minutes] | /tutor stop | /tutor status")
+        return
+    sub = parts[1].lower()
+    service = EnglishTutorService()
+    if sub == "start":
+        target_minutes = None
+        if len(parts) >= 3 and parts[2].isdigit():
+            target_minutes = int(parts[2])
+        session_id, error = service.start_session(
+            _user_id(message),
+            source_ref=_source_ref(message),
+            target_minutes=target_minutes,
+        )
+        if error:
+            await message.answer(error)
+            return
+        await message.answer(
+            f"Tutor session started. session_id={session_id}"
+            + (f" target_minutes={target_minutes}" if target_minutes else "")
+        )
+        return
+    if sub == "stop":
+        error = service.close_session(_user_id(message), summary_text="Closed by user.")
+        if error:
+            await message.answer(error)
+            return
+        await message.answer("Tutor session stopped.")
+        return
+    if sub == "status":
+        state = get_active_tutor_session(_user_id(message))
+        if not state:
+            await message.answer("No active tutor session.")
+            return
+        target = f" target_minutes={state.target_minutes}" if state.target_minutes else ""
+        await message.answer(f"Tutor session active. session_id={state.session_id}{target}")
+        return
+    await message.answer("Usage: /tutor start [target_minutes] | /tutor stop | /tutor status")
 
 
 @router.message(Command("topic"))

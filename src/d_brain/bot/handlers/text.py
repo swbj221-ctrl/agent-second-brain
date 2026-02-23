@@ -7,6 +7,7 @@ from aiogram import Router
 from aiogram.types import Message
 
 from d_brain.config import get_settings
+from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
 from d_brain.services.session import SessionStore
 from d_brain.services.storage import VaultStorage
 
@@ -18,6 +19,18 @@ logger = logging.getLogger(__name__)
 async def handle_text(message: Message) -> None:
     """Handle text messages (excluding commands)."""
     if not message.text or not message.from_user:
+        return
+
+    tutor_state = get_active_tutor_session(message.from_user.id)
+    if tutor_state:
+        tutor_service = EnglishTutorService()
+        reply_text, error = await tutor_service.handle_user_turn(
+            message.from_user.id, message.text
+        )
+        if error:
+            await message.answer(error)
+            return
+        await message.answer(reply_text or "")
         return
 
     settings = get_settings()
