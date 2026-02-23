@@ -2223,3 +2223,381 @@ class SQLiteStore:
                 (title, body, source_type, source_ref, timestamp, timestamp),
             )
             return int(cursor.lastrowid)
+
+    def create_idea_research_job(
+        self,
+        title: str,
+        status: str,
+        notes: str | None,
+    ) -> int:
+        cleaned = title.strip()
+        if not cleaned:
+            raise SidecarError("invalid_payload", "Job title is required.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO idea_research_jobs (
+                    title,
+                    status,
+                    notes,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?);
+                """,
+                (cleaned, status, notes, timestamp, timestamp),
+            )
+            return int(cursor.lastrowid)
+
+    def list_idea_research_jobs(
+        self,
+        status: str | None,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        query = (
+            "SELECT id, title, status, notes, created_at, updated_at "
+            "FROM idea_research_jobs"
+        )
+        params: list[Any] = []
+        conditions: list[str] = []
+        if status:
+            conditions.append("status = ?")
+            params.append(status)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY id DESC LIMIT ? OFFSET ?;"
+        params.extend([limit, offset])
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "id": row[0],
+                "title": row[1],
+                "status": row[2],
+                "notes": row[3],
+                "created_at": row[4],
+                "updated_at": row[5],
+            }
+            for row in rows
+        ]
+
+    def update_idea_research_job(
+        self,
+        job_id: int,
+        title: str | None,
+        status: str | None,
+        notes: str | None,
+    ) -> None:
+        updates: list[str] = []
+        params: list[Any] = []
+        if title is not None:
+            cleaned = title.strip()
+            if not cleaned:
+                raise SidecarError("invalid_payload", "Job title is required.")
+            updates.append("title = ?")
+            params.append(cleaned)
+        if status is not None:
+            updates.append("status = ?")
+            params.append(status)
+        if notes is not None:
+            updates.append("notes = ?")
+            params.append(notes)
+        if not updates:
+            raise SidecarError("invalid_payload", "No updates provided.")
+        timestamp = utc_now()
+        updates.append("updated_at = ?")
+        params.append(timestamp)
+        params.append(job_id)
+        with self._connect() as conn:
+            cursor = conn.execute(
+                f"""
+                UPDATE idea_research_jobs
+                SET {", ".join(updates)}
+                WHERE id = ?;
+                """,
+                params,
+            )
+            if cursor.rowcount == 0:
+                raise SidecarError(
+                    "not_found", f"Idea research job {job_id} not found."
+                )
+
+    def get_idea_research_job(self, job_id: int) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, title, status, notes, created_at, updated_at
+                FROM idea_research_jobs
+                WHERE id = ?;
+                """,
+                (job_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "title": row[1],
+            "status": row[2],
+            "notes": row[3],
+            "created_at": row[4],
+            "updated_at": row[5],
+        }
+
+    def create_idea_research_run(
+        self,
+        job_id: int,
+        status: str,
+        stage: str,
+        summary_text: str | None,
+    ) -> int:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM idea_research_jobs WHERE id = ?;",
+                (job_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError(
+                    "not_found", f"Idea research job {job_id} not found."
+                )
+            cursor = conn.execute(
+                """
+                INSERT INTO idea_research_runs (
+                    job_id,
+                    status,
+                    stage,
+                    summary_text,
+                    started_at,
+                    completed_at,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (job_id, status, stage, summary_text, timestamp, None, timestamp, timestamp),
+            )
+            return int(cursor.lastrowid)
+
+    def update_idea_research_run(
+        self,
+        run_id: int,
+        status: str | None,
+        stage: str | None,
+        summary_text: str | None,
+        completed_at: str | None,
+    ) -> None:
+        updates: list[str] = []
+        params: list[Any] = []
+        if status is not None:
+            updates.append("status = ?")
+            params.append(status)
+        if stage is not None:
+            updates.append("stage = ?")
+            params.append(stage)
+        if summary_text is not None:
+            updates.append("summary_text = ?")
+            params.append(summary_text)
+        if completed_at is not None:
+            updates.append("completed_at = ?")
+            params.append(completed_at)
+        if not updates:
+            raise SidecarError("invalid_payload", "No updates provided.")
+        timestamp = utc_now()
+        updates.append("updated_at = ?")
+        params.append(timestamp)
+        params.append(run_id)
+        with self._connect() as conn:
+            cursor = conn.execute(
+                f"""
+                UPDATE idea_research_runs
+                SET {", ".join(updates)}
+                WHERE id = ?;
+                """,
+                params,
+            )
+            if cursor.rowcount == 0:
+                raise SidecarError(
+                    "not_found", f"Idea research run {run_id} not found."
+                )
+
+    def get_idea_research_run(self, run_id: int) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id,
+                       job_id,
+                       status,
+                       stage,
+                       summary_text,
+                       started_at,
+                       completed_at,
+                       created_at,
+                       updated_at
+                FROM idea_research_runs
+                WHERE id = ?;
+                """,
+                (run_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "job_id": row[1],
+            "status": row[2],
+            "stage": row[3],
+            "summary_text": row[4],
+            "started_at": row[5],
+            "completed_at": row[6],
+            "created_at": row[7],
+            "updated_at": row[8],
+        }
+
+    def create_idea_research_finding(
+        self,
+        run_id: int,
+        finding_type: str,
+        title: str,
+        summary_text: str,
+        evidence_ref: str | None,
+    ) -> int:
+        if not title.strip():
+            raise SidecarError("invalid_payload", "Finding title is required.")
+        if not summary_text.strip():
+            raise SidecarError("invalid_payload", "Finding summary is required.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM idea_research_runs WHERE id = ?;",
+                (run_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError(
+                    "not_found", f"Idea research run {run_id} not found."
+                )
+            cursor = conn.execute(
+                """
+                INSERT INTO idea_research_findings (
+                    run_id,
+                    finding_type,
+                    title,
+                    summary_text,
+                    evidence_ref,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?);
+                """,
+                (run_id, finding_type, title, summary_text, evidence_ref, timestamp, timestamp),
+            )
+            return int(cursor.lastrowid)
+
+    def list_idea_research_findings(self, run_id: int) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id,
+                       run_id,
+                       finding_type,
+                       title,
+                       summary_text,
+                       evidence_ref,
+                       created_at,
+                       updated_at
+                FROM idea_research_findings
+                WHERE run_id = ?
+                ORDER BY id ASC;
+                """,
+                (run_id,),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "run_id": row[1],
+                "finding_type": row[2],
+                "title": row[3],
+                "summary_text": row[4],
+                "evidence_ref": row[5],
+                "created_at": row[6],
+                "updated_at": row[7],
+            }
+            for row in rows
+        ]
+
+    def create_idea_research_report(
+        self,
+        run_id: int,
+        report_text: str,
+        report_format: str,
+    ) -> int:
+        if not report_text.strip():
+            raise SidecarError("invalid_payload", "Report text is required.")
+        timestamp = utc_now()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM idea_research_runs WHERE id = ?;",
+                (run_id,),
+            ).fetchone()
+            if not row:
+                raise SidecarError(
+                    "not_found", f"Idea research run {run_id} not found."
+                )
+            cursor = conn.execute(
+                """
+                INSERT INTO idea_research_reports (
+                    run_id,
+                    report_text,
+                    report_format,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?);
+                """,
+                (run_id, report_text, report_format, timestamp, timestamp),
+            )
+            return int(cursor.lastrowid)
+
+    def get_idea_research_report(self, report_id: int) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, run_id, report_text, report_format, created_at, updated_at
+                FROM idea_research_reports
+                WHERE id = ?;
+                """,
+                (report_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "run_id": row[1],
+            "report_text": row[2],
+            "report_format": row[3],
+            "created_at": row[4],
+            "updated_at": row[5],
+        }
+
+    def get_idea_research_report_by_run(self, run_id: int) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, run_id, report_text, report_format, created_at, updated_at
+                FROM idea_research_reports
+                WHERE run_id = ?
+                ORDER BY id DESC
+                LIMIT 1;
+                """,
+                (run_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "run_id": row[1],
+            "report_text": row[2],
+            "report_format": row[3],
+            "created_at": row[4],
+            "updated_at": row[5],
+        }

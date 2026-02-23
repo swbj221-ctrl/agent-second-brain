@@ -168,6 +168,8 @@ Tasks
 
 Acceptance Criteria
 - Research outputs stored with sources and summaries.
+Status
+- Completed (manual pipeline skeleton + smoke test validated on MSI).
 
 ### Stage 11: Universal Lists (P3)
 Goals

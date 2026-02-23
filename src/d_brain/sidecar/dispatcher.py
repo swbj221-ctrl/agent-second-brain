@@ -11,6 +11,11 @@ from d_brain.config import Settings, get_settings
 
 from .errors import SidecarError
 from .ingestion import ingest_payload
+from .idea_research import (
+    get_research_report,
+    get_research_run,
+    start_manual_research_run,
+)
 from .models import (
     EnglishSessionClosePayload,
     EnglishSessionCreatePayload,
@@ -42,6 +47,12 @@ from .models import (
     HealthTreatmentAddPayload,
     HealthTreatmentListPayload,
     HeartbeatTickPayload,
+    IdeaResearchJobCreatePayload,
+    IdeaResearchJobListPayload,
+    IdeaResearchJobUpdatePayload,
+    IdeaResearchReportGetPayload,
+    IdeaResearchRunGetPayload,
+    IdeaResearchRunStartPayload,
     IngestPayload,
     NewsItemIngestPayload,
     NewsItemSavePayload,
@@ -234,6 +245,48 @@ def handle_request(
                     payload.artifact_id, payload.limit, payload.offset
                 )
             }
+        elif request.action == "idea_research_job_create":
+            payload = IdeaResearchJobCreatePayload.model_validate(request.payload or {})
+            job_id = store.create_idea_research_job(
+                payload.title,
+                payload.status,
+                payload.notes,
+            )
+            data = {"job_id": job_id}
+        elif request.action == "idea_research_job_list":
+            payload = IdeaResearchJobListPayload.model_validate(request.payload or {})
+            data = {
+                "jobs": store.list_idea_research_jobs(
+                    payload.status, payload.limit, payload.offset
+                )
+            }
+        elif request.action == "idea_research_job_update":
+            payload = IdeaResearchJobUpdatePayload.model_validate(request.payload or {})
+            store.update_idea_research_job(
+                payload.job_id,
+                payload.title,
+                payload.status,
+                payload.notes,
+            )
+            data = {"job_id": payload.job_id}
+        elif request.action == "idea_research_run_start":
+            payload = IdeaResearchRunStartPayload.model_validate(request.payload or {})
+            data = start_manual_research_run(
+                store,
+                job_id=payload.job_id,
+                finding_types=payload.finding_types,
+                summary_text=payload.summary_text,
+            )
+        elif request.action == "idea_research_run_get":
+            payload = IdeaResearchRunGetPayload.model_validate(request.payload or {})
+            data = get_research_run(store, payload.run_id)
+        elif request.action == "idea_research_report_get":
+            payload = IdeaResearchReportGetPayload.model_validate(request.payload or {})
+            data = get_research_report(
+                store,
+                report_id=payload.report_id,
+                run_id=payload.run_id,
+            )
         elif request.action == "heartbeat_tick":
             payload = HeartbeatTickPayload.model_validate(request.payload or {})
             data = store.create_heartbeat_log(

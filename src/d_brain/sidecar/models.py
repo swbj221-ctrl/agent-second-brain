@@ -509,3 +509,65 @@ class CodexUsageListPayload(BaseModel):
     scope_key: str = Field(default="global", min_length=1)
     limit: int = Field(default=50, ge=1, le=200)
     offset: int = Field(default=0, ge=0)
+
+
+IdeaResearchJobStatus = Literal["active", "archived"]
+IdeaResearchRunStatus = Literal["started", "completed", "failed"]
+
+
+class IdeaResearchJobCreatePayload(BaseModel):
+    """Payload for creating an idea research job."""
+
+    title: str = Field(..., min_length=1)
+    status: IdeaResearchJobStatus = "active"
+    notes: str | None = None
+
+
+class IdeaResearchJobListPayload(BaseModel):
+    """Payload for listing idea research jobs."""
+
+    status: IdeaResearchJobStatus | None = None
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class IdeaResearchJobUpdatePayload(BaseModel):
+    """Payload for updating an idea research job."""
+
+    job_id: int = Field(..., ge=1)
+    title: str | None = None
+    status: IdeaResearchJobStatus | None = None
+    notes: str | None = None
+
+    @model_validator(mode="after")
+    def validate_updates(self) -> "IdeaResearchJobUpdatePayload":
+        if self.title is None and self.status is None and self.notes is None:
+            raise ValueError("Provide at least one field to update.")
+        return self
+
+
+class IdeaResearchRunStartPayload(BaseModel):
+    """Payload for starting a manual idea research run."""
+
+    job_id: int = Field(..., ge=1)
+    finding_types: list[str] | None = None
+    summary_text: str | None = None
+
+
+class IdeaResearchRunGetPayload(BaseModel):
+    """Payload for retrieving an idea research run."""
+
+    run_id: int = Field(..., ge=1)
+
+
+class IdeaResearchReportGetPayload(BaseModel):
+    """Payload for retrieving an idea research report."""
+
+    report_id: int | None = Field(default=None, ge=1)
+    run_id: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def validate_selector(self) -> "IdeaResearchReportGetPayload":
+        if self.report_id is None and self.run_id is None:
+            raise ValueError("Provide report_id or run_id.")
+        return self

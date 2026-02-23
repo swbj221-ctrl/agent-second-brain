@@ -26,6 +26,8 @@
 - 2026-02-23: Stage 8 first pass validated by local smoke test on MSI.
 - 2026-02-23: Implemented Stage 9 Health MVP first pass (schema, sidecar actions, smoke test, docs updates).
 - 2026-02-23: Stage 9 Health MVP first pass validated by local smoke test on MSI.
+- 2026-02-23: Implemented Stage 10 Idea Research first pass (schema, sidecar actions, smoke test, docs updates).
+- 2026-02-23: Stage 10 Idea Research first pass validated by local smoke test on MSI.
 
 ## Next
 - Stage 6: News MVP (second pass: summaries + briefing pipeline + exactly 5 key events).

@@ -714,6 +714,86 @@ Optional:
 Response Data:
 - `lab_reports` (array)
 
+## Stage 10: Idea Research / Product Factory (First Pass)
+Scope: manual-only research runs with structured findings and short reports. No web crawling or automation.
+
+### Actions
+- `idea_research_job_create`
+- `idea_research_job_list`
+- `idea_research_job_update` (optional)
+- `idea_research_run_start`
+- `idea_research_run_get`
+- `idea_research_report_get`
+
+### Job Create Payload (action = idea_research_job_create)
+Required:
+- `title` (string)
+
+Optional:
+- `status` (string, default `active`)
+- `notes` (string)
+
+Response Data:
+- `job_id` (integer)
+
+### Job List Payload (action = idea_research_job_list)
+Optional:
+- `status` (string: `active`, `archived`)
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `jobs` (array): each item includes `id`, `title`, `status`, `notes`, `created_at`, `updated_at`.
+
+### Job Update Payload (action = idea_research_job_update)
+Required:
+- `job_id` (int)
+
+Optional (at least one):
+- `title` (string)
+- `status` (string: `active`, `archived`)
+- `notes` (string)
+
+Response Data:
+- `job_id` (integer)
+
+### Run Start Payload (action = idea_research_run_start)
+Required:
+- `job_id` (int)
+
+Optional:
+- `finding_types` (array of strings)
+- `summary_text` (string)
+
+Behavior:
+- Manual-only run.
+- Creates a run record, placeholder findings, and a short report.
+- Updates `stage` and `status` for traceability.
+
+Response Data:
+- `job` (object)
+- `run` (object)
+- `findings` (array)
+- `report` (object)
+
+### Run Get Payload (action = idea_research_run_get)
+Required:
+- `run_id` (int)
+
+Response Data:
+- `job` (object)
+- `run` (object)
+- `findings` (array)
+- `report` (object or null)
+
+### Report Get Payload (action = idea_research_report_get)
+Optional (one required):
+- `report_id` (int)
+- `run_id` (int)
+
+Response Data:
+- `id`, `run_id`, `report_text`, `report_format`, `created_at`, `updated_at`
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.

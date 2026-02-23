@@ -50,6 +50,12 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `health_observations`
 - `health_lab_reports`
 
+## Entities (Stage 10)
+- `idea_research_jobs`
+- `idea_research_runs`
+- `idea_research_findings`
+- `idea_research_reports`
+
 ## Fields (Minimal)
 - Common: `id` (PK), `created_at`/`updated_at` timestamps where applicable.
 - `artifacts`: `source_type`, `source_ref`, `content_type`, `content_path`, `content_hash`.
@@ -92,6 +98,13 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `health_observations`: `observation_type`, `value`, `unit`, `observed_at`, `notes`,
   `created_at`, `updated_at`.
 - `health_lab_reports`: `artifact_id` (FK), `title`, `report_date`, `notes`,
+  `created_at`, `updated_at`.
+- `idea_research_jobs`: `title`, `status`, `notes`, `created_at`, `updated_at`.
+- `idea_research_runs`: `job_id` (FK), `status`, `stage`, `summary_text`,
+  `started_at`, `completed_at`, `created_at`, `updated_at`.
+- `idea_research_findings`: `run_id` (FK), `finding_type`, `title`, `summary_text`,
+  `evidence_ref`, `created_at`, `updated_at`.
+- `idea_research_reports`: `run_id` (FK), `report_text`, `report_format`,
   `created_at`, `updated_at`.
 
 ## News Dedupe (Stage 6)
