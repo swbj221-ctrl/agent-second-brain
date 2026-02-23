@@ -9,6 +9,10 @@
 ## Local Development
 TODO: steps to start local services, env vars, and health checks.
 
+## Dependencies
+- Install (pip): `python -m pip install -r requirements.txt`
+- Install (uv): `uv sync`
+
 ## Migrations
 - Create: `python scripts/migrate.py create <name>`
 - Apply: `python scripts/migrate.py apply`
@@ -18,6 +22,48 @@ TODO: steps to start local services, env vars, and health checks.
 ## Verification
 - Scheduler smoke test (no-op): run a short script or REPL and call
   `Scheduler(build_default_registry()).run_once("noop")`.
+- Stage 2 ingestion smoke test (local):
+  Note: `ModuleNotFoundError` happens with a `src/` layout when `d_brain` is not on
+  `PYTHONPATH` or installed in the environment. Use the commands below or run
+  the script which adds `src/` to `sys.path`.
+  Minimal env vars for Stage 2 smoke tests:
+  - `DB_PATH` (optional, defaults to `./data/app.db`)
+  - `MIGRATIONS_PATH` (optional, defaults to `./deploy/migrations`)
+  - `DEEPGRAM_API_KEY` is not required unless voice/STT features are used.
+  0. Install dependencies:
+     - `python -m pip install -r requirements.txt`
+     - `uv sync`
+  1. Apply migrations (PowerShell):
+     `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
+  2. Apply migrations (bash):
+     `PYTHONPATH=src python scripts/migrate.py apply`
+  3. Run ingest smoke (PowerShell):
+     `$env:PYTHONPATH="src"; python scripts/ingest_smoke.py`
+  4. Run ingest smoke (bash):
+     `PYTHONPATH=src python scripts/ingest_smoke.py`
+  5. Verify rows (PowerShell):
+     `$env:PYTHONPATH="src"; python - <<'PY'\nimport sqlite3\nfrom d_brain.config import get_settings\ns = get_settings()\nwith sqlite3.connect(s.db_path) as c:\n    a = c.execute(\"SELECT COUNT(*) FROM artifacts;\").fetchone()[0]\n    b = c.execute(\"SELECT COUNT(*) FROM artifact_summaries;\").fetchone()[0]\n    print(f\"artifacts={a}\")\n    print(f\"artifact_summaries={b}\")\nPY`
+  6. Verify rows (bash):
+     `PYTHONPATH=src python - <<'PY'\nimport sqlite3\nfrom d_brain.config import get_settings\ns = get_settings()\nwith sqlite3.connect(s.db_path) as c:\n    a = c.execute(\"SELECT COUNT(*) FROM artifacts;\").fetchone()[0]\n    b = c.execute(\"SELECT COUNT(*) FROM artifact_summaries;\").fetchone()[0]\n    print(f\"artifacts={a}\")\n    print(f\"artifact_summaries={b}\")\nPY`
+  7. Verify rows (alt, no PYTHONPATH):
+     ```bash
+     python - <<'PY'
+     import sqlite3
+     import sys
+     from pathlib import Path
+     root = Path(".").resolve()
+     src = root / "src"
+     if src.exists() and str(src) not in sys.path:
+         sys.path.insert(0, str(src))
+     from d_brain.config import get_settings
+     s = get_settings()
+     with sqlite3.connect(s.db_path) as c:
+         a = c.execute("SELECT COUNT(*) FROM artifacts;").fetchone()[0]
+         b = c.execute("SELECT COUNT(*) FROM artifact_summaries;").fetchone()[0]
+         print(f"artifacts={a}")
+         print(f"artifact_summaries={b}")
+     PY
+     ```
 
 ## Debugging
 TODO: logs, tracing, and common failure modes.

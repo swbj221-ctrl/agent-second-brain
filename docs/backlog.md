@@ -55,6 +55,8 @@ Tasks
 Acceptance Criteria
 - Ingestion creates a summary record with metadata and source link.
 - Raw transcripts are not stored as primary context.
+Status
+- Completed (validated by local smoke test on MSI).
 
 ### Stage 3: Plans and Reminders (P1)
 Goals

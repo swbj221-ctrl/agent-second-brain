@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 1 foundation: base schema migrations, minimal interface draft, and scheduler skeleton.
+- Stage 2 complete: ingestion + short summary pipeline with local smoke test.
 
 ## Goals
 - Ship a stable, minimal core pipeline
@@ -35,8 +35,8 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - LLM as business logic
 
 ## Current Status
-- Project bootstrapped
-- Docs baseline established
+- Stage 1 foundation complete
+- Stage 2 ingestion + summary pipeline complete with smoke test
 
 ## Key Paths
 - `docs/` operational documentation

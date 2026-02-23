@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     )
 
     telegram_bot_token: str = Field(description="Telegram Bot API token")
-    deepgram_api_key: str = Field(description="Deepgram API key for transcription")
+    deepgram_api_key: str = Field(
+        default="",
+        description="Deepgram API key for transcription (required for voice/STT only).",
+    )
     todoist_api_key: str = Field(default="", description="Todoist API key for tasks")
     vault_path: Path = Field(
         default=Path("./vault"),
@@ -37,6 +40,10 @@ class Settings(BaseSettings):
     allow_all_users: bool = Field(
         default=False,
         description="Whether to allow access to all users (security risk!)",
+    )
+    sidecar_payload_limit_bytes: int = Field(
+        default=32_768,
+        description="Max JSON payload size for sidecar requests in bytes.",
     )
 
     @property

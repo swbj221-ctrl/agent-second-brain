@@ -45,6 +45,50 @@ Scope: Stage 1 only. Keep the surface small and avoid over-design.
 - Default max payload size: 32 KB (configurable).
 - Reject requests exceeding the limit with `status=error`.
 
+## Stage 2: Ingestion Contract
+Scope: ingestion + short summary pipeline. Reuse the Stage 1 request/response envelope.
+
+### Action
+- `action`: `ingest`
+
+### Request Payload (action = ingest)
+Required:
+- `source_type` (string): e.g., `telegram`, `manual`, `import`.
+- `content_type` (string): `text`, `audio`, `image`, `file`.
+- `summary_format` (string): default `plain`.
+
+Optional:
+- `external_id` (string): client-side id for idempotency or tracking.
+- `source_ref` (string): source message id, file id, or URL.
+- `content` (string): inline content when `content_type=text`.
+- `content_path` (string): path or URI to stored content (for non-text or large input).
+- `content_hash` (string): hash of stored content for de-dupe.
+- `metadata` (object): additional context (must be JSON-serializable).
+  - `metadata.transcript` (string): required to summarize non-text inputs.
+
+Validation rules:
+- `source_type`, `content_type`, and `summary_format` are required.
+- Provide exactly one of `content` or `content_path`.
+- `content` is only allowed when `content_type=text`.
+- `content_path` is required for non-text content types.
+- Non-text content requires `metadata.transcript` for summarization.
+- Reject payloads over 32 KB (configurable).
+
+### Response Data (action = ingest)
+- `artifact_id` (integer): created artifact record id.
+- `summary_id` (integer): created summary record id.
+- `summary_text` (string): short summary text.
+- `summary_format` (string): echo input or default.
+- `model_ref` (string): local utility model or heuristic identifier.
+
+### Status Codes (app-level)
+- `ok`: ingestion + summary created.
+- `error`: validation failure, storage failure, or summarization failure.
+
+Error object (when `status=error`):
+- `code` (string): `invalid_payload`, `payload_too_large`, `unsupported_type`, `storage_error`, `summary_error`.
+- `message` (string): human-readable summary.
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.
