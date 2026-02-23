@@ -63,6 +63,12 @@ def normalize_news_hash_payload(
     return compute_hash(normalized)
 
 
+def dumps_json(payload: dict[str, Any] | None) -> str | None:
+    if payload is None:
+        return None
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
 @dataclass(slots=True)
 class SQLiteStore:
     """SQLite-backed storage for artifacts and summaries."""
@@ -74,6 +80,172 @@ class SQLiteStore:
         conn = sqlite3.connect(self.db_path)
         conn.execute("PRAGMA foreign_keys = ON;")
         return conn
+
+    def _count_table(self, conn: sqlite3.Connection, table: str, where: str = "", params: tuple[Any, ...] = ()) -> int:
+        query = f"SELECT COUNT(*) FROM {table}"
+        if where:
+            query += f" WHERE {where}"
+        row = conn.execute(query, params).fetchone()
+        return int(row[0]) if row else 0
+
+    def _max_timestamp(
+        self,
+        conn: sqlite3.Connection,
+        table: str,
+        column: str = "created_at",
+        where: str = "",
+        params: tuple[Any, ...] = (),
+    ) -> str | None:
+        query = f"SELECT MAX({column}) FROM {table}"
+        if where:
+            query += f" WHERE {where}"
+        row = conn.execute(query, params).fetchone()
+        if not row:
+            return None
+        return row[0]
+
+    def create_heartbeat_log(
+        self,
+        event_type: str,
+        event_source: str | None,
+        event_details: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        timestamp = utc_now()
+        details_json = dumps_json(event_details)
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO heartbeat_logs (
+                    event_type,
+                    event_source,
+                    event_details,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?);
+                """,
+                (event_type, event_source, details_json, timestamp),
+            )
+            log_id = int(cursor.lastrowid)
+        return {
+            "heartbeat_log_id": log_id,
+            "event_type": event_type,
+            "event_source": event_source,
+            "created_at": timestamp,
+        }
+
+    def create_digest(self, digest_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        timestamp = utc_now()
+        payload_json = dumps_json(payload)
+        if payload_json is None:
+            raise SidecarError("invalid_payload", "Digest payload is required.")
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO digests (
+                    digest_type,
+                    payload,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?);
+                """,
+                (digest_type, payload_json, timestamp, timestamp),
+            )
+            digest_id = int(cursor.lastrowid)
+        return {
+            "digest_id": digest_id,
+            "digest_type": digest_type,
+            "payload": payload,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+        }
+
+    def get_latest_digest(self) -> dict[str, Any]:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, digest_type, payload, created_at, updated_at
+                FROM digests
+                ORDER BY id DESC
+                LIMIT 1;
+                """,
+            ).fetchone()
+        if not row:
+            raise SidecarError("not_found", "No digests found.")
+        payload = json.loads(row[2]) if row[2] else {}
+        return {
+            "id": row[0],
+            "digest_type": row[1],
+            "payload": payload,
+            "created_at": row[3],
+            "updated_at": row[4],
+        }
+
+    def list_digests(self, limit: int, offset: int) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, digest_type, created_at, updated_at
+                FROM digests
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?;
+                """,
+                (limit, offset),
+            ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "digest_type": row[1],
+                "created_at": row[2],
+                "updated_at": row[3],
+            }
+            for row in rows
+        ]
+
+    def generate_system_state_digest(self) -> dict[str, Any]:
+        timestamp = utc_now()
+        with self._connect() as conn:
+            counts = {
+                "artifacts": self._count_table(conn, "artifacts"),
+                "artifact_summaries": self._count_table(conn, "artifact_summaries"),
+                "notes": self._count_table(conn, "notes"),
+                "events": self._count_table(conn, "events"),
+                "event_reminders": self._count_table(conn, "event_reminders"),
+                "english_words": self._count_table(conn, "english_words"),
+                "english_topics": self._count_table(conn, "english_topics"),
+                "english_sessions_open": self._count_table(
+                    conn, "english_sessions", "status = ?", ("open",)
+                ),
+                "english_sessions_closed": self._count_table(
+                    conn, "english_sessions", "status = ?", ("closed",)
+                ),
+                "reflection_sessions_open": self._count_table(
+                    conn, "reflection_sessions", "status = ?", ("open",)
+                ),
+                "reflection_sessions_closed": self._count_table(
+                    conn, "reflection_sessions", "status = ?", ("closed",)
+                ),
+                "news_sections": self._count_table(conn, "news_sections"),
+                "news_sources": self._count_table(conn, "news_sources"),
+                "news_items": self._count_table(conn, "news_items"),
+                "news_item_summaries": self._count_table(conn, "news_item_summaries"),
+                "news_briefings": self._count_table(conn, "news_briefings"),
+                "heartbeat_logs": self._count_table(conn, "heartbeat_logs"),
+            }
+            latest = {
+                "last_heartbeat_at": self._max_timestamp(conn, "heartbeat_logs"),
+                "last_artifact_at": self._max_timestamp(conn, "artifacts"),
+                "last_news_item_at": self._max_timestamp(conn, "news_items"),
+            }
+        payload = {
+            "payload_version": 1,
+            "digest_type": "system_state",
+            "generated_at": timestamp,
+            "counts": counts,
+            "latest": latest,
+            "status": {"db_path": str(self.db_path)},
+        }
+        return self.create_digest("system_state", payload)
 
     def create_artifact(self, payload: IngestPayload) -> int:
         timestamp = utc_now()

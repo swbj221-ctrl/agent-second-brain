@@ -35,6 +35,10 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `news_briefings`
 - `news_briefing_items`
 
+## Entities (Stage 7)
+- `digests`
+- `heartbeat_logs`
+
 ## Fields (Minimal)
 - Common: `id` (PK), `created_at`/`updated_at` timestamps where applicable.
 - `artifacts`: `source_type`, `source_ref`, `content_type`, `content_path`, `content_hash`.
@@ -61,6 +65,8 @@ Purpose: persist minimal state needed by the sidecar backend.
 - `news_briefings`: `briefing_mode`.
 - `news_briefing_items`: `briefing_id` (FK), `news_item_id` (FK), `source_id` (FK),
   `title`, `url`, `published_at`, `summary_text`.
+- `digests`: `digest_type`, `payload` (JSON), `created_at`, `updated_at`.
+- `heartbeat_logs`: `event_type`, `event_source`, `event_details` (JSON), `created_at`.
 
 ## News Dedupe (Stage 6)
 Deterministic dedupe uses `content_hash` computed from a normalized JSON payload:

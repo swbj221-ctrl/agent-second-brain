@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from .errors import SidecarError
@@ -54,6 +55,19 @@ def summarize_news_item(
         result.summary_format,
         result.model_ref,
     )
+    try:
+        store.create_heartbeat_log(
+            event_type="utility_usage",
+            event_source="utility:summarizer",
+            event_details={
+                "utility": "summarizer",
+                "model_ref": result.model_ref,
+                "summary_format": result.summary_format,
+                "context": "news",
+            },
+        )
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to record utility usage event")
     return {
         "summary_id": summary_id,
         "news_item_id": news_item_id,

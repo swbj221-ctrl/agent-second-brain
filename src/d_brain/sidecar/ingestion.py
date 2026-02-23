@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from .errors import SidecarError
@@ -42,6 +43,19 @@ def ingest_payload(
     """Persist artifact + summary and return response data."""
     active_summarizer = summarizer or HeuristicSummarizer()
     summary = run_summary_pipeline(payload, active_summarizer)
+    try:
+        store.create_heartbeat_log(
+            event_type="utility_usage",
+            event_source="utility:summarizer",
+            event_details={
+                "utility": "summarizer",
+                "model_ref": summary.model_ref,
+                "summary_format": summary.summary_format,
+                "context": "ingestion",
+            },
+        )
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to record utility usage event")
     artifact_id = store.create_artifact(payload)
     summary_id = store.create_summary(
         artifact_id=artifact_id,

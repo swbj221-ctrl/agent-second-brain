@@ -128,6 +128,8 @@ Tasks
 
 Acceptance Criteria
 - Digest and heartbeat jobs execute on schedule.
+Status
+- Completed (validated by local smoke test on MSI).
 
 ### Stage 8: Codex Limits Indicator + Economy Mode (P2)
 Goals

@@ -19,10 +19,14 @@ from .models import (
     EnglishTopicListPayload,
     EnglishWordAddPayload,
     EnglishWordListPayload,
+    DigestGeneratePayload,
+    DigestGetLatestPayload,
+    DigestListPayload,
     EventCreatePayload,
     EventListPayload,
     EventParsePayload,
     EventUpdateStatusPayload,
+    HeartbeatTickPayload,
     IngestPayload,
     NewsItemIngestPayload,
     NewsItemSavePayload,
@@ -141,6 +145,27 @@ def handle_request(
                     payload.status, payload.limit, payload.offset
                 )
             }
+        elif request.action == "heartbeat_tick":
+            payload = HeartbeatTickPayload.model_validate(request.payload or {})
+            data = store.create_heartbeat_log(
+                event_type=payload.event_type,
+                event_source=payload.event_source,
+                event_details=payload.event_details,
+            )
+        elif request.action == "digest_generate":
+            payload = DigestGeneratePayload.model_validate(request.payload or {})
+            if payload.digest_type != "system_state":
+                raise SidecarError(
+                    "invalid_payload",
+                    f"Unsupported digest_type: {payload.digest_type}",
+                )
+            data = store.generate_system_state_digest()
+        elif request.action == "digest_get_latest":
+            DigestGetLatestPayload.model_validate(request.payload or {})
+            data = store.get_latest_digest()
+        elif request.action == "digest_list":
+            payload = DigestListPayload.model_validate(request.payload or {})
+            data = {"digests": store.list_digests(payload.limit, payload.offset)}
         elif request.action == "event_create":
             payload = EventCreatePayload.model_validate(request.payload or {})
             data = create_event_with_default_reminder(payload, store)

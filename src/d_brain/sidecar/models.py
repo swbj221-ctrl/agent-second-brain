@@ -206,6 +206,33 @@ class ReflectionSessionListPayload(BaseModel):
     offset: int = Field(default=0, ge=0)
 
 
+class HeartbeatTickPayload(BaseModel):
+    """Payload for recording a heartbeat log entry."""
+
+    event_type: str = Field(default="heartbeat_tick", min_length=1)
+    event_source: str | None = None
+    event_details: dict[str, Any] | None = None
+
+
+class DigestGeneratePayload(BaseModel):
+    """Payload for generating a system-state digest."""
+
+    digest_type: Literal["system_state"] = "system_state"
+
+
+class DigestGetLatestPayload(BaseModel):
+    """Payload for retrieving the latest digest."""
+
+    pass
+
+
+class DigestListPayload(BaseModel):
+    """Payload for listing digests."""
+
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
 NewsSectionStatus = Literal["active", "inactive"]
 NewsSourceStatus = Literal["active", "inactive"]
 

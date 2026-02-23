@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 6 second pass: news summaries, briefing pipeline, and exactly 5 key events per run.
+- Stage 8: Codex limits indicator and economy mode.
 
 ## Goals
 - Ship a stable, minimal core pipeline
@@ -39,6 +39,9 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 2 ingestion + summary pipeline complete with smoke test
 - Stage 3 plans/reminders complete with smoke tests (default + parse)
 - Stage 4 English MVP completed and validated by local smoke test on MSI
+- Stage 5 Reflection MVP completed and validated by local smoke test on MSI
+- Stage 6 News MVP first pass completed; second pass slice implemented (briefing schema, manual briefing, summaries)
+- Stage 7 Digest + Heartbeat first pass completed and validated by local smoke test on MSI
 
 ## Key Paths
 - `docs/` operational documentation

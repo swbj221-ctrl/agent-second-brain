@@ -441,6 +441,64 @@ Optional:
 Response Data:
 - `note_id` (integer)
 
+## Stage 7: Digest + Heartbeat Contract (First Pass)
+Scope: system-state digest and heartbeat logging. Manual-only digest generation.
+
+### Actions
+- `heartbeat_tick`
+- `digest_generate`
+- `digest_get_latest`
+- `digest_list`
+
+### Heartbeat Tick Payload (action = heartbeat_tick)
+Optional:
+- `event_type` (string, default `heartbeat_tick`)
+- `event_source` (string)
+- `event_details` (object)
+
+Response Data:
+- `heartbeat_log_id` (integer)
+- `event_type` (string)
+- `event_source` (string)
+- `created_at` (string, ISO 8601)
+
+### Digest Generate Payload (action = digest_generate)
+Optional:
+- `digest_type` (string, default `system_state`)
+
+Response Data:
+- `digest_id` (integer)
+- `digest_type` (string)
+- `payload` (object)
+- `created_at` (string, ISO 8601)
+- `updated_at` (string, ISO 8601)
+
+Digest payload (system_state):
+- `payload_version` (int, `1`)
+- `digest_type` (string, `system_state`)
+- `generated_at` (string, ISO 8601)
+- `counts` (object with entity counts)
+- `latest` (object with latest timestamps)
+- `status` (object with `db_path`)
+
+### Digest Get Latest Payload (action = digest_get_latest)
+No payload required.
+
+Response Data:
+- `id` (integer)
+- `digest_type` (string)
+- `payload` (object)
+- `created_at` (string, ISO 8601)
+- `updated_at` (string, ISO 8601)
+
+### Digest List Payload (action = digest_list)
+Optional:
+- `limit` (int, default 50, max 200)
+- `offset` (int, default 0)
+
+Response Data:
+- `digests` (array): each item includes `id`, `digest_type`, `created_at`, `updated_at`.
+
 ## Compatibility Goals
 - Minimize deep core modifications.
 - Use adapters/configs to preserve update compatibility.
