@@ -1,7 +1,7 @@
 # Close Session (Codex)
 
 ## 1) Update Docs
-- Update `docs/progress.md` with what changed and today’s entry
+- Update `docs/progress.md` with what changed and today's entry
 - Update `docs/context-pack.md` if project context shifted
 - Update `docs/decisions.md` with any new decisions or pending items
 - Update `docs/runbook.md` if operational steps changed

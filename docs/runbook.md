@@ -25,6 +25,8 @@ TODO: steps to start local services, env vars, and health checks.
 Notes:
 - STT requires `deepgram-sdk` and `DEEPGRAM_API_KEY`. If missing, STT falls back with a clear error.
 - TTS defaults to `none` and will fall back to text replies.
+- Deepgram TTS requires `DEEPGRAM_API_KEY` and `TTS_PROVIDER=deepgram`.
+- For Telegram voice replies, use `TTS_DEEPGRAM_ENCODING=opus` and `TTS_DEEPGRAM_CONTAINER=ogg`.
 
 ## Dependencies
 - Install (pip): `python -m pip install -r requirements.txt`
@@ -119,6 +121,8 @@ Output includes:
   - Ensure the venv is activated and run `python -m pip install -r requirements.txt`.
 - `ModuleNotFoundError: deepgram`:
   - Install `deepgram-sdk` or set `STT_PROVIDER=none` to disable STT.
+- PowerShell activation path mismatch:
+  - If `.\venv\Scripts\Activate.ps1` fails, the canonical path is `.\.venv\Scripts\Activate.ps1`.
 - `TELEGRAM_BOT_TOKEN is required`:
   - Set `TELEGRAM_BOT_TOKEN` in `.env` before starting the bot.
 - `No ALLOWED_USER_IDS configured`:
@@ -304,6 +308,11 @@ Troubleshooting note:
       `$env:PYTHONPATH="src"; python scripts/idea_research_smoke.py`
    3. Run Stage 10 smoke (bash):
       `PYTHONPATH=src python scripts/idea_research_smoke.py`
+- Stage 12/13 TTS smoke test (local):
+   0. Run TTS smoke (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/tts_smoke.py`
+   1. Run TTS smoke (bash):
+      `PYTHONPATH=src python scripts/tts_smoke.py`
 - Stage 18 Projects & Tasks smoke test (local):
    0. Apply migrations (PowerShell):
       `$env:PYTHONPATH="src"; python scripts/migrate.py apply`

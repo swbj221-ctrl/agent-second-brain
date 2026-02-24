@@ -29,6 +29,7 @@ Reason: Cyrillic rendering is unreliable in the current environment.
 - 2026-02-23 | Lazy import for Telegram delivery dependencies | Accepted | Keep scheduler imports safe; delivery failures surface at runtime with traceability logs.
 - 2026-02-23 | Reminder delivery traceability uses `heartbeat_logs` | Accepted | Avoid new tables; keep delivery attempts visible with minimal structured logging.
 - 2026-02-24 | MSI install uses `requirements.txt` as canonical dependency manifest | Accepted | Simple, reliable pip path for Windows; `pyproject.toml` stays aligned for uv.
+- 2026-02-24 | Canonical Windows venv folder is `.venv` | Accepted | Standardizes activation paths and reduces MSI setup confusion.
 
 # Architectural Decisions
 

@@ -51,6 +51,8 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 14 Books / Philosophy / Knowledge UX MVP first pass implemented; manual Telegram verification on MSI pending
 - Stage 16B Backup & Restore MVP implemented; manual MSI verification pending
 - Stage 18 Projects & Tasks MVP first pass implemented; MSI smoke test verified; manual Telegram verification pending
+- Deepgram TTS adapter added with config-driven fallback; TTS smoke script added.
+- MSI venv standardized on `.venv`; gitignore tightened for venv variants.
 
 ## Key Paths
 - `docs/` operational documentation

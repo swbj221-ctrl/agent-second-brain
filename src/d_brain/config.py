@@ -42,6 +42,14 @@ class Settings(BaseSettings):
         default="",
         description="Default TTS voice name.",
     )
+    tts_deepgram_encoding: str = Field(
+        default="opus",
+        description="Deepgram TTS encoding (default: opus).",
+    )
+    tts_deepgram_container: str = Field(
+        default="ogg",
+        description="Deepgram TTS container (default: ogg).",
+    )
     todoist_api_key: str = Field(default="", description="Todoist API key for tasks")
     vault_path: Path = Field(
         default=Path("./vault"),
@@ -128,10 +136,14 @@ def validate_settings(settings: Settings) -> tuple[list[str], list[str]]:
         if not settings.deepgram_api_key.strip():
             warnings.append("DEEPGRAM_API_KEY is empty; STT will be unavailable.")
 
-    if settings.tts_provider.strip().lower() not in {"", "none", "mock"}:
+    tts_provider = settings.tts_provider.strip().lower()
+    if tts_provider not in {"", "none", "mock", "deepgram"}:
         warnings.append(
             f"Unsupported TTS_PROVIDER '{settings.tts_provider}'. Falling back to text."
         )
+    if tts_provider == "deepgram":
+        if not settings.deepgram_api_key.strip():
+            warnings.append("DEEPGRAM_API_KEY is empty; TTS will be unavailable.")
 
     if settings.sidecar_payload_limit_bytes <= 0:
         errors.append("SIDECAR_PAYLOAD_LIMIT_BYTES must be positive.")

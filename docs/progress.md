@@ -1,6 +1,14 @@
 # Progress
 
 ## Log
+- 2026-02-24: Close-session note: `.venv` created, deps installed; TTS smoke failed (`tts_unavailable`, provider not configured). Manual Telegram QA (Stages 12/13/15/16) not run in this session.
+- 2026-02-24: Created `.venv` (it was missing) and installed deps from `requirements.txt` (MSI QA prep).
+- 2026-02-24: TTS smoke output: `tts_smoke_fail`; `error_code=tts_unavailable`; `error_message=TTS provider is not configured.`
+- 2026-02-24: MSI QA pass started; `scripts/tts_smoke.py` failed due to missing dependency `pydantic` (ModuleNotFoundError). Needs venv deps installed.
+- 2026-02-24: Close-session note: TTS smoke passed on MSI, no architecture/schema changes, next step = venv normalization + QA pass for voice/news/reminders.
+- 2026-02-24: Standardized MSI venv docs to `.venv`, tightened venv gitignore patterns, and added activation mismatch troubleshooting note.
+- 2026-02-24: Added Stage 12/13 TTS smoke test script and runbook commands.
+- 2026-02-24: Added Deepgram TTS adapter (REST) with config keys and graceful fallback; updated runbook notes.
 - 2026-02-23: Recreated MSI venv with Python 3.12 and started the bot; Stage 18 manual Telegram verification still pending.
 - 2026-02-23: Added Stage 18 manual Telegram verification checklist to the runbook.
 - 2026-02-23: Close-session check-in; no code changes made in this session.
