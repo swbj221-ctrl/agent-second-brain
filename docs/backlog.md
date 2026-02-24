@@ -114,7 +114,7 @@ Acceptance Criteria
 - Each run outputs exactly 5 key events.
 - News entries persisted with sources.
 Status
-- In progress (first pass completed; second pass pending: summaries + briefing pipeline + exactly 5 key events).
+- Code complete for first + second pass; MSI validation pending (Stage 6 smoke tests).
 
 ### Stage 7: My Digest + Heartbeat + Local Utility Layer (P2)
 Goals

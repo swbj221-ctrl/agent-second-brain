@@ -8,6 +8,7 @@
 - Read `docs/openclaw-integration.md`
 - Read `docs/db-schema.md` (if schema work involved)
 - Read `docs/backlog.md`
+- Read `docs/agent/README.md` (agent profile entry point)
 
 ## 2) Project Summary
 - 3-6 bullets: current goals, constraints, architecture (reuse-first, one main skill + sidecar, anti-context-bloat, local LLM utility, Codex reasoning)

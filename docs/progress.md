@@ -1,6 +1,11 @@
 # Progress
 
 ## Log
+- 2026-02-24: Restructured agent profile files under `docs/agent/` and replaced root README with a concise project entry point.
+- 2026-02-24: Stage 6 MSI validation: `news_briefing_smoke.py` passed on MSI (`stage6_news_briefing_smoke_ok`). `news_mvp_smoke.py` failed on repeat run due to existing smoke rows and deterministic dedupe (`deduped=true`, zero deltas). This is a smoke-script idempotency issue, not a functional regression in Stage 6 news ingest.
+- 2026-02-24: Made Stage 6 news MVP smoke test repeat-safe (dedupe-aware) and documented expected outputs.
+- 2026-02-24: Created USER.md first pass (collaboration preferences and constraints).
+- 2026-02-24: Stage 6 close-out verification completed; confirmed news actions/briefing flow/scheduler/Telegram delivery/heartbeat logging. Added USER.md first pass and aligned Stage 6 status across docs. No code changes.
 - 2026-02-24: Close-session: docs-only final reconciliation; statuses aligned for Stage 18 MSI validation, MSI QA for voice/news/reminders, weekly backups configured on MSI; db-schema docs updated. No code changes.
 - 2026-02-24: Final reconciliation check across docs/status/contracts/schema/runbook: updated docs to reflect MSI QA completion for voice/news/reminders, Stage 18 MSI validation, weekly backups configured on MSI, and schema_migrations/artifacts.external_id documented.
 - 2026-02-24: MSI manual Telegram QA for voice/news/reminders (Stages 12/13/15/16) completed on MSI.

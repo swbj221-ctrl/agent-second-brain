@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 18: Projects & Tasks MVP first pass implemented; MSI smoke test verified.
+- Stage 6 News MVP close-out: verification, docs alignment, and USER.md first-pass.
 
 ## Goals
 - Ship a stable, minimal core pipeline
@@ -40,7 +40,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 3 plans/reminders complete with smoke tests (default + parse)
 - Stage 4 English MVP completed and validated by local smoke test on MSI
 - Stage 5 Reflection MVP completed and validated by local smoke test on MSI
-- Stage 6 News MVP first pass completed; second pass slice implemented (briefing schema, manual briefing, summaries)
+- Stage 6 News MVP second pass implemented; MSI validation pending
 - Stage 7 Digest + Heartbeat first pass completed and validated by local smoke test on MSI
 - Stage 8 Codex limits indicator + economy mode first pass completed and validated by local smoke test on MSI
 - Stage 9 Health MVP first pass completed and validated by local smoke test on MSI
@@ -56,6 +56,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 
 ## Key Paths
 - `docs/` operational documentation
+- `docs/agent/` agent profile (USER/IDENTITY/TOOLS/SOUL)
 - `skills/` main skill (single source of truth)
 - `backend/` sidecar service (if present)
 

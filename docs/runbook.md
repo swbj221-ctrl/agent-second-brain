@@ -254,7 +254,7 @@ Troubleshooting note:
       `$env:PYTHONPATH="src"; python scripts/reflection_smoke.py`
    3. Run Stage 5 smoke (bash):
       `PYTHONPATH=src python scripts/reflection_smoke.py`
- - Stage 6 News MVP smoke test (local):
+- Stage 6 News MVP smoke test (local):
    0. Apply migrations (PowerShell):
       `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
    1. Apply migrations (bash):
@@ -263,6 +263,9 @@ Troubleshooting note:
       `$env:PYTHONPATH="src"; python scripts/news_mvp_smoke.py`
    3. Run Stage 6 smoke (bash):
       `PYTHONPATH=src python scripts/news_mvp_smoke.py`
+   Notes:
+   - The script is repeat-safe. It prints `run_mode=fresh_insert` on first insert and `run_mode=repeat_dedupe` on subsequent runs.
+   - Expected `items_delta=2` on a fresh run; `items_delta=0` on repeat runs.
  - Stage 6 News Briefing smoke test (local):
    0. Apply migrations (PowerShell):
       `$env:PYTHONPATH="src"; python scripts/migrate.py apply`

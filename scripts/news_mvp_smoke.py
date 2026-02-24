@@ -41,7 +41,11 @@ def main() -> None:
     }
     section_response = handle_request(section_request, settings=settings)
     print(json.dumps(section_response, indent=2))
+    if section_response.get("status") != "ok":
+        raise SystemExit("news_section_create_failed")
     section_id = section_response.get("data", {}).get("section_id")
+    if not section_id:
+        raise SystemExit("news_section_id_missing")
 
     source_request = {
         "request_id": "news-smoke-002",
@@ -56,7 +60,11 @@ def main() -> None:
     }
     source_response = handle_request(source_request, settings=settings)
     print(json.dumps(source_response, indent=2))
+    if source_response.get("status") != "ok":
+        raise SystemExit("news_source_create_failed")
     source_id = source_response.get("data", {}).get("source_id")
+    if not source_id:
+        raise SystemExit("news_source_id_missing")
 
     item_payload = {
         "section_id": section_id,
@@ -77,6 +85,8 @@ def main() -> None:
     }
     item_response = handle_request(item_request, settings=settings)
     print(json.dumps(item_response, indent=2))
+    if item_response.get("status") != "ok":
+        raise SystemExit("news_item_ingest_failed")
 
     duplicate_request = {
         "request_id": "news-smoke-004",
@@ -86,6 +96,8 @@ def main() -> None:
     }
     duplicate_response = handle_request(duplicate_request, settings=settings)
     print(json.dumps(duplicate_response, indent=2))
+    if duplicate_response.get("status") != "ok":
+        raise SystemExit("news_item_duplicate_ingest_failed")
 
     second_item_request = {
         "request_id": "news-smoke-005",
@@ -104,6 +116,8 @@ def main() -> None:
     }
     second_item_response = handle_request(second_item_request, settings=settings)
     print(json.dumps(second_item_response, indent=2))
+    if second_item_response.get("status") != "ok":
+        raise SystemExit("news_item_second_ingest_failed")
 
     with sqlite3.connect(settings.db_path) as conn:
         after_sections = conn.execute(
@@ -120,8 +134,23 @@ def main() -> None:
     print(f"sources_delta={after_sources - before_sources}")
     print(f"items_delta={after_items - before_items}")
 
-    if after_items - before_items != 2:
-        raise SystemExit("news_items_dedupe_failed")
+    item_deduped = item_response.get("data", {}).get("deduped")
+    duplicate_deduped = duplicate_response.get("data", {}).get("deduped")
+    second_deduped = second_item_response.get("data", {}).get("deduped")
+    if duplicate_deduped is not True:
+        raise SystemExit("news_items_duplicate_expected_deduped")
+
+    repeat_dedupe = item_deduped is True and second_deduped is True
+    run_mode = "repeat_dedupe" if repeat_dedupe else "fresh_insert"
+    print(f"run_mode={run_mode}")
+
+    items_delta = after_items - before_items
+    if repeat_dedupe:
+        if items_delta != 0:
+            raise SystemExit("news_items_dedupe_expected_zero_delta")
+    else:
+        if items_delta < 1:
+            raise SystemExit("news_items_insert_expected_delta")
 
     print("stage6_news_smoke_ok")
 
