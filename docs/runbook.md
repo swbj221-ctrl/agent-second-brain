@@ -152,6 +152,14 @@ Output includes:
    - Task History tab (enable `All Tasks History` if disabled)
 
 ## Troubleshooting (MSI)
+- OpenClaw Dashboard shows "pairing required" or "Disconnected from gateway" behind a dev tunnel:
+  - Gateway logs show "Proxy headers detected from untrusted address".
+  - Fix: set `gateway.trustedProxies` to `["127.0.0.1", "::1"]` in `C:\Users\User\.openclaw\openclaw.json`.
+  - Restart gateway after change: `openclaw gateway`.
+- OpenClaw status shows "no bootstrap files":
+  - Confirm workspace path in `C:\Users\User\.openclaw\openclaw.json` matches project workspace.
+  - Ensure files exist and are lowercase: `bootstrap.md` and `heartbeat.md`.
+  - Place them in the active workspace directory.
 - `ModuleNotFoundError: aiogram` or other packages:
   - Ensure the venv is activated and run `python -m pip install -r requirements.txt`.
 - `ModuleNotFoundError: deepgram`:
@@ -166,6 +174,11 @@ Output includes:
       - `$env:NODE_EXTRA_CA_CERTS="C:\certs\corp-root.pem"`
       - `& "C:\Program Files\nodejs\npx.cmd" -y @steipete/summarize "https://example.com" --extract --plain`
     - If `corp-root.cer` does not exist, the above commands will fail. You must obtain the root CA file first.
+- `summarize` CLI not found:
+  - Ensure `summarize` is in PATH (Windows user installs typically place it in `%APPDATA%\\npm`).
+  - Option A: add `%APPDATA%\\npm` to PATH.
+  - Option B: copy `summarize.cmd` to `%LOCALAPPDATA%\\Microsoft\\WindowsApps` (already on PATH).
+  - Ensure config exists at `%USERPROFILE%\\.summarize\\config.json`.
 - PowerShell activation path mismatch:
   - If `.\venv\Scripts\Activate.ps1` fails, the canonical path is `.\.venv\Scripts\Activate.ps1`.
 - `TELEGRAM_BOT_TOKEN is required`:
@@ -214,6 +227,54 @@ Troubleshooting note:
   `Scheduler(build_default_registry()).run_once("noop")`.
 - Reminders trigger smoke test (no-op DB state):
   `Scheduler(build_default_registry()).run_once("reminder_tick")`.
+ - OpenClaw Phase 2 (MSI manual):
+   1. Start OpenClaw runtime with `vault/.claude/skills/openclaw-main` enabled.
+   2. Telegram check: `/usage`.
+   3. Telegram check: `/digest latest`.
+   4. Telegram check: `/news latest`.
+   5. Telegram check: `/word add hello`.
+   6. Negative check: `/usage extra`.
+   7. Negative check: `/word add`.
+   8. Negative check: `/word add hello world`.
+   9. Rollback: disable the OpenClaw adapter routing and verify standalone `python -m d_brain` still works.
+ - OpenClaw Phase 3 Batch A (MSI manual):
+   1. Start OpenClaw runtime with `vault/.claude/skills/openclaw-main` enabled.
+   2. Telegram check: `/word list`.
+   3. Telegram check: `/topic list`.
+   4. Telegram check: `/health list`.
+   5. Telegram check: `/calendar today`.
+   6. Telegram check: `/calendar upcoming 5`.
+   7. Telegram check: `/calendar date 2026-02-23`.
+   8. Telegram check: `/project list`.
+   9. Telegram check: `/task list`.
+   10. Rollback: disable the OpenClaw adapter routing and verify standalone `python -m d_brain` still works.
+ - OpenClaw Phase 3 Batch B (MSI manual, deferred until post-transfer):
+   1. Telegram check: `/topic add Travel`.
+   2. Telegram check: `/health add Headache`.
+   3. Telegram check: `/project add Alpha`.
+   4. Telegram check: `/task add <project_id> | First task`.
+   5. Rollback: disable the OpenClaw adapter routing and verify standalone `python -m d_brain` still works.
+ - OpenClaw Phase 3 Batch C (MSI manual, deferred until post-transfer):
+   1. Telegram check: `/note test note from openclaw`.
+   2. Telegram check: `/inbox add https://example.com`.
+   3. Telegram check: `/inbox list`.
+   4. Telegram check: `/inbox summarize <id>`.
+   5. Telegram check: `/inbox save <id>`.
+   6. Telegram check: `/news generate`.
+   7. Telegram check: `/news deliver`.
+   8. Rollback: disable the OpenClaw adapter routing and verify standalone `python -m d_brain` still works.
+ - OpenClaw Phase 3 Batch D (MSI manual, deferred until post-transfer):
+   1. Telegram check: `/tutor status`.
+   2. Telegram check: `/tutor start 15`.
+   3. Telegram check: `/tutor status`.
+   4. Telegram check: `/tutor stop`.
+   5. Telegram check: `/reflect start`.
+   6. Telegram check: `/reflect close <session_id>`.
+   7. Telegram check: `/reminder deliver`.
+   8. Negative check: `/tutor start abc`.
+   9. Negative check: `/reflect close`.
+   10. Negative check: `/reflect close abc`.
+   11. Rollback: disable the OpenClaw adapter routing and verify standalone `python -m d_brain` still works.
 - Stage 3 plans/reminders smoke test (local):
   0. Apply migrations (PowerShell):
      `$env:PYTHONPATH="src"; python scripts/migrate.py apply`
@@ -361,6 +422,14 @@ Troubleshooting note:
       `$env:PYTHONPATH="src"; python scripts/tts_smoke.py`
    1. Run TTS smoke (bash):
       `PYTHONPATH=src python scripts/tts_smoke.py`
+   2. Empty output check (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/tts_empty_file_check.py`
+   3. Media preference check (PowerShell):
+      `$env:PYTHONPATH="src"; python scripts/voice_media_preference_check.py`
+
+## iPhone Voice Note Tips (Telegram)
+- Telegram in-app voice messages are supported directly; no need to send `.ogg` as a document.
+- Auto-transcripts may be inaccurate; the bot prioritizes real voice/audio media when available.
 - Stage 18 Projects & Tasks smoke test (local):
    0. Apply migrations (PowerShell):
       `$env:PYTHONPATH="src"; python scripts/migrate.py apply`

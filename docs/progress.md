@@ -1,6 +1,13 @@
 # Progress
 
 ## Log
+- 2026-02-24: OpenClaw gateway config updated with trusted proxies for dev tunnel; OpenClaw workspace bootstrap/heartbeat filenames normalized to lowercase; summarize CLI made available on PATH via WindowsApps shim; no sidecar changes.
+- 2026-02-24: Implemented Phase 3 Batch D OpenClaw adapter routing for tutor/reflect commands and reminder delivery; no sidecar changes; standalone path preserved.
+- 2026-02-24: Implemented Phase 3 Batch C OpenClaw adapter routing for note/inbox workflows and news generate/deliver; no sidecar changes; standalone path preserved.
+- 2026-02-24: Implemented Phase 3 Batch B OpenClaw adapter routing for low-risk writes (topic/health/project/task add); no sidecar changes; standalone path preserved.
+- 2026-02-24: Implemented Phase 3 Batch A OpenClaw adapter routing for read-only/status commands (word/topic/health list, calendar views, project list, task list); no sidecar changes; standalone path preserved.
+- 2026-02-24: Implemented Phase 2 OpenClaw adapter routing for /usage, /digest latest, /news latest, and /word add <word>; no sidecar changes; standalone path preserved.
+- 2026-02-24: Added OpenClaw bootstrap skill stub at `vault/.claude/skills/openclaw-main` and documented its registry location; no behavior changes.
 - 2026-02-24: Unified Telegram error UX for /do, /process, /weekly using the shared safe formatter; success paths unchanged; tests not run.
 - 2026-02-24: Added Telegram UX ack+typing helper, applied ack/typing to long commands (/do, /process, /weekly, /news, /web, /youtube, /digest, /reflect close), and standardized safe user error formatting; tests not run.
 - 2026-02-24: Localized Telegram UX to Russian (start/help/status/usages/errors), replaced reply keyboard with the custom command layout, and updated button routing; tests not run.

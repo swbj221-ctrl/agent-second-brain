@@ -8,6 +8,44 @@
 - Local LLM is a utility layer; Codex handles reasoning/dialog/final synthesis.
 - Anti-context-bloat: structured retrieval first, summaries over raw transcripts, top-k context.
 
+## Skill Registry (OpenClaw Main)
+- Main skill location: `vault/.claude/skills/openclaw-main`.
+- Phase 1 is a bootstrap-only skill stub (no behavior changes).
+- Phase 2 bridges a minimal command set via the OpenClaw adapter:
+  - `/usage`
+  - `/digest latest`
+  - `/news latest`
+  - `/word add <word>`
+- Phase 3 Batch A (read-only/status) bridges:
+  - `/word list`
+  - `/topic list`
+  - `/health list`
+  - `/calendar today`
+  - `/calendar upcoming [N]`
+  - `/calendar date YYYY-MM-DD`
+  - `/project list [status]`
+  - `/task list [project_id] [status]`
+- Phase 3 Batch B (low-risk writes) bridges:
+  - `/topic add <name>`
+  - `/health add <title>`
+  - `/project add <name>`
+  - `/task add <project_id> | <title>`
+- Phase 3 Batch C (medium-risk workflows) bridges:
+  - `/note <text or url>`
+  - `/inbox add <text or url>`
+  - `/inbox list`
+  - `/inbox summarize <id>`
+  - `/inbox save <id> [title]`
+  - `/news generate`
+  - `/news deliver`
+- Phase 3 Batch D (voice/long-running/delivery) bridges:
+  - `/tutor start [target_minutes]`
+  - `/tutor stop`
+  - `/tutor status`
+  - `/reflect start`
+  - `/reflect close <session_id> [summary]`
+  - `/reminder deliver`
+
 ## What Stays Outside OpenClaw Core
 - Domain logic and orchestration policies.
 - SQLite schema and migrations.

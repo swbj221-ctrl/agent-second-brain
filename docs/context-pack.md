@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Docs consolidation: README refresh and agent profile moved to `docs/agent/`.
+- OpenClaw-first transfer: OpenClaw adapter batches implemented; ops fixes for gateway trusted proxies and workspace bootstrap/heartbeat detection.
 
 ## Known Blockers
 - MSI network TLS inspection blocks `summarize` URL fetches until corporate root CA is installed and provided to Node via `NODE_EXTRA_CA_CERTS`.
@@ -56,6 +56,8 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 18 Projects & Tasks MVP first pass implemented; MSI validated
 - Deepgram TTS adapter added with config-driven fallback; TTS smoke script added.
 - MSI venv standardized on `.venv`; gitignore tightened for venv variants.
+- OpenClaw main adapter Phase 3 Batches A-D bridged (read-only, low-risk writes, medium workflows, and command-only voice/delivery).
+- OpenClaw gateway trusted proxies set for dev tunnel; workspace bootstrap/heartbeat filenames normalized to lowercase.
 
 ## Key Paths
 - `docs/` operational documentation

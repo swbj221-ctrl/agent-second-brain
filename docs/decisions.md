@@ -30,6 +30,10 @@ Reason: Cyrillic rendering is unreliable in the current environment.
 - 2026-02-23 | Reminder delivery traceability uses `heartbeat_logs` | Accepted | Avoid new tables; keep delivery attempts visible with minimal structured logging.
 - 2026-02-24 | MSI install uses `requirements.txt` as canonical dependency manifest | Accepted | Simple, reliable pip path for Windows; `pyproject.toml` stays aligned for uv.
 - 2026-02-24 | Canonical Windows venv folder is `.venv` | Accepted | Standardizes activation paths and reduces MSI setup confusion.
+- 2026-02-24 | OpenClaw main skill lives under `vault/.claude/skills/openclaw-main` | Accepted | Uses the existing skill registry pattern and avoids a new top-level `skills/` folder.
+- 2026-02-24 | OpenClaw gateway trusted proxies include loopback for dev tunnel | Accepted | Restores local client detection behind proxy without changing bind or auth.
+- 2026-02-24 | OpenClaw workspace bootstrap/heartbeat files use lowercase filenames | Accepted | Ensures bootstrap/heartbeat detection on Windows.
+- 2026-02-24 | Summarize CLI must be available on PATH for OpenClaw voice transcription | Accepted | Avoids CLI launch failures; use a PATH shim when needed.
 
 # Architectural Decisions
 

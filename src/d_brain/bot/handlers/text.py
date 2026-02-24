@@ -1,4 +1,4 @@
-"""Text message handler."""
+﻿"""Text message handler."""
 
 import logging
 from datetime import datetime
@@ -17,7 +17,16 @@ from d_brain.services.storage import VaultStorage
 
 router = Router(name="text")
 logger = logging.getLogger(__name__)
-INTERNAL_ERROR_MESSAGE = "Временная ошибка. Попробуйте позже."
+INTERNAL_ERROR_MESSAGE = "Р’СЂРµРјРµРЅРЅР°СЏ РѕС€РёР±РєР°. РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·Р¶Рµ."
+TRANSCRIPT_WARNING = (
+    "Получил только авто-транскрипт Telegram (он может быть неточным). "
+    "Лучше отправь обычное голосовое сообщение — тогда расшифрую точнее."
+)
+
+
+def _looks_like_auto_transcript(text: str) -> bool:
+    normalized = text.strip().lower()
+    return normalized.startswith("transcript:") or normalized.startswith("transcription:")
 
 
 @router.message(lambda m: m.text is not None and not m.text.startswith("/"))
@@ -27,6 +36,11 @@ async def handle_text(message: Message) -> None:
         return
 
     try:
+        if _looks_like_auto_transcript(message.text):
+            logger.info("Auto-transcript text received without media; path=transcript_fallback")
+            await message.answer(TRANSCRIPT_WARNING)
+            return
+
         reflection_state = get_active_reflection_session(message.from_user.id)
         if reflection_state:
             reflection_service = ReflectionVoiceService()
@@ -66,9 +80,8 @@ async def handle_text(message: Message) -> None:
             msg_id=message.message_id,
         )
 
-        await message.answer("✅ Сохранено")
+        await message.answer("вњ… РЎРѕС…СЂР°РЅРµРЅРѕ")
         logger.info("Text message saved: %d chars", len(message.text))
     except Exception:
         logger.exception("Error processing text message")
         await message.answer(INTERNAL_ERROR_MESSAGE)
-
