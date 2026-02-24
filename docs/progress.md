@@ -1,6 +1,10 @@
 # Progress
 
 ## Log
+- 2026-02-24: Close-session: docs-only final reconciliation; statuses aligned for Stage 18 MSI validation, MSI QA for voice/news/reminders, weekly backups configured on MSI; db-schema docs updated. No code changes.
+- 2026-02-24: Final reconciliation check across docs/status/contracts/schema/runbook: updated docs to reflect MSI QA completion for voice/news/reminders, Stage 18 MSI validation, weekly backups configured on MSI, and schema_migrations/artifacts.external_id documented.
+- 2026-02-24: MSI manual Telegram QA for voice/news/reminders (Stages 12/13/15/16) completed on MSI.
+- 2026-02-24: TTS smoke ran with `TTS_PROVIDER=deepgram` override; passed and wrote `data/tts/tts_smoke.ogg` (size 5271 bytes).
 - 2026-02-24: Close-session note: `.venv` created, deps installed; TTS smoke failed (`tts_unavailable`, provider not configured). Manual Telegram QA (Stages 12/13/15/16) not run in this session.
 - 2026-02-24: Created `.venv` (it was missing) and installed deps from `requirements.txt` (MSI QA prep).
 - 2026-02-24: TTS smoke output: `tts_smoke_fail`; `error_code=tts_unavailable`; `error_message=TTS provider is not configured.`
@@ -47,13 +51,13 @@
 - 2026-02-23: Stage 10 Idea Research first pass validated by local smoke test on MSI.
 - 2026-02-23: Implemented Stage 11 Telegram UX wiring MVP (text-only command routing, thin adapter, manual checklist). Manual Telegram verification on MSI pending before marking completed.
 - 2026-02-23: Started Stage 12 Voice English Tutor MVP (STT/TTS adapters, Telegram tutor flow wiring, and runbook updates in progress).
-- 2026-02-23: Implemented Stage 12 first pass wiring (provider-agnostic STT/TTS adapters, tutor session flow, Telegram /tutor commands, voice/text routing, runbook and integration docs updates). Manual Telegram verification on MSI pending before marking completed.
-- 2026-02-23: Implemented Stage 13 Reflection Voice Loop MVP first pass (reflection voice service, reflection mode routing for voice/text, STT/TTS reuse, and documentation updates). Manual Telegram verification on MSI pending.
+- 2026-02-23: Implemented Stage 12 first pass wiring (provider-agnostic STT/TTS adapters, tutor session flow, Telegram /tutor commands, voice/text routing, runbook and integration docs updates). MSI manual Telegram verification completed.
+- 2026-02-23: Implemented Stage 13 Reflection Voice Loop MVP first pass (reflection voice service, reflection mode routing for voice/text, STT/TTS reuse, and documentation updates). MSI manual Telegram verification completed.
 - 2026-02-24: Started Stage 14 first pass (Books/Philosophy/Knowledge UX) with minimal note categories, sidecar actions, Telegram wiring, and docs updates.
 - 2026-02-24: Added note_categories migration, Stage 14 sidecar actions (books/philosophy/inbox), Telegram text commands, and documentation updates. Manual Telegram verification on MSI pending.
 - 2026-02-23: Implemented Stage 15 first pass (news briefing generation + Telegram delivery jobs, manual commands, scheduler script, systemd units, and docs updates).
 - 2026-02-23: Made Telegram delivery dependency import-safe with lazy `httpx` loading and documented the dependency note in the runbook.
-- 2026-02-23: Implemented Stage 16 first pass (reminder delivery job, calendar-style Telegram views, heartbeat traceability, and docs updates). Manual Telegram verification on MSI pending before marking completed.
+- 2026-02-23: Implemented Stage 16 first pass (reminder delivery job, calendar-style Telegram views, heartbeat traceability, and docs updates). MSI manual Telegram verification completed.
 - 2026-02-23: Implemented Stage 16B Backup & Restore MVP (backup config, scheduler job, backup script, docs snapshot ZIP, and Windows Task Scheduler runbook section). Manual MSI verification pending (backup creation + restore integrity check).
 
 ## Next

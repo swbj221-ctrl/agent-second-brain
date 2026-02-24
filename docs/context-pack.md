@@ -46,11 +46,11 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 9 Health MVP first pass completed and validated by local smoke test on MSI
 - Stage 10 Idea Research first pass completed and validated by local smoke test on MSI
 - Stage 11 Telegram UX wiring MVP completed; manual Telegram verification on MSI pending
-- Stage 12 Voice English Tutor MVP first pass implemented; manual Telegram verification on MSI pending
-- Stage 13 Reflection Voice Loop MVP first pass implemented; manual Telegram verification on MSI pending
+- Stage 12 Voice English Tutor MVP first pass implemented; MSI manual Telegram verification completed
+- Stage 13 Reflection Voice Loop MVP first pass implemented; MSI manual Telegram verification completed
 - Stage 14 Books / Philosophy / Knowledge UX MVP first pass implemented; manual Telegram verification on MSI pending
-- Stage 16B Backup & Restore MVP implemented; manual MSI verification pending
-- Stage 18 Projects & Tasks MVP first pass implemented; MSI smoke test verified; manual Telegram verification pending
+- Stage 16B Backup & Restore MVP implemented; weekly backups configured on MSI; restore verification pending
+- Stage 18 Projects & Tasks MVP first pass implemented; MSI validated
 - Deepgram TTS adapter added with config-driven fallback; TTS smoke script added.
 - MSI venv standardized on `.venv`; gitignore tightened for venv variants.
 

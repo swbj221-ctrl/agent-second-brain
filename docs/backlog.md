@@ -305,7 +305,7 @@ Acceptance Criteria
 - Existing news pipeline is reused without duplicated logic.
 - Runbook and integration docs updated during implementation.
 Status
-- Implemented first pass; manual Telegram verification on MSI pending.
+- Implemented first pass; MSI manual Telegram verification completed.
 
 ### Stage 16: Reminders Delivery + Calendar-style Telegram Views MVP (First Pass, Narrow Scope) (P1)
 Goals
@@ -334,7 +334,7 @@ Acceptance Criteria
 - Existing plans/reminders storage and logic are reused (no duplicated business logic).
 - Runbook and integration docs updated during implementation.
 Status
-- Implemented first pass; manual Telegram verification on MSI pending.
+- Implemented first pass; MSI manual Telegram verification completed.
 
 ### Stage 16B: Backup & Restore MVP (First Pass, Narrow Scope) (P1)
 Goals
@@ -364,7 +364,7 @@ Acceptance Criteria
 - Docs updated during implementation.
 
 Status
-- Implemented first pass; manual MSI verification pending (backup creation + restore integrity check). Weekly backups are required operational control.
+- Implemented first pass; weekly backups configured on MSI; restore verification pending (backup creation + integrity check). Weekly backups are required operational control.
 
 ### Stage 17: Web Dashboard MVP (Postponed)
 Status
@@ -397,4 +397,4 @@ Acceptance Criteria
 - Smoke test script runs and prints `stage18_projects_tasks_smoke_ok`.
 - Runbook includes Stage 18 verification steps.
 Status
-- Implemented first pass; manual MSI verification pending.
+- Implemented first pass; MSI validated.

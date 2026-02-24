@@ -4,6 +4,7 @@
 Purpose: persist minimal state needed by the sidecar backend.
 
 ## Entities (Stage 1)
+- `schema_migrations`
 - `artifacts`
 - `artifact_summaries`
 - `notes`
@@ -65,7 +66,8 @@ Purpose: persist minimal state needed by the sidecar backend.
 
 ## Fields (Minimal)
 - Common: `id` (PK), `created_at`/`updated_at` timestamps where applicable.
-- `artifacts`: `source_type`, `source_ref`, `content_type`, `content_path`, `content_hash`.
+- `schema_migrations`: `filename`, `applied_at`.
+- `artifacts`: `external_id`, `source_type`, `source_ref`, `content_type`, `content_path`, `content_hash`.
 - `artifact_summaries`: `artifact_id` (FK), `summary_text`, `summary_format`, `model_ref`.
 - `notes`: `title`, `body`, `source_type`, `source_ref`.
 - `jobs`: `name`, `schedule_spec`, `status`, `last_run_at`, `next_run_at`.
