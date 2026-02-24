@@ -22,7 +22,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- Stage 6 News MVP close-out: verification, docs alignment, and USER.md first-pass.
+- Docs consolidation: README refresh and agent profile moved to `docs/agent/`.
 
 ## Goals
 - Ship a stable, minimal core pipeline

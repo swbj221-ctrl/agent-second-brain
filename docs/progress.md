@@ -1,6 +1,12 @@
 # Progress
 
 ## Log
+- 2026-02-24: Close-session: wired Telegram commands for web search and summarization, added subprocess wrapper, added Tavily MCP config, and updated docs. Local `/youtube transcript` service check failed because summarize CLI was not found; Telegram end-to-end pending.
+- 2026-02-24: Added `tavily-search` and `summarize` skills (under `vault/.claude/skills`), wired Tavily MCP in `mcp-config.json`, and added `TAVILY_API_KEY` to `.env.example`. Smoke checks failed because `npx` is not installed. Errors: `npx : The term 'npx' is not recognized as the name of a cmdlet, function, script file, or operable program.`
+- 2026-02-24: Added Telegram UX commands `/web search`, `/web summarize`, and `/youtube transcript` with a thin subprocess wrapper for summarize and MCP CLI for Tavily (when available). Docs updated. Smoke tests not run in this session.
+- 2026-02-24: Fixed `/youtube transcript` to use `--extract` for `@steipete/summarize` (previous `--transcript` was invalid). Updated runbook command. Tests not run in this session.
+- 2026-02-24: `/youtube transcript` local service check failed because summarize CLI is not available in this environment. Error: `Command not found.` Telegram end-to-end not run.
+- 2026-02-24: Close-session: consolidated agent profile files under `docs/agent/`, replaced root README with a concise entry point, and updated references. Tests not run. No code changes.
 - 2026-02-24: Restructured agent profile files under `docs/agent/` and replaced root README with a concise project entry point.
 - 2026-02-24: Stage 6 MSI validation: `news_briefing_smoke.py` passed on MSI (`stage6_news_briefing_smoke_ok`). `news_mvp_smoke.py` failed on repeat run due to existing smoke rows and deterministic dedupe (`deduped=true`, zero deltas). This is a smoke-script idempotency issue, not a functional regression in Stage 6 news ingest.
 - 2026-02-24: Made Stage 6 news MVP smoke test repeat-safe (dedupe-aware) and documented expected outputs.

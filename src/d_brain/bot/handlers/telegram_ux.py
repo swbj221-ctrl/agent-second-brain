@@ -14,6 +14,7 @@ from d_brain.bot.formatters import format_calendar_view, format_news_briefing
 from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
 from d_brain.services.reflection_voice import ReflectionVoiceService
 from d_brain.services.sidecar_client import call_sidecar_action
+from d_brain.services.web_tools import search_web, summarize_url, youtube_transcript
 
 router = Router(name="telegram_ux")
 logger = logging.getLogger(__name__)
@@ -93,6 +94,81 @@ def _parse_task_add(raw: str) -> tuple[int, str, str | None] | None:
         if due_at is None:
             return None
     return project_id, title, due_at
+
+
+def _truncate(text: str, max_len: int) -> str:
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3].rstrip() + "..."
+
+
+def _format_search_results(items: list[Any]) -> str:
+    lines: list[str] = []
+    for idx, item in enumerate(items, start=1):
+        title = (item.title or "").strip()
+        url = (item.url or "").strip()
+        snippet = (item.snippet or "").strip()
+        line = f"{idx}. {title or 'Untitled'} - {url}".strip()
+        lines.append(line)
+        if snippet:
+            lines.append(_truncate(snippet, 200))
+    return "\n".join(lines) if lines else "No results found."
+
+
+@router.message(Command("web"))
+async def cmd_web(message: Message) -> None:
+    text = message.text or ""
+    parts = _split_args(text, maxsplit=2)
+    if len(parts) < 2:
+        await message.answer("Usage: /web search <query> | /web summarize <url>")
+        return
+    sub = parts[1].lower()
+    if sub == "search":
+        if len(parts) < 3 or not parts[2].strip():
+            await message.answer("Usage: /web search <query>")
+            return
+        result = search_web(parts[2].strip(), max_results=5)
+        if not result.ok:
+            await message.answer(result.error_message or INTERNAL_ERROR_MESSAGE)
+            return
+        await message.answer(_format_search_results(result.items))
+        return
+    if sub == "summarize":
+        if len(parts) < 3 or not parts[2].strip():
+            await message.answer("Usage: /web summarize <url>")
+            return
+        result = summarize_url(parts[2].strip())
+        if not result.ok:
+            await message.answer(result.error_message or INTERNAL_ERROR_MESSAGE)
+            return
+        await message.answer(result.text)
+        return
+    await message.answer("Usage: /web search <query> | /web summarize <url>")
+
+
+@router.message(Command("youtube"))
+async def cmd_youtube(message: Message) -> None:
+    text = message.text or ""
+    parts = _split_args(text, maxsplit=2)
+    if len(parts) < 2:
+        await message.answer("Usage: /youtube transcript <url>")
+        return
+    sub = parts[1].lower()
+    if sub != "transcript":
+        await message.answer("Usage: /youtube transcript <url>")
+        return
+    if len(parts) < 3 or not parts[2].strip():
+        await message.answer("Usage: /youtube transcript <url>")
+        return
+    result = youtube_transcript(parts[2].strip())
+    if not result.ok:
+        await message.answer(result.error_message or INTERNAL_ERROR_MESSAGE)
+        return
+    suffix = "source=summarize"
+    if result.truncated:
+        await message.answer(f"{result.text}\n\n[{suffix}, truncated]")
+    else:
+        await message.answer(f"{result.text}\n\n[{suffix}]")
 
 
 @router.message(Command("plan"))

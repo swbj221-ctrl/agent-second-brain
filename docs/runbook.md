@@ -32,6 +32,37 @@ Notes:
 - Install (pip): `python -m pip install -r requirements.txt`
 - Install (uv): `uv sync`
 
+## Web/URL Skills (Tavily + Summarize)
+Prereqs:
+- Node.js (for `npx`)
+- `TAVILY_API_KEY` set in `.env`
+- Summarize config at `~/.summarize/config.json`
+- Skills live under `vault/.claude/skills/` and are loaded by the OpenClaw runtime.
+
+Install (one-time):
+- `npm i -g @steipete/summarize`
+
+Smoke Tests (PowerShell):
+1. Tavily MCP server (sanity):
+   `npx -y tavily-mcp@latest --help`
+2. URL summary:
+   `summarize "https://example.com" --plain`
+3. YouTube transcript:
+   `summarize "https://youtu.be/dQw4w9WgXcQ" --youtube auto --extract --plain`
+
+Telegram Manual Checks:
+- `/web search latest ai coding tools`
+- `/web summarize https://example.com`
+- `/youtube transcript https://youtu.be/dQw4w9WgXcQ`
+
+Expected behavior:
+- `/youtube transcript` returns transcript text (possibly truncated) with a source suffix.
+- If summarize is missing, it should return a safe error message and not crash.
+
+Failure notes:
+- Missing `TAVILY_API_KEY` should return an MCP error; the server should not crash.
+- Missing summarize config will print an auth/provider error and exit non-zero.
+
 ## Migrations
 - Create: `python scripts/migrate.py create <name>`
 - Apply: `python scripts/migrate.py apply`

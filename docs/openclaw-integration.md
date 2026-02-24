@@ -15,6 +15,26 @@
 - Custom collectors/workers and schedulers.
 - Utility services (extraction, tagging, formatting).
 
+## External Web/URL Skills
+- `vault/.claude/skills/tavily-search` for web search and extraction via Tavily MCP tools.
+- `vault/.claude/skills/summarize` for URL and YouTube summarization via the `summarize` CLI.
+- `mcp-config.json` registers the `tavily` MCP server (`npx -y tavily-mcp@latest`).
+- `TAVILY_API_KEY` must be set in the environment for Tavily.
+
+### Minimal Contract Notes
+Tavily search (MCP):
+- Input: `query` (string), optional `search_depth`, `max_results`.
+- Output: result list with `title`, `url`, and `content`/snippet fields.
+
+Summarize (CLI):
+- Input: URL or YouTube URL.
+- Output: plain-text summary to stdout.
+
+### Telegram Commands
+- `/web search <query>` -> Tavily search (top 5).
+- `/web summarize <url>` -> summarize CLI (plain output).
+- `/youtube transcript <url>` -> summarize CLI transcript mode (plain output).
+
 ## Integration Interfaces
 - Skill -> Sidecar: HTTP/RPC with explicit schemas and payload limits.
 - Sidecar -> Skill: deterministic responses and error contracts.

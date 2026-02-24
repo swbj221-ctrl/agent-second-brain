@@ -4,6 +4,14 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@doist/todoist-ai"]
+    },
+    "tavily": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "tavily-mcp@latest"],
+      "env": {
+        "TAVILY_API_KEY": "${TAVILY_API_KEY}"
+      }
     }
   }
 }
