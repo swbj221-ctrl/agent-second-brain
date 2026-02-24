@@ -33,9 +33,7 @@ async def cmd_do(message: Message, command: CommandObject, state: FSMContext) ->
     # Otherwise, wait for next message
     await state.set_state(DoCommandState.waiting_for_input)
     await message.answer(
-        "🎯 <b>Что сделать?</b>
-
-"
+        "🎯 <b>Что сделать?</b>\n\n"
         "Отправь голосовое или текстовое сообщение с запросом."
     )
 

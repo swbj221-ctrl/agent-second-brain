@@ -1,4 +1,4 @@
-"""Command handlers for /start, /help, /status."""
+"""Command handlers for /status."""
 
 from datetime import date
 
@@ -6,29 +6,11 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from d_brain.bot.keyboards import get_main_keyboard
 from d_brain.config import get_settings
 from d_brain.services.session import SessionStore
 from d_brain.services.storage import VaultStorage
 
 router = Router(name="commands")
-
-
-@router.message(Command("start"))
-async def cmd_start(message: Message) -> None:
-    """Handle /start command."""
-    await message.answer(
-        "<b>d-brain</b> - capture and organize your notes\n\nSend me:\n- voice messages\n- text\n- photos\n- forwarded messages\n\nEverything will be stored and processed.\n\n<b>Commands:</b>\n/status - daily status\n/process - process daily notes\n/do - run an arbitrary request\n/weekly - weekly digest\n/plan - plans and reminders\n/note - ingest text or URL\n/book - books list\n/philosophy - philosophy notes\n/inbox - knowledge inbox\n/word - english words\n/topic - english topics\n/news - latest briefing\n/health - health records\n/reflect - reflection sessions (voice/text mode)\n/digest - latest digest\n/usage - codex usage status\n/tutor - voice English tutor\n/help - help",
-        reply_markup=get_main_keyboard(),
-    )
-
-
-@router.message(Command("help"))
-async def cmd_help(message: Message) -> None:
-    """Handle /help command."""
-    await message.answer(
-        "<b>How to use d-brain:</b>\n\n1. Send voice - it will be transcribed and stored\n2. Send text - it will be stored as-is\n3. Send a photo - it will be stored in attachments\n4. Forward a message - it will be stored with source info\n\nUse /process to process daily notes into outputs.\n\n<b>Commands:</b>\n/status - daily status\n/process - process daily notes\n/do - run an arbitrary request\n/weekly - weekly digest\n/plan add <title>\n/plan list\n/reminder list\n/note <text or url>\n/book add <text or url>\n/book list\n/philosophy add <text or url>\n/philosophy list\n/inbox add <text or url>\n/inbox list\n/inbox summarize <id>\n/inbox save <id> [title]\n/word add <word>\n/word list\n/topic add <name>\n/topic list\n/news latest\n/health add <title>\n/health list\n/web search <query>\n/web summarize <url>\n/youtube transcript <url>\n/reflect start (routes voice/text to reflection)\n/reflect add <session_id> <text>\n/reflect close <session_id> [summary]\n/digest latest\n/usage\n/tutor start [target_minutes]\n/tutor stop\n/tutor status"
-    )
 
 
 @router.message(Command("status"))

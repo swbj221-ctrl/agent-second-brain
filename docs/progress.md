@@ -83,3 +83,5 @@
 ## Next
 - Stage 6: News MVP (second pass: summaries + briefing pipeline + exactly 5 key events).
 - Confirm persistence choices and deployment workflow.
+
+- 2026-02-24: Fixed Telegram RU UI encoding and syntax regressions: restored /start and /help RU text in telegram_ux, removed duplicate EN handlers in commands, normalized reply keyboard labels and button handlers, and repaired multiline string formatting; compileall passed.

@@ -11,6 +11,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from d_brain.bot.formatters import format_calendar_view, format_news_briefing
+from d_brain.bot.keyboards import get_main_keyboard
 from d_brain.bot.ux import format_user_error, run_with_ack
 from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
 from d_brain.services.reflection_voice import ReflectionVoiceService
@@ -114,6 +115,88 @@ def _format_search_results(items: list[Any]) -> str:
     return "\n".join(lines) if lines else "Ничего не найдено."
 
 
+@router.message(Command("start"))
+async def cmd_start(message: Message) -> None:
+    """Handle /start command."""
+    await message.answer(
+        "<b>d-brain</b> — заметки и организация\n\n"
+        "Пришли мне:\n"
+        "- голосовые сообщения\n"
+        "- текст\n"
+        "- фото\n"
+        "- пересланные сообщения\n\n"
+        "Все будет сохранено и обработано.\n\n"
+        "<b>Команды:</b>\n"
+        "/status - статус дня\n"
+        "/process - обработать дневные заметки\n"
+        "/do - произвольный запрос\n"
+        "/weekly - недельный дайджест\n"
+        "/plan - планы и напоминания\n"
+        "/note - добавить текст или URL\n"
+        "/book - список книг\n"
+        "/philosophy - философские заметки\n"
+        "/inbox - knowledge inbox\n"
+        "/word - английские слова\n"
+        "/topic - английские темы\n"
+        "/news - свежий брифинг\n"
+        "/health - записи о здоровье\n"
+        "/reflect - сессии рефлексии (voice/text)\n"
+        "/digest - последний дайджест\n"
+        "/usage - статус использования Codex\n"
+        "/tutor - голосовой English tutor\n"
+        "/help - помощь",
+        reply_markup=get_main_keyboard(),
+    )
+
+
+@router.message(Command("help"))
+async def cmd_help(message: Message) -> None:
+    """Handle /help command."""
+    await message.answer(
+        "<b>Как пользоваться d-brain:</b>\n\n"
+        "1. Отправь голосовое — будет распознано и сохранено\n"
+        "2. Отправь текст — будет сохранен как есть\n"
+        "3. Отправь фото — сохранится во вложениях\n"
+        "4. Перешли сообщение — сохранится с источником\n\n"
+        "Используй /process для обработки дневных заметок.\n\n"
+        "<b>Команды:</b>\n"
+        "/status - статус дня\n"
+        "/process - обработать дневные заметки\n"
+        "/do - произвольный запрос\n"
+        "/weekly - недельный дайджест\n"
+        "/plan add <title>\n"
+        "/plan list\n"
+        "/reminder list\n"
+        "/note <text or url>\n"
+        "/book add <text or url>\n"
+        "/book list\n"
+        "/philosophy add <text or url>\n"
+        "/philosophy list\n"
+        "/inbox add <text or url>\n"
+        "/inbox list\n"
+        "/inbox summarize <id>\n"
+        "/inbox save <id> [title]\n"
+        "/word add <word>\n"
+        "/word list\n"
+        "/topic add <name>\n"
+        "/topic list\n"
+        "/news latest\n"
+        "/health add <title>\n"
+        "/health list\n"
+        "/web search <query>\n"
+        "/web summarize <url>\n"
+        "/youtube transcript <url>\n"
+        "/reflect start (routes voice/text to reflection)\n"
+        "/reflect add <session_id> <text>\n"
+        "/reflect close <session_id> [summary]\n"
+        "/digest latest\n"
+        "/usage\n"
+        "/tutor start [target_minutes]\n"
+        "/tutor stop\n"
+        "/tutor status"
+    )
+
+
 @router.message(Command("web"))
 async def cmd_web(message: Message) -> None:
     text = message.text or ""
@@ -173,14 +256,9 @@ async def cmd_youtube(message: Message) -> None:
             return
         suffix = "source=summarize"
         if result.truncated:
-            await message.answer(f"{result.text}
-
-[{suffix}, truncated]")
+            await message.answer(f"{result.text}\n\n[{suffix}, truncated]")
         else:
-            await message.answer(f"{result.text}
-
-[{suffix}]")
-
+            await message.answer(f"{result.text}\n\n[{suffix}]")
     await run_with_ack(message, "🎬 Принято. Получаю транскрипт...", work)
 @router.message(Command("plan"))
 async def cmd_plan(message: Message) -> None:
@@ -986,8 +1064,7 @@ async def cmd_digest(message: Message) -> None:
         lines = ["Сводка по последнему дайджесту:"]
         for key, value in counts.items():
             lines.append(f"- {key}: {value}")
-        await message.answer("
-".join(lines))
+        await message.answer("\n".join(lines))
 
     await run_with_ack(message, "🧾 Принято. Собираю дайджест...", work)
 @router.message(Command("usage"))

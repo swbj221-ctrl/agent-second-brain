@@ -70,9 +70,7 @@ async def btn_do(message: Message, state: FSMContext) -> None:
     """Handle Do button - set state and wait for input."""
     await state.set_state(DoCommandState.waiting_for_input)
     await message.answer(
-        "🎯 <b>Что сделать?</b>
-
-"
+        "🎯 <b>Что сделать?</b>\n\n"
         "Отправь голосовое или текстовое сообщение с запросом."
     )
 
@@ -117,6 +115,6 @@ async def btn_health(message: Message) -> None:
     if not records:
         await message.answer("Нет записей.")
         return
-    lines = [f"#{r['id']} {r['title']}" for r in records]
-    await message.answer("
-".join(lines))
+    lines = [f"#{r["id"]} {r["title"]}" for r in records]
+    await message.answer("\n".join(lines))
+

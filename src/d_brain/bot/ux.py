@@ -14,12 +14,11 @@ T = TypeVar("T")
 
 def format_user_error(reason: str | None = None) -> str:
     """Return a safe, short error message for users."""
-    base = "❌ Не удалось выполнить команду."
+    base = "❓ Не удалось выполнить команду."
     if reason:
-        base = f"{base}
-Причина: {reason}."
-    return f"{base}
-Попробуй еще раз через минуту."
+        base = f"{base}\nПричина: {reason}."
+    return f"{base}\nПопробуй еще раз через минуту."
+
 
 
 async def run_with_ack(
