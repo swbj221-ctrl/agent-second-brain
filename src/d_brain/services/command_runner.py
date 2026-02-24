@@ -32,6 +32,7 @@ def run_command(
     *,
     timeout_sec: int = 60,
     max_output_chars: int = 8000,
+    env: dict[str, str] | None = None,
 ) -> CommandResult:
     try:
         result = subprocess.run(
@@ -40,6 +41,7 @@ def run_command(
             text=True,
             timeout=timeout_sec,
             check=False,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         return CommandResult(

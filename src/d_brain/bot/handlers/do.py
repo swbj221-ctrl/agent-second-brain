@@ -9,6 +9,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from d_brain.bot.formatters import format_process_report
+from d_brain.bot.ux import format_user_error
 from d_brain.bot.states import DoCommandState
 from d_brain.config import get_settings
 from d_brain.services.processor import ClaudeProcessor
@@ -16,7 +17,7 @@ from d_brain.services.transcription import build_stt_adapter
 
 router = Router(name="do")
 logger = logging.getLogger(__name__)
-INTERNAL_ERROR_MESSAGE = "Temporary error. Please try again."
+INTERNAL_ERROR_MESSAGE = "Временная ошибка. Попробуйте позже."
 
 
 @router.message(Command("do"))
@@ -32,7 +33,9 @@ async def cmd_do(message: Message, command: CommandObject, state: FSMContext) ->
     # Otherwise, wait for next message
     await state.set_state(DoCommandState.waiting_for_input)
     await message.answer(
-        "🎯 <b>Что сделать?</b>\n\n"
+        "🎯 <b>Что сделать?</b>
+
+"
         "Отправь голосовое или текстовое сообщение с запросом."
     )
 
@@ -53,12 +56,12 @@ async def handle_do_input(message: Message, bot: Bot, state: FSMContext) -> None
         try:
             file = await bot.get_file(message.voice.file_id)
             if not file.file_path:
-                await message.answer("❌ Не удалось скачать голосовое")
+                await message.answer("❌ Не удалось скачать голосовое сообщение")
                 return
 
             file_bytes = await bot.download_file(file.file_path)
             if not file_bytes:
-                await message.answer("❌ Не удалось скачать голосовое")
+                await message.answer("❌ Не удалось скачать голосовое сообщение")
                 return
 
             audio_bytes = file_bytes.read()
@@ -67,13 +70,13 @@ async def handle_do_input(message: Message, bot: Bot, state: FSMContext) -> None
             )
             if not stt_result.ok:
                 await message.answer(
-                    stt_result.error_message or "STT is unavailable."
+                    stt_result.error_message or "STT недоступен."
                 )
                 return
             prompt = stt_result.text
         except Exception as e:
             logger.exception("Failed to transcribe voice for /do")
-            await message.answer(f"❌ Не удалось транскрибировать: {e}")
+            await message.answer(f"❌ Не удалось распознать речь: {e}")
             return
 
         if not prompt:
@@ -97,7 +100,11 @@ async def handle_do_input(message: Message, bot: Bot, state: FSMContext) -> None
 
 async def process_request(message: Message, prompt: str, user_id: int = 0) -> None:
     """Process the user's request with Claude."""
-    status_msg = await message.answer("⏳ Выполняю...")
+    status_msg = await message.answer("🧠 Принято. Выполняю запрос...")
+    try:
+        await message.chat.do(action="typing")
+    except Exception:
+        pass
 
     settings = get_settings()
     processor = ClaudeProcessor(settings.vault_path, settings.todoist_api_key)
@@ -122,6 +129,10 @@ async def process_request(message: Message, prompt: str, user_id: int = 0) -> No
         return await task
 
     report = await run_with_progress()
+
+    if "error" in report:
+        await status_msg.edit_text(format_user_error())
+        return
 
     formatted = format_process_report(report)
     try:

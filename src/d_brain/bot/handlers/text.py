@@ -17,7 +17,7 @@ from d_brain.services.storage import VaultStorage
 
 router = Router(name="text")
 logger = logging.getLogger(__name__)
-INTERNAL_ERROR_MESSAGE = "Temporary error. Please try again."
+INTERNAL_ERROR_MESSAGE = "Временная ошибка. Попробуйте позже."
 
 
 @router.message(lambda m: m.text is not None and not m.text.startswith("/"))
@@ -66,7 +66,7 @@ async def handle_text(message: Message) -> None:
             msg_id=message.message_id,
         )
 
-        await message.answer("??? ??????????????????")
+        await message.answer("✅ Сохранено")
         logger.info("Text message saved: %d chars", len(message.text))
     except Exception:
         logger.exception("Error processing text message")

@@ -8,6 +8,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from d_brain.bot.formatters import format_process_report
+from d_brain.bot.ux import format_user_error
 from d_brain.config import get_settings
 from d_brain.services.git import VaultGit
 from d_brain.services.processor import ClaudeProcessor
@@ -22,7 +23,11 @@ async def cmd_weekly(message: Message) -> None:
     user_id = message.from_user.id if message.from_user else "unknown"
     logger.info("Weekly digest triggered by user %s", user_id)
 
-    status_msg = await message.answer("⏳ Генерирую недельный дайджест...")
+    status_msg = await message.answer("🗓️ Принято. Готовлю недельный дайджест...")
+    try:
+        await message.chat.do(action="typing")
+    except Exception:
+        pass
 
     settings = get_settings()
     processor = ClaudeProcessor(settings.vault_path, settings.todoist_api_key)
@@ -52,6 +57,10 @@ async def cmd_weekly(message: Message) -> None:
     # Commit any changes (weekly goal updates, etc)
     if "error" not in report:
         await asyncio.to_thread(git.commit_and_push, "chore: weekly digest")
+
+    if "error" in report:
+        await status_msg.edit_text(format_user_error())
+        return
 
     formatted = format_process_report(report)
     try:

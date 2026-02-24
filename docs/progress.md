@@ -1,6 +1,15 @@
 # Progress
 
 ## Log
+- 2026-02-24: Unified Telegram error UX for /do, /process, /weekly using the shared safe formatter; success paths unchanged; tests not run.
+- 2026-02-24: Added Telegram UX ack+typing helper, applied ack/typing to long commands (/do, /process, /weekly, /news, /web, /youtube, /digest, /reflect close), and standardized safe user error formatting; tests not run.
+- 2026-02-24: Localized Telegram UX to Russian (start/help/status/usages/errors), replaced reply keyboard with the custom command layout, and updated button routing; tests not run.
+- 2026-02-24: MSI manual checks: npx fallback summarize extract and YouTube transcript extract both succeeded via `C:\Program Files\nodejs\npx.cmd`.
+- 2026-02-24: Hardened Windows web tools: npx.cmd fallback + PATH prepend + NODE_OPTIONS=--use-system-ca for Node-based summarize runs; updated runbook smoke commands.
+- 2026-02-24: Noted MSI blocker: summarize URL fetch fails behind TLS inspection until corporate root CA is installed and provided to Node.
+- 2026-02-24: Expanded runbook troubleshooting steps for summarize TLS errors (corporate root CA import + NODE_EXTRA_CA_CERTS).
+- 2026-02-24: Documented MSI troubleshooting for summarize TLS certificate errors (Node extra CA certs).
+- 2026-02-24: Added Windows fallback for `npx.cmd` in web tools command execution and updated runbook smoke commands for MSI verification.
 - 2026-02-24: Close-session: wired Telegram commands for web search and summarization, added subprocess wrapper, added Tavily MCP config, and updated docs. Local `/youtube transcript` service check failed because summarize CLI was not found; Telegram end-to-end pending.
 - 2026-02-24: Added `tavily-search` and `summarize` skills (under `vault/.claude/skills`), wired Tavily MCP in `mcp-config.json`, and added `TAVILY_API_KEY` to `.env.example`. Smoke checks failed because `npx` is not installed. Errors: `npx : The term 'npx' is not recognized as the name of a cmdlet, function, script file, or operable program.`
 - 2026-02-24: Added Telegram UX commands `/web search`, `/web summarize`, and `/youtube transcript` with a thin subprocess wrapper for summarize and MCP CLI for Tavily (when available). Docs updated. Smoke tests not run in this session.

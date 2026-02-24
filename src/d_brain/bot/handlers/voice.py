@@ -19,7 +19,7 @@ from d_brain.services.tts import build_tts_adapter
 
 router = Router(name="voice")
 logger = logging.getLogger(__name__)
-INTERNAL_ERROR_MESSAGE = "Temporary error. Please try again."
+INTERNAL_ERROR_MESSAGE = "Временная ошибка. Попробуйте позже."
 
 
 @router.message(lambda m: m.voice is not None)
@@ -39,12 +39,12 @@ async def handle_voice(message: Message, bot: Bot) -> None:
     try:
         file = await bot.get_file(message.voice.file_id)
         if not file.file_path:
-            await message.answer("Failed to download voice message")
+            await message.answer("Не удалось скачать голосовое сообщение")
             return
 
         file_bytes = await bot.download_file(file.file_path)
         if not file_bytes:
-            await message.answer("Failed to download voice message")
+            await message.answer("Не удалось скачать голосовое сообщение")
             return
 
         audio_bytes = file_bytes.read()
@@ -53,12 +53,12 @@ async def handle_voice(message: Message, bot: Bot) -> None:
             stt_result = await stt.transcribe(audio_bytes, language=settings.stt_language_default)
             if not stt_result.ok:
                 await message.answer(
-                    stt_result.error_message or "STT is unavailable. Please try text."
+                    stt_result.error_message or "STT недоступен. Попробуйте текст."
                 )
                 return
             transcript = stt_result.text.strip()
             if not transcript:
-                await message.answer("Could not transcribe audio.")
+                await message.answer("Не удалось распознать аудио.")
                 return
             reply_text, error = await reflection_service.handle_user_turn(
                 message.from_user.id, transcript
@@ -81,12 +81,12 @@ async def handle_voice(message: Message, bot: Bot) -> None:
             stt_result = await stt.transcribe(audio_bytes, language="en")
             if not stt_result.ok:
                 await message.answer(
-                    stt_result.error_message or "STT is unavailable. Please try text."
+                    stt_result.error_message or "STT недоступен. Попробуйте текст."
                 )
                 return
             transcript = stt_result.text.strip()
             if not transcript:
-                await message.answer("Could not transcribe audio.")
+                await message.answer("Не удалось распознать аудио.")
                 return
             reply_text, error = await tutor_service.handle_user_turn(
                 message.from_user.id, transcript
@@ -106,11 +106,11 @@ async def handle_voice(message: Message, bot: Bot) -> None:
 
         stt_result = await stt.transcribe(audio_bytes, language=settings.stt_language_default)
         if not stt_result.ok:
-            await message.answer(stt_result.error_message or "Could not transcribe audio")
+            await message.answer(stt_result.error_message or "Не удалось распознать аудио")
             return
         transcript = stt_result.text.strip()
         if not transcript:
-            await message.answer("Could not transcribe audio")
+            await message.answer("Не удалось распознать аудио")
             return
 
         storage = VaultStorage(settings.vault_path)
@@ -126,7 +126,7 @@ async def handle_voice(message: Message, bot: Bot) -> None:
             msg_id=message.message_id,
         )
 
-        await message.answer(f"рџЋ¤ {transcript}\n\nвњ“ РЎРѕС…СЂР°РЅРµРЅРѕ")
+        await message.answer(f"СЂСџР‹В¤ {transcript}\n\nРІСљвЂњ Р РЋР С•РЎвЂ¦РЎР‚Р В°Р Р…Р ВµР Р…Р С•")
         logger.info("Voice message saved: %d chars", len(transcript))
 
     except Exception:

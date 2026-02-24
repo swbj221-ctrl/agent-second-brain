@@ -38,6 +38,8 @@ Prereqs:
 - `TAVILY_API_KEY` set in `.env`
 - Summarize config at `~/.summarize/config.json`
 - Skills live under `vault/.claude/skills/` and are loaded by the OpenClaw runtime.
+Notes:
+- Windows fallback: if `npx` is not in PATH, the bot will attempt `C:\Program Files\nodejs\npx.cmd`.
 
 Install (one-time):
 - `npm i -g @steipete/summarize`
@@ -46,9 +48,11 @@ Smoke Tests (PowerShell):
 1. Tavily MCP server (sanity):
    `npx -y tavily-mcp@latest --help`
 2. URL summary:
-   `summarize "https://example.com" --plain`
+   `summarize "https://example.com" --extract --plain`
 3. YouTube transcript:
    `summarize "https://youtu.be/dQw4w9WgXcQ" --youtube auto --extract --plain`
+4. Windows fallback (no PATH `npx`):
+   `& "C:\Program Files\nodejs\npx.cmd" -y @steipete/summarize "https://example.com" --extract --plain`
 
 Telegram Manual Checks:
 - `/web search latest ai coding tools`
@@ -152,6 +156,16 @@ Output includes:
   - Ensure the venv is activated and run `python -m pip install -r requirements.txt`.
 - `ModuleNotFoundError: deepgram`:
   - Install `deepgram-sdk` or set `STT_PROVIDER=none` to disable STT.
+- `summarize` fetch fails with TLS error (`unable to get local issuer certificate`):
+  - The MSI network likely uses TLS inspection. You must obtain the corporate root CA from IT and provide it to Node:
+    - Place the root CA file at `C:\certs\corp-root.cer`.
+    - Import and convert to PEM:
+      - `Import-Certificate -FilePath "C:\certs\corp-root.cer" -CertStoreLocation Cert:\LocalMachine\Root | Out-Null`
+      - `certutil -encode "C:\certs\corp-root.cer" "C:\certs\corp-root.pem"`
+    - Set the Node trust path and retry:
+      - `$env:NODE_EXTRA_CA_CERTS="C:\certs\corp-root.pem"`
+      - `& "C:\Program Files\nodejs\npx.cmd" -y @steipete/summarize "https://example.com" --extract --plain`
+    - If `corp-root.cer` does not exist, the above commands will fail. You must obtain the root CA file first.
 - PowerShell activation path mismatch:
   - If `.\venv\Scripts\Activate.ps1` fails, the canonical path is `.\.venv\Scripts\Activate.ps1`.
 - `TELEGRAM_BOT_TOKEN is required`:

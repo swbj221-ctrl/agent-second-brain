@@ -46,7 +46,7 @@ async def cmd_status(message: Message) -> None:
     content = storage.read_daily(today)
 
     if not content:
-        await message.answer(f"📅 <b>{today}</b>\n\nЗаписей пока нет.")
+        await message.answer(f"рџ“… <b>{today}</b>\n\nР—Р°РїРёСЃРµР№ РїРѕРєР° РЅРµС‚.")
         return
 
     lines = content.strip().split("\n")
@@ -63,16 +63,16 @@ async def cmd_status(message: Message) -> None:
     week_stats = ""
     stats = session.get_stats(user_id, days=7)
     if stats:
-        week_stats = "\n\n<b>За 7 дней:</b>"
+        week_stats = "\n\n<b>Р—Р° 7 РґРЅРµР№:</b>"
         for entry_type, count in sorted(stats.items()):
-            week_stats += f"\n• {entry_type}: {count}"
+            week_stats += f"\nвЂў {entry_type}: {count}"
 
     await message.answer(
-        f"📅 <b>{today}</b>\n\n"
-        f"Всего записей: <b>{total}</b>\n"
-        f"- 🎤 Голосовых: {voice_count}\n"
-        f"- 💬 Текстовых: {text_count}\n"
-        f"- 📷 Фото: {photo_count}\n"
+        f"рџ“… <b>{today}</b>\n\n"
+        f"Р’СЃРµРіРѕ Р·Р°РїРёСЃРµР№: <b>{total}</b>\n"
+        f"- рџЋ¤ Р“РѕР»РѕСЃРѕРІС‹С…: {voice_count}\n"
+        f"- рџ’¬ РўРµРєСЃС‚РѕРІС‹С…: {text_count}\n"
+        f"- рџ“· Р¤РѕС‚Рѕ: {photo_count}\n"
         f"- ↩️ Пересланных: {forward_count}"
         f"{week_stats}"
     )

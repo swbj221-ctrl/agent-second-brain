@@ -6,6 +6,8 @@ from dataclasses import dataclass
 import json
 import logging
 import shutil
+import os
+from pathlib import Path
 from typing import Any
 
 from .command_runner import CommandResult, run_command
@@ -39,6 +41,34 @@ class TextResult:
 
 def _command_available(name: str) -> bool:
     return shutil.which(name) is not None
+
+
+def _resolve_npx_command() -> str:
+    if _command_available("npx"):
+        return "npx"
+    if Path(r"C:\Program Files\nodejs\npx.cmd").exists():
+        return r"C:\Program Files\nodejs\npx.cmd"
+    return "npx"
+
+
+def _node_env_for_command(cmd: str) -> dict[str, str] | None:
+    if os.name != "nt":
+        return None
+    cmd_lower = cmd.lower()
+    if not (cmd_lower.endswith("npx") or cmd_lower.endswith("npx.cmd")):
+        return None
+
+    env = dict(os.environ)
+    node_dir = r"C:\Program Files\nodejs"
+    path_value = env.get("PATH", "")
+    if node_dir.lower() not in path_value.lower():
+        env["PATH"] = f"{node_dir};{path_value}" if path_value else node_dir
+
+    node_opts = env.get("NODE_OPTIONS", "")
+    if "--use-system-ca" not in node_opts:
+        env["NODE_OPTIONS"] = (node_opts + " --use-system-ca").strip()
+
+    return env
 
 
 def _parse_tavily_results(payload: dict[str, Any]) -> list[SearchItem]:
@@ -113,11 +143,17 @@ def search_web(query: str, max_results: int = 5) -> SearchResult:
 def _summarize_command_args(url: str) -> list[str]:
     if _command_available("summarize"):
         return ["summarize", url, "--plain"]
-    return ["npx", "-y", "@steipete/summarize", url, "--plain"]
+    return [_resolve_npx_command(), "-y", "@steipete/summarize", url, "--plain"]
 
 
 def summarize_url(url: str, max_chars: int = 1500) -> TextResult:
-    result = run_command(_summarize_command_args(url), timeout_sec=60, max_output_chars=16000)
+    args = _summarize_command_args(url)
+    result = run_command(
+        args,
+        timeout_sec=60,
+        max_output_chars=16000,
+        env=_node_env_for_command(args[0]),
+    )
     if not result.ok:
         logger.warning("Summarize failed: %s", result.stderr or result.error_message)
         return TextResult(
@@ -141,11 +177,26 @@ def summarize_url(url: str, max_chars: int = 1500) -> TextResult:
 def _youtube_transcript_args(url: str) -> list[str]:
     if _command_available("summarize"):
         return ["summarize", url, "--youtube", "auto", "--extract", "--plain"]
-    return ["npx", "-y", "@steipete/summarize", url, "--youtube", "auto", "--extract", "--plain"]
+    return [
+        _resolve_npx_command(),
+        "-y",
+        "@steipete/summarize",
+        url,
+        "--youtube",
+        "auto",
+        "--extract",
+        "--plain",
+    ]
 
 
 def youtube_transcript(url: str, max_chars: int = 1800) -> TextResult:
-    result = run_command(_youtube_transcript_args(url), timeout_sec=90, max_output_chars=20000)
+    args = _youtube_transcript_args(url)
+    result = run_command(
+        args,
+        timeout_sec=90,
+        max_output_chars=20000,
+        env=_node_env_for_command(args[0]),
+    )
     if not result.ok:
         logger.warning("Transcript failed: %s", result.stderr or result.error_message)
         return TextResult(

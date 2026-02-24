@@ -24,6 +24,9 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 ## Current Session Goal
 - Docs consolidation: README refresh and agent profile moved to `docs/agent/`.
 
+## Known Blockers
+- MSI network TLS inspection blocks `summarize` URL fetches until corporate root CA is installed and provided to Node via `NODE_EXTRA_CA_CERTS`.
+
 ## Goals
 - Ship a stable, minimal core pipeline
 - Keep skills small and composable

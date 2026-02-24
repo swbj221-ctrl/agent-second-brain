@@ -198,15 +198,15 @@ def format_empty_daily() -> str:
         Formatted HTML message
     """
     return (
-        "📭 <b>Нет записей для обработки</b>\n\n"
+        "рџ“­ <b>РќРµС‚ Р·Р°РїРёСЃРµР№ РґР»СЏ РѕР±СЂР°Р±РѕС‚РєРё</b>\n\n"
         "<i>Добавьте голосовые сообщения или текст в течение дня</i>"
     )
 
 
 def _format_briefing_item(item: dict[str, Any], index: int) -> str:
-    title = html.escape((item.get("title") or "Untitled").strip())
+    title = html.escape((item.get("title") or "Без названия").strip())
     summary = html.escape((item.get("summary_text") or "").strip())
-    source_name = html.escape((item.get("source_name") or "Source").strip())
+    source_name = html.escape((item.get("source_name") or "Источник").strip())
     url = (item.get("url") or "").strip()
     link = html.escape(url)
     source_line = source_name
@@ -215,14 +215,14 @@ def _format_briefing_item(item: dict[str, Any], index: int) -> str:
     lines = [f"{index}. <b>{title}</b>"]
     if summary:
         lines.append(summary)
-    lines.append(f"Source: {source_line}")
+    lines.append(f"Источник: {source_line}")
     return "\n".join(lines)
 
 
 def format_news_briefing(briefing: dict[str, Any], max_items: int = 5) -> str:
     """Format a news briefing for Telegram (HTML-safe)."""
     created_at = html.escape((briefing.get("created_at") or "").strip())
-    header = "<b>Morning Briefing</b>"
+    header = "<b>Утренний брифинг</b>"
     if created_at:
         header = f"{header}\n<code>{created_at}</code>"
 
@@ -238,7 +238,7 @@ def format_news_briefing(briefing: dict[str, Any], max_items: int = 5) -> str:
 
 def _format_iso_utc(value: str | None) -> str:
     if not value:
-        return "unknown"
+        return "неизвестно"
     cleaned = value.strip()
     if cleaned.endswith("Z"):
         cleaned = cleaned[:-1] + "+00:00"
@@ -253,11 +253,11 @@ def _format_iso_utc(value: str | None) -> str:
 
 def format_reminder_delivery(reminders: list[dict[str, Any]], now_iso: str | None = None) -> str:
     if not reminders:
-        return "No due reminders."
+        return "Нет напоминаний к отправке."
     now_label = _format_iso_utc(now_iso)
-    lines = [f"<b>Reminders Due</b>", f"<code>{html.escape(now_label)}</code>", ""]
+    lines = [f"<b>Напоминания к отправке</b>", f"<code>{html.escape(now_label)}</code>", ""]
     for idx, item in enumerate(reminders, start=1):
-        title = html.escape((item.get("event_title") or "Untitled").strip())
+        title = html.escape((item.get("event_title") or "Без названия").strip())
         remind_at = _format_iso_utc(item.get("remind_at"))
         event_id = item.get("event_id")
         reminder_id = item.get("reminder_id")
@@ -272,16 +272,16 @@ def format_calendar_view(
     items: list[dict[str, Any]],
     date_label: str | None = None,
 ) -> str:
-    header = f"<b>Calendar: {html.escape(view.capitalize())}</b>"
+    header = f"<b>Календарь: {html.escape(view.capitalize())}</b>"
     lines = [header]
     if date_label:
         lines.append(f"<code>{html.escape(date_label)}</code>")
     lines.append("")
     if not items:
-        lines.append("No records found.")
+        lines.append("Нет записей.")
         return truncate_html("\n".join(lines), max_length=4096)
     for idx, item in enumerate(items, start=1):
-        title = html.escape((item.get("event_title") or "Untitled").strip())
+        title = html.escape((item.get("event_title") or "Без названия").strip())
         remind_at = _format_iso_utc(item.get("remind_at"))
         event_id = item.get("event_id")
         reminder_id = item.get("reminder_id")
