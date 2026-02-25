@@ -165,6 +165,7 @@
 - Command safety guards reject oversized command inputs and unsupported extra arguments for strict commands (`/help`, `/status`, `/ping`, `/version`, `/diag`) with short RU usage responses.
 - OpenClaw adapter applies an early media payload guard before Telegram media send handoff: empty TTS bytes/zero-size files are downgraded to text fallback with structured warning `reason=empty_tts_output` (no media send attempt).
 - OpenClaw bridge Telegram voice source selection now enforces explicit priority (`message.voice` -> `message.audio` -> audio `message.document` -> transcript/text fallback), attempts voice-note file download/STT before trusting auto-transcript text, and returns voice-note-safe retry text on download/STT/empty-transcript failures (no ".ogg/.m4a file" request for normal voice notes).
+- Strict media-priority is now enforced for normal Telegram media payloads (`voice` / `audio` / audio `document`): malformed/partial media shapes no longer silently downgrade to transcript-only processing when media is declared. Transcript-only fallback remains allowed only when media is truly unavailable (or non-strict wrapper metadata paths explicitly allow it).
 - Bridge response finalization now applies a last-line voice-note UX safety override: if a fallback path is identified for `message.voice`, generic "resend as file/.ogg/.m4a" text is replaced with voice-note-safe retry guidance.
 - Bridge emits structured diagnostics logs for voice source selection and ingest (`telegram_stt_source_select`, `telegram_voice_ingest`) with media flags, download outcome, STT source/outcome, and fallback reason fields.
 - Voice-note diagnostics schema is now hardened for operator triage (no secrets): `requestId`, `userIdHash`, `messageKind`, `isVoiceNote`, Telegram file-id presence flags, downloader callback name/path, media bytes/path evidence, transcript shape hints (`transcriptLen`, `transcriptLooksAuto`), `finalInputSource`, `finalOutcome`, `fallbackReason` (stable enum), `responseMode`, and STT provider/model markers (`sttProvider`, `sttModel`) when available.
@@ -177,6 +178,7 @@
 - OpenClaw adapter now prepends repo `src` to `sys.path` (resolved from `vault/.claude/skills/openclaw-main/adapter.py` parent tree) before importing `d_brain`, to prefer the repo source tree over stale installed/duplicate copies when available.
 - Bridge voice pipeline diagnostics now emit `event=telegram_voice_pipeline` with sanitized per-stage details for download, optional ffmpeg preprocessing, STT request/result, transcript preview, and pipeline error codes.
 - When opt-in multipass STT is enabled, the same pipeline logger emits `stt_multipass_start`, `stt_multipass_candidate`, `stt_multipass_selected`, and `stt_multipass_skip` stages with sanitized scoring/selection metadata and trimmed transcript previews.
+- Multipass candidate logs now also expose transliteration-noise diagnostics (`candidateTranslitLikeLatin`, translit/English hint counters, repeated Latin runs) so live mixed RU+EN selection decisions are grep-friendly.
 - Preprocess diagnostics fields include `normalizeAudioEnabled`, `ffmpegPathFound`, `inputMimeType`, and `inputExt` to support deterministic local smoke assertions and live triage.
 - Optional Telegram STT controls (bridge, non-tutor path):
   - `TELEGRAM_STT_LANGUAGE=<code>` overrides non-tutor STT language (for example `ru`) for live testing.
@@ -184,7 +186,16 @@
   - `TELEGRAM_STT_MULTIPASS=1` enables opt-in non-tutor STT multipass decode attempts (default behavior is unchanged when disabled).
   - `TELEGRAM_STT_MULTIPASS_LANGS=auto,ru,en` controls multipass order (`auto` = current/default bridge STT language path).
   - `TELEGRAM_STT_MIXED_HEURISTIC=1` enables lightweight candidate scoring (length/tokens/script mix) to prefer mixed RU+EN transcripts when available.
+  - Mixed-language heuristic hardening:
+    - preserves Cyrillic fragments when any candidate shows Cyrillic evidence
+    - penalizes `ru` candidates without Cyrillic and `en` candidates without Latin
+    - penalizes transliterated pseudo-Russian Latin candidates when a better Cyrillic/mixed candidate exists
+    - prefers mixed-script candidates in mixed-context utterances (for example `Привет, how are you, ты меня понимаешь?`)
   - Compatibility rule (safe default): if `TELEGRAM_STT_LANGUAGE` is explicitly set for non-tutor mode, multipass is skipped and the explicit language override is used.
+- Transcript-only safety behavior (no media available):
+  - valid English text is kept as-is (no forced normalization)
+  - obvious translit-like garbage or keyboard-layout typos trigger a short Russian clarification prompt instead of guessing/hallucinating
+  - examples: `ghbdtn` -> confirm `привет?`, `руддщ` -> confirm `hello?`
 - OpenClaw adapter media hint routing now treats only audio documents as voice candidates; non-audio `message.document` payloads continue to normal document handling.
 - Live embedded OpenClaw Telegram audio can still bypass the adapter/bridge if the embedded agent handles `<media:audio>` directly via ad-hoc `exec` STT. This is detectable by:
   - Telegram activity in `openclaw logs` with no `telegram_voice_pipeline` / `stt_multipass_*`
@@ -192,8 +203,9 @@
 - Temporary local runtime hard-enforcement hotfix (installed OpenClaw npm bundle, outside repo source):
   - The installed `pi-embedded` runtime `runBeforeToolCallHook(...)` can be patched to intercept direct Deepgram STT `exec`/`bash` calls (`api.deepgram.com/v1/listen`) when the latest `chat.history` user message contains embedded audio media markup.
   - The hotfix rewrites the command to the project redirect shim (`scripts/openclaw_embedded_media_redirect_cli.py --message-file <tmp>`) instead of allowing direct STT `exec`.
-  - Runtime hotfix proof marker: `event=openclaw_voice_dispatch_path_select`, `selectedPath=wrapper_cli_bridge`, `sourceModule=pi-embedded.before_tool_call.exec_audio_guard`
-  - Runtime hotfix error marker: `event=openclaw_voice_dispatch_path_error`, `selectedPath=none`, `intendedPath=wrapper_cli_bridge`, `errorCode=wrapper_cli_unavailable`
+  - Default behavior is fail-closed to wrapper-first routing for normal embedded audio prompts; direct Deepgram exec is allowed only in explicit diagnostic mode via `OPENCLAW_AUDIO_DIRECT_DEEPGRAM_DIAGNOSTIC=1|true|yes`.
+  - Runtime hotfix proof marker: `event=openclaw_voice_dispatch_path_select`, `selectedPath=wrapper_cli_bridge`, `traceStage=runtime.exec_guard`, `requestId=<oc-...>`, `sourceModule=pi-embedded.before_tool_call.exec_audio_guard`
+  - Runtime hotfix error marker: `event=openclaw_voice_dispatch_path_error`, `selectedPath=none`, `intendedPath=wrapper_cli_bridge`, `traceStage=runtime.exec_guard`, `requestId=<oc-...>`, `errorCode=wrapper_bridge_unavailable`
   - This control is not durable across OpenClaw updates/reinstalls until upstreamed or automated.
 - A narrow wrapper (`scripts/openclaw_live_voice_bridge_cli.py`) is available to parse OpenClaw embedded Telegram audio prompts and route them into `vault/.claude/skills/openclaw-main/adapter.py -> d_brain.integrations.openclaw_bridge` with proof marker JSON `openclaw_voice_dispatch_path_select`.
 - Embedded transcript encoding hardening (wrapper-first path):
@@ -203,12 +215,36 @@
   - Empty embedded transcript is normalized to `EMPTY_TRANSCRIPT` for diagnostics, without breaking the voice pipeline.
 - Proof markers for path diagnosis:
   - runtime exec-guard proof (when local hotfix is installed): `event=openclaw_voice_dispatch_path_select` with `selectedPath=wrapper_cli_bridge`, `sourceModule=pi-embedded.before_tool_call.exec_audio_guard`
-  - wrapper proof: `event=openclaw_voice_dispatch_path_select` with `selectedPath=d_brain_openclaw_bridge|embedded_direct_stt`, `branchReason`, `messageKind`, `isAudioDocument`
-  - adapter proof (media branch): `event=openclaw_voice_dispatch_path_select` with `selectedPath=d_brain_openclaw_bridge`
+  - redirect shim proof/skip/error (workspace glue): `event=openclaw_voice_dispatch_path_select|openclaw_voice_dispatch_path_error` with `traceStage=redirect.path_select|redirect.path_skip|redirect.path_error`, `requestId`
+  - wrapper proof/error: `event=openclaw_voice_dispatch_path_select|openclaw_voice_dispatch_path_error` with `traceStage=wrapper.path_select|wrapper.path_error`, `requestId`, `selectedPath`, `branchReason`, `messageKind`, `isAudioDocument`
+  - wrapper trace (media vs embedded transcript forwarding decision): `event=openclaw_voice_dispatch_wrapper_trace` with `traceStage=wrapper.adapter_dispatch`, `requestId`, `embeddedTranscriptForwarded`, `embeddedTranscriptDecision`, `embeddedTranscriptSuppressedReason`
+  - adapter proof (media branch): `event=openclaw_voice_dispatch_path_select` with `traceStage=adapter.pre_bridge`, `request_id`, media flags, text/transcript hints
+  - adapter post-bridge result marker: `event=openclaw_voice_dispatch_path_result` with `traceStage=adapter.post_bridge`, `sttSource`, `fallbackReason`, `transcriptOnlyWarning`, `sttLanguage`, `sttMultipass`
+  - Discoverability hardening (live log capture):
+    - Redirect shim and wrapper CLI mirror path markers to `stderr` as standalone JSON lines and include both `requestId` and `request_id` (same value) to improve extraction across log formatting variants.
+    - Redirect shim forwards wrapper `stderr` marker lines after wrapper execution so redirect + wrapper markers can appear in the same `openclaw logs --follow --json --plain` capture.
+    - Adapter pre/post bridge markers now emit both `requestId` and `request_id` as well.
+- Verdict helper robustness (strictness unchanged):
+  - `scripts/openclaw_live_voice_path_verdict.py` now recognizes runtime-style request IDs with pipe separators (for example `oc-...|fc-...`) and scans nested OpenClaw log `raw` payload JSON when correlating proof markers.
+  - The verdict parser also accepts JSON spacing/escaping variants for `traceStage` / `selectedPath` extraction so wrapper-stage markers are counted in strict same-requestId chain checks when log/session encoding formats differ slightly.
+  - `--log-capture` ingestion auto-decodes PowerShell UTF-16/BOM/zero-byte output (typical `openclaw logs ... | Tee-Object` files), preventing false INCONCLUSIVE due to undecoded marker lines.
+  - Anti-contamination guard:
+    - `LIVE_PATH_CONFIRMED_BRIDGE` requires the selected `full_chain_request_id` to be present in the provided log-capture raw lines (not only reconstructed from session history / nested blobs).
+  - Scoped bypass detection:
+    - `session_deepgram_direct=true` is raised only for current-run scoped evidence (Deepgram seen in log capture, or session Deepgram evidence carrying a requestId that also appears in the provided log capture).
+  - Chain-stage diagnostics:
+    - Verdict output includes concise stage source diagnostics for the required chain (`log_capture` / `session_only` / `missing`) to quickly identify sink misalignment when verdict is `INCONCLUSIVE`.
+  - `LIVE_PATH_CONFIRMED_BRIDGE` still requires one same-`requestId` full chain across runtime -> redirect -> wrapper -> adapter pre/post -> bridge pipeline/multipass markers.
 - Safe fallback rule for wrapper path:
+  - RequestId continuity is required for audio wrapper-first chain tracing:
+    - redirect/wrapper/adapter audio stages fail closed with `errorCode=request_id_missing_in_chain` if `requestId`/`request_id` is missing
+    - no silent fallback is allowed when the trace chain cannot be tied to a single request
+  - Bridge continuity note (repo path):
+    - `dispatch_voice_sync(...)` passes the canonical `request_id` through to async `dispatch_voice(...)` so `telegram_voice_pipeline` / `stt_multipass_selected` markers can match wrapper/adapter/runtime stages under one requestId.
   - on bridge import/runtime failure, return a short safe user fallback and explicit `path_fallback_reason` (`bridge_import_or_runtime_failed`)
   - wrapper emits `event=openclaw_voice_dispatch_path_error` with `errorCode=bridge_dispatch_unavailable`, `selectedPath=none`, and `intendedPath=d_brain_openclaw_bridge`
   - do not silently fall back to direct embedded STT for audio media (keeps failures diagnosable)
+  - redirect shim now hard-fails audio prompts if wrapper reports a non-bridge selected path (`errorCode=wrapper_unexpected_non_bridge_path`) to prevent hidden policy bypass inside wrapper output handling
 - Runtime exec-guard PowerShell encoding guard (local hotfix, installed `pi-embedded` bundle):
   - The rewritten redirect-shim command now sets PowerShell console/input/output encoding to UTF-8 and exports `PYTHONUTF8=1` + `PYTHONIOENCODING=utf-8` before invoking the Python shim.
   - Purpose: reduce Windows shell mojibake risk in embedded `exec` tool output handling while preserving the existing wrapper-first routing behavior.
@@ -1445,6 +1481,7 @@ Scope: minimal projects/tasks workflow with dedicated tables. No reminder integr
 - `task_get`: `{ "task": object }`
 
 
-## Embedded Wrapper Runtime Contract Update (2026-02-25)\n- Wrapper loader must register adapter module in sys.modules prior to exec_module to avoid Python dataclass module-resolution failure during adapter import.\n- Embedded wrapper may initialize outside full bot env; if TELEGRAM_BOT_TOKEN is absent, wrapper sets a local placeholder token to allow settings initialization for STT dispatch path.\n- Required runtime dependencies for wrapper->adapter import are defined in equirements.txt; missing deps can manifest as ridge_dispatch_unavailable with ridge_import_or_runtime_failed.\n- Local embedded invocations require ault/.sessions to exist for adapter session persistence path.
+## Embedded Wrapper Runtime Contract Update (2026-02-25)\n- Wrapper loader must register adapter module in sys.modules prior to exec_module to avoid Python dataclass module-resolution failure during adapter import.\n- Embedded wrapper may initialize outside full bot env; if TELEGRAM_BOT_TOKEN is absent, wrapper sets a local placeholder token to allow settings initialization for STT dispatch path.\n- Required runtime dependencies for wrapper->adapter import are defined in 
+equirements.txt; missing deps can manifest as ridge_dispatch_unavailable with ridge_import_or_runtime_failed.\n- Local embedded invocations require ault/.sessions to exist for adapter session persistence path.
 
 ## 2026-02-25 - Multipass mixed-language selection policy\n_select_best_stt_candidate(...) now applies script-aware score adjustments in addition to base length/token heuristics:\n- boosts candidates containing Cyrillic when any Cyrillic evidence exists in the pass set (RU-preservation bias),\n- boosts true mixed-script candidates when mixed context is detected,\n- penalizes explicit language/script mismatch (ru without Cyrillic, en without Latin).\nThis reduces RU fragment drop in RU+EN mixed speech.
