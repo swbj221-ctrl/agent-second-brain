@@ -6,13 +6,34 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 import logging
+import os
 from pathlib import Path
+import sys
 import time
 from typing import Any
 from uuid import uuid4
 
+def _ensure_repo_src_on_path() -> str:
+    try:
+        adapter_file = Path(__file__).resolve()
+    except Exception:  # pragma: no cover - defensive
+        return ""
+    for parent in adapter_file.parents:
+        src_dir = parent / "src"
+        if (src_dir / "d_brain").exists():
+            src_str = str(src_dir)
+            if src_str in sys.path:
+                sys.path.remove(src_str)
+            sys.path.insert(0, src_str)
+            return src_str
+    return ""
+
+
+_REPO_SRC_PATH = _ensure_repo_src_on_path()
+
 from d_brain.bot.formatters import format_calendar_view, format_news_briefing
 from d_brain.bot.text_utils import fix_mojibake
+import d_brain.integrations.openclaw_bridge as openclaw_bridge_module
 from d_brain.integrations.openclaw_bridge import (
     dispatch_command_response as dispatch_bridge_command_response,
     dispatch_voice_from_message,
@@ -57,6 +78,8 @@ USAGE_REFLECT_CLOSE = "Использование: /reflect close <session_id> [
 USAGE_REMINDER = "Использование: /reminder list | /reminder deliver"
 
 logger = logging.getLogger(__name__)
+_BRIDGE_RUNTIME_PATH_LOGGED = False
+_AUDIO_DOC_EXTENSIONS = (".ogg", ".opus", ".m4a", ".mp3", ".wav", ".mpeg")
 
 
 def _log_adapter_event(
@@ -127,6 +150,68 @@ def _log_audio_payload_check(
     )
 
 
+def _log_voice_dispatch_path_select(
+    *,
+    selected_path: str,
+    branch_reason: str,
+    request_id: str,
+    message: dict[str, Any],
+) -> None:
+    document = message.get("document") if isinstance(message.get("document"), dict) else {}
+    mime_type = str(
+        (message.get("mime_type") or message.get("mimeType"))
+        or (document.get("mime_type") if isinstance(document, dict) else "")
+        or ""
+    )
+    file_name = str((document.get("file_name") if isinstance(document, dict) else "") or "")
+    logger.info(
+        "%s",
+        json.dumps(
+            {
+                "event": "openclaw_voice_dispatch_path_select",
+                "selectedPath": selected_path,
+                "branchReason": branch_reason,
+                "request_id": request_id,
+                "hasVoice": isinstance(message.get("voice"), dict),
+                "hasAudio": isinstance(message.get("audio"), dict),
+                "hasDocument": isinstance(message.get("document"), dict),
+                "mimeType": mime_type,
+                "ext": Path(file_name).suffix.lower() if file_name else "",
+                "sourceModule": __file__,
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
+
+
+def _log_bridge_runtime_path_once() -> None:
+    global _BRIDGE_RUNTIME_PATH_LOGGED
+    if _BRIDGE_RUNTIME_PATH_LOGGED:
+        return
+    try:
+        cwd = str(Path.cwd())
+    except Exception:  # pragma: no cover - defensive
+        cwd = ""
+    logger.info(
+        "%s",
+        json.dumps(
+            {
+                "event": "openclaw_bridge_runtime_module_path",
+                "moduleFile": str(getattr(openclaw_bridge_module, "__file__", "")),
+                "cwd": cwd,
+                "sysPathHead": [str(x) for x in sys.path[:5]],
+                "pid": int(os.getpid()),
+                "source": "openclaw_adapter",
+                "repoSrcPath": _REPO_SRC_PATH,
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
+    _BRIDGE_RUNTIME_PATH_LOGGED = True
+
+
 def _log_empty_tts_output_guard(
     *,
     route: str,
@@ -184,11 +269,21 @@ def _safe_user_error(reason: str | None = None) -> str:
     return fix_mojibake(f"{base}\nПопробуй еще раз через минуту.")
 
 
+def _is_audio_document_payload(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    mime_type = str(value.get("mime_type") or value.get("mimeType") or "").lower()
+    if mime_type.startswith("audio/"):
+        return True
+    file_name = str(value.get("file_name") or value.get("fileName") or "").lower()
+    return file_name.endswith(_AUDIO_DOC_EXTENSIONS)
+
+
 def _message_has_media_hint(message: dict[str, Any]) -> bool:
     return bool(
         message.get("voice")
         or message.get("audio")
-        or message.get("document")
+        or _is_audio_document_payload(message.get("document"))
         or message.get("audio_bytes")
         or message.get("media_bytes")
         or message.get("file_bytes")
@@ -981,6 +1076,12 @@ def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
         )
 
     if media_detected or (text and not text.strip().startswith("/")):
+        _log_voice_dispatch_path_select(
+            selected_path="d_brain_openclaw_bridge",
+            branch_reason="media_detected_or_noncommand_text",
+            request_id=str(request_id),
+            message=message,
+        )
         voice_response = _normalize_bridge_payload(main_voice_handler(message, request_id=str(request_id)))
         if voice_response.get("handled"):
             diagnostics = voice_response.get("diagnostics") or {}
@@ -1164,9 +1265,26 @@ def main_handler(message: dict[str, Any]) -> str:
 
 def main_voice_handler(message: dict[str, Any], request_id: str | None = None) -> dict[str, Any]:
     """OpenClaw voice/text routing entrypoint with normalized payload."""
+    _log_bridge_runtime_path_once()
     user_id = message.get("user_id") or message.get("from_user_id") or "0"
     chat_id = message.get("chat_id")
     media_detected = _message_has_media_hint(message)
+    logger.info(
+        "%s",
+        json.dumps(
+            {
+                "event": "openclaw_bridge_runtime_dispatch_entry",
+                "moduleFile": str(getattr(openclaw_bridge_module, "__file__", "")),
+                "request_id": str(request_id or ""),
+                "hasVoice": isinstance(message.get("voice"), dict),
+                "hasAudio": isinstance(message.get("audio"), dict),
+                "hasDocument": isinstance(message.get("document"), dict),
+                "mediaDetected": bool(media_detected),
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
     try:
         bridge_user_id = int(user_id)
     except (TypeError, ValueError):

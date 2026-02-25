@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$Detached,
     [int]$Port = 18789
 )
@@ -168,4 +168,3 @@ if ($Detached) {
     Write-Host "- Verify status: openclaw status"
     Write-Host "- Stop gateway: scripts\stop_openclaw_stack.ps1"
 }
-

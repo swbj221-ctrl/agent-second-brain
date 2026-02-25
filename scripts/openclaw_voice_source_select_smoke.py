@@ -62,7 +62,7 @@ def emit(case: str, ok: bool, **payload: Any) -> None:
 
 def _contains_file_request(text: str) -> bool:
     lowered = text.lower()
-    return ".ogg" in lowered or ".m4a" in lowered or "файл" in lowered
+    return ".ogg" in lowered or ".m4a" in lowered or "media attached" in lowered or "С„Р°Р№Р»" in lowered
 
 
 def _find_json_event(messages: list[str], event_name: str) -> dict[str, Any] | None:
@@ -81,6 +81,7 @@ def _require_evidence_fields(event_obj: dict[str, Any]) -> bool:
         "requestId",
         "userIdHash",
         "messageKind",
+        "isVoiceNote",
         "telegramFileIdPresent",
         "telegramFileUniqueIdPresent",
         "downloaderName",
@@ -431,6 +432,155 @@ def main() -> int:
             diag = response.get("diagnostics") or {}
             ok = response.get("status") == "ok" and diag.get("stt_source") == "document_file"
             emit("document_audio_ogg_still_works", ok, stt_source=diag.get("stt_source"))
+            if not ok:
+                failures += 1
+
+            # 11) voice_note_transcript_only_auto_never_requests_file
+            log_handler.messages.clear()
+            response = bridge.dispatch_voice_from_message(
+                {
+                    "user_id": 311,
+                    "chat_id": 311,
+                    "message_id": 11,
+                    "request_id": "smoke-v11",
+                    "text": "Transcript: ??? ???",
+                    "voice": {"mime_type": "audio/ogg", "duration": 1},
+                },
+                user_id=311,
+                request_id="smoke-v11",
+            )
+            diag = response.get("diagnostics") or {}
+            select_log = _find_json_event(log_handler.messages, "telegram_stt_source_select") or {}
+            ingest_log = _find_json_event(log_handler.messages, "telegram_voice_ingest") or {}
+            ok = (
+                not _contains_file_request(str(response.get("text") or ""))
+                and bool(diag.get("telegram_voice_note"))
+                and bool(select_log.get("isVoiceNote"))
+                and (ingest_log.get("fallbackReason") in {"transcript_only_auto", "unsupported_media_shape", "voice_download_not_attempted"})
+            )
+            emit(
+                "voice_note_transcript_only_auto_never_requests_file",
+                ok,
+                fallback_reason=diag.get("fallback_reason"),
+                telegram_voice_note=bool(diag.get("telegram_voice_note")),
+            )
+            if not ok:
+                failures += 1
+
+            # 12) voice_note_download_not_attempted_never_requests_file
+            log_handler.messages.clear()
+            response = bridge.dispatch_voice_from_message(
+                {
+                    "user_id": 312,
+                    "chat_id": 312,
+                    "message_id": 12,
+                    "request_id": "smoke-v12",
+                    "voice": {"file_id": "voice-file-12", "mime_type": "audio/ogg"},
+                },
+                user_id=312,
+                request_id="smoke-v12",
+            )
+            diag = response.get("diagnostics") or {}
+            ingest_log = _find_json_event(log_handler.messages, "telegram_voice_ingest") or {}
+            ok = (
+                diag.get("fallback_reason") == "voice_download_not_attempted"
+                and not _contains_file_request(str(response.get("text") or ""))
+                and bool(diag.get("telegram_voice_note"))
+                and bool(ingest_log.get("isVoiceNote"))
+            )
+            emit(
+                "voice_note_download_not_attempted_never_requests_file",
+                ok,
+                fallback_reason=diag.get("fallback_reason"),
+                status=response.get("status"),
+            )
+            if not ok:
+                failures += 1
+
+            # 13) voice_note_download_failed_never_requests_file
+            log_handler.messages.clear()
+            response = bridge.dispatch_voice_from_message(
+                {
+                    "user_id": 313,
+                    "chat_id": 313,
+                    "message_id": 13,
+                    "request_id": "smoke-v13",
+                    "voice": {"file_id": "voice-file-13", "mime_type": "audio/ogg"},
+                    "telegram_media_downloader": (lambda *a, **k: (_ for _ in ()).throw(RuntimeError("fail13"))),
+                },
+                user_id=313,
+                request_id="smoke-v13",
+            )
+            diag = response.get("diagnostics") or {}
+            ingest_log = _find_json_event(log_handler.messages, "telegram_voice_ingest") or {}
+            ok = (
+                diag.get("fallback_reason") == "voice_download_failed"
+                and not _contains_file_request(str(response.get("text") or ""))
+                and bool(ingest_log.get("isVoiceNote"))
+            )
+            emit("voice_note_download_failed_never_requests_file", ok, fallback_reason=diag.get("fallback_reason"))
+            if not ok:
+                failures += 1
+
+            # 14) voice_note_malformed_shape_with_transcript_never_requests_file
+            log_handler.messages.clear()
+            response = bridge.dispatch_voice_from_message(
+                {
+                    "user_id": 314,
+                    "chat_id": 314,
+                    "message_id": 14,
+                    "request_id": "smoke-v14",
+                    "text": "Transcript: malformed voice fallback",
+                    "voice": {"duration": 2},
+                },
+                user_id=314,
+                request_id="smoke-v14",
+            )
+            diag = response.get("diagnostics") or {}
+            select_log = _find_json_event(log_handler.messages, "telegram_stt_source_select") or {}
+            ingest_log = _find_json_event(log_handler.messages, "telegram_voice_ingest") or {}
+            ok = (
+                not _contains_file_request(str(response.get("text") or ""))
+                and (bool(diag.get("telegram_voice_note")) or bool(select_log.get("isVoiceNote")))
+                and (
+                    ingest_log.get("fallbackReason") in {"transcript_only_auto", "unsupported_media_shape", "transcript_only_no_media"}
+                    or diag.get("fallback_reason") in {"unsupported_media_shape", "transcript_only_auto", "transcript_only_no_media"}
+                )
+            )
+            emit(
+                "voice_note_malformed_shape_with_transcript_never_requests_file",
+                ok,
+                fallback_reason=diag.get("fallback_reason"),
+                is_voice_note=bool(diag.get("telegram_voice_note")),
+            )
+            if not ok:
+                failures += 1
+
+            # 15) structured_log_emitted_for_voice_note_fallback
+            log_handler.messages.clear()
+            response = bridge.dispatch_voice_from_message(
+                {
+                    "user_id": 315,
+                    "chat_id": 315,
+                    "message_id": 15,
+                    "request_id": "smoke-v15",
+                    "voice": {"file_id": "voice-file-15", "mime_type": "audio/ogg"},
+                },
+                user_id=315,
+                request_id="smoke-v15",
+            )
+            _ = response
+            select_log = _find_json_event(log_handler.messages, "telegram_stt_source_select") or {}
+            ingest_log = _find_json_event(log_handler.messages, "telegram_voice_ingest") or {}
+            ok = bool(select_log.get("isVoiceNote")) and (
+                ingest_log == {} or bool(ingest_log.get("isVoiceNote"))
+            )
+            emit(
+                "structured_log_emitted_for_voice_note_fallback",
+                ok,
+                select_is_voice_note=bool(select_log.get("isVoiceNote")),
+                ingest_is_voice_note=bool(ingest_log.get("isVoiceNote")),
+            )
             if not ok:
                 failures += 1
         finally:

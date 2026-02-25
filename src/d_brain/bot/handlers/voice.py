@@ -97,6 +97,7 @@ def _select_media(message: Message) -> dict[str, object] | None:
             "file_name": "voice.ogg",
             "mime_type": message.voice.mime_type or "audio/ogg",
             "file_size": message.voice.file_size or 0,
+            "duration": message.voice.duration or 0,
         }
     if message.audio is not None:
         return {
@@ -105,6 +106,7 @@ def _select_media(message: Message) -> dict[str, object] | None:
             "file_name": message.audio.file_name or "audio",
             "mime_type": message.audio.mime_type or "",
             "file_size": message.audio.file_size or 0,
+            "duration": message.audio.duration or 0,
         }
     if message.document is not None and _is_audio_document(message.document):
         return {
@@ -113,6 +115,7 @@ def _select_media(message: Message) -> dict[str, object] | None:
             "file_name": message.document.file_name or "document",
             "mime_type": message.document.mime_type or "",
             "file_size": message.document.file_size or 0,
+            "duration": 0,
         }
     return None
 
@@ -120,12 +123,20 @@ def _select_media(message: Message) -> dict[str, object] | None:
 async def _download_media(
     bot: Bot, file_id: str, file_name: str
 ) -> tuple[Path | None, bytes | None]:
+    logger.info("Telegram voice pipeline: stage=getFile:start file_id_present=%s", bool(file_id))
     file = await bot.get_file(file_id)
+    logger.info(
+        "Telegram voice pipeline: stage=getFile:ok file_path=%s",
+        str(getattr(file, "file_path", "") or ""),
+    )
     if not file.file_path:
+        logger.warning("Telegram voice pipeline: stage=getFile:empty_path")
         return None, None
 
+    logger.info("Telegram voice pipeline: stage=download:start file_path=%s", str(file.file_path))
     file_bytes = await bot.download_file(file.file_path)
     if not file_bytes:
+        logger.warning("Telegram voice pipeline: stage=download:empty file_path=%s", str(file.file_path))
         return None, None
 
     audio_bytes = file_bytes.read()
@@ -134,6 +145,12 @@ async def _download_media(
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"stt_{uuid4().hex}{suffix}"
     out_path.write_bytes(audio_bytes)
+    logger.info(
+        "Telegram voice pipeline: stage=download:ok tmp_path=%s suffix=%s size=%s",
+        str(out_path),
+        suffix,
+        len(audio_bytes),
+    )
     return out_path, audio_bytes
 
 
@@ -216,7 +233,7 @@ async def _deliver_tts_reply(
         await safe_answer(message, fallback_text)
 
 
-@router.message(lambda m: m.voice is not None or m.audio is not None or m.document is not None)
+@router.message(lambda m: m.voice is not None or m.audio is not None or (m.document is not None and _is_audio_document(m.document)))
 async def handle_voice(message: Message, bot: Bot) -> None:
     """Handle voice messages."""
     if not message.from_user:
@@ -231,12 +248,14 @@ async def handle_voice(message: Message, bot: Bot) -> None:
             return
 
         logger.info(
-            "Telegram media detected: path=%s media_type=%s file_name=%s mime_type=%s file_size=%s",
+            "Telegram media detected: path=%s media_type=%s file_id=%s file_name=%s mime_type=%s file_size=%s duration=%s",
             "voice_media" if media["media_type"] == "voice" else "audio_media",
             media["media_type"],
+            str(media["file_id"]),
             media["file_name"],
             media["mime_type"],
             media["file_size"],
+            media.get("duration", 0),
         )
 
         out_path, audio_bytes = await _download_media(
@@ -265,6 +284,17 @@ async def handle_voice(message: Message, bot: Bot) -> None:
         )
 
         diagnostics = response.get("diagnostics") or {}
+        logger.info(
+            "Telegram voice pipeline: stage=bridge_result status=%s error_code=%s fallback_reason=%s stt_language=%s stt_provider=%s stt_error_code=%s transcript_len=%s transcript_preview=%s",
+            str(response.get("status") or "ok"),
+            str(response.get("error_code") or ""),
+            str(diagnostics.get("fallback_reason") or diagnostics.get("pipeline_error_code") or ""),
+            str(diagnostics.get("stt_language") or ""),
+            str(diagnostics.get("stt_provider") or ""),
+            str(diagnostics.get("stt_error_code") or ""),
+            int(diagnostics.get("transcript_len") or 0),
+            _trim_log(str(response.get("text") or ""), 200),
+        )
         output_audio = response.get("audio_bytes")
         if output_audio:
             await _deliver_tts_reply(

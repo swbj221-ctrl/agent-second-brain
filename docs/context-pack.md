@@ -1,4 +1,4 @@
-# Context Pack
+﻿# Context Pack
 
 ## Short Summary
 OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar backend. Local LLM is a utility layer; Codex handles reasoning/dialog/final synthesis. Focus: minimal context, operational clarity, and stable interfaces.
@@ -24,9 +24,15 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 ## Current Session Goal
 - Deliver v1.3 operator readiness for the OpenClaw-first production path: bridge-level user preferences (`/prefs`), reliability guardrails (timeout-safe sidecar degrade), and transport-agnostic diagnostics/admin quick controls (`/diag`, `/diag full`, `/ping`, `/version`) without changing the transport architecture.
 - v1.4 RC hardening pass: unify/sanitize bridge timeout/fallback behavior, tighten command safety, finalize offline voice/command/diag no-polling smoke coverage, and add a single RC smoke suite command.
+- Embedded voice transcription UTF-8 hardening follow-up: prevent mojibake token patterns in the wrapper-first OpenClaw embedded audio path by preferring UTF-8-safe transcript transport/decoding and explicit empty/corrupted transcript diagnostics.
+- Windows `gateway/ws` pretty-log mojibake hardening follow-up: reduce ANSI/unicode formatter corruption in OpenClaw pretty logs (`req/res` lines) by using ASCII-safe symbols and sanitized file-log messages in the installed runtime bundle until upstreamed.
+- Voice-call STT language-bias hardening follow-up: fix OpenClaw `voice-call` streaming STT (Twilio media stream -> OpenAI Realtime) so RU and mixed RU/EN telephony speech is not transcribed as English-phonetic Latin transliteration by passing explicit multilingual-safe transcription hints and adding operator diagnostics for provider/model/language/raw transcript preview.
 
 ## Known Blockers
 - MSI network TLS inspection blocks `summarize` URL fetches until corporate root CA is installed and provided to Node via `NODE_EXTRA_CA_CERTS`.
+- OpenClaw embedded Telegram audio/voice may still bypass the project bridge after OpenClaw updates unless the local runtime exec-guard hotfix in installed pi-embedded bundles is re-applied or upstreamed.
+- OpenClaw Windows gateway/ws pretty-log mojibake fix is currently a local installed-runtime bundle patch (outside repo source) and must be re-applied or upstreamed after OpenClaw updates/reinstalls.
+- OpenClaw `voice-call` streaming STT transliteration fix is currently a local installed-runtime extension patch (outside repo source under `node_modules\openclaw\extensions\voice-call`) and must be re-applied or upstreamed after OpenClaw updates/reinstalls.
 
 ## Goals
 - Ship a stable, minimal core pipeline
@@ -83,6 +89,9 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Bridge RC hardening adds sanitized degraded/exception logging for sidecar/STT/TTS paths, `/diag full` timeout visibility, and command safety guards for oversized input + invalid extra args on strict commands.
 - Unified no-polling RC smoke suite is available via `scripts/openclaw_rc_smoke.py` (no-polling, readiness, command/prefs/diag/voice/media-priority checks).
 - Telegram voice-note STT hardening/observability follow-up is implemented in the OpenClaw bridge: stable fallback taxonomy, expanded structured evidence fields (`telegram_stt_source_select` / `telegram_voice_ingest`), lightweight voice source/fallback counters, and operator helper `scripts/openclaw_voice_log_summary.py`.
+- Local OpenClaw runtime hotfix (installed npm `pi-embedded` bundles, outside repo source) now intercepts embedded direct Deepgram STT `exec` calls for `<media:audio>` and rewrites them to the project redirect shim (`scripts/openclaw_embedded_media_redirect_cli.py`) with runtime proof/error markers.
+- Wrapper-first embedded transcript encoding hardening is now in place: `openclaw_live_voice_bridge_cli.py` supports `TranscriptB64`/`TranscriptBase64`, emits explicit transcript decode diagnostics, and suppresses suspicious mojibake transcript text before adapter handoff (media STT remains primary).
+- OpenClaw `voice-call` streaming STT hardening (installed extension, outside repo source) now supports config-backed `streaming.sttLanguage` (default `ru`) and `streaming.sttPrompt` (bilingual anti-transliteration hint), passes them into OpenAI Realtime `input_audio_transcription`, and emits short safe diagnostics for selected STT settings plus final/raw transcript previews to speed live voice-call language-bias triage.
 
 ## Key Paths
 - `docs/` operational documentation
@@ -93,3 +102,4 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 ## Contacts / Owners
 - Owner: TBD
 - On-call: TBD
+

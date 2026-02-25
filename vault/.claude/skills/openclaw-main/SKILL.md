@@ -57,7 +57,7 @@ Phase 3 Batch D (voice/long-running/delivery commands only):
 - No sidecar changes.
 - No Telegram UX changes.
 - Safe user-facing errors only.
-- Voice media ingestion remains on the standalone path.
+- Voice/audio/document(audio) messages should route through the existing OpenClaw adapter -> `d_brain.integrations.openclaw_bridge` path (no direct embedded STT bypass).
 
 ## Future Phases (High Level)
 - None.
