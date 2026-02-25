@@ -1,4 +1,4 @@
-# Runbook
+﻿# Runbook
 
 ## Session Workflow (Codex)
 - Use `docs/commands/open-session.md` to start every session.
@@ -196,6 +196,16 @@ Expected behavior:
 - Preference `brevity=short` returns shorter fallback/warning text.
 - Transcript-only text warning path is returned when no media is present.
 - Empty TTS output falls back to text and does not crash.
+- Optional audio normalization before STT (disabled by default):
+  - Set `TELEGRAM_STT_NORMALIZE_AUDIO=1` to convert compressed Telegram audio (for example OGG/OPUS/M4A/MP3) to mono 16k PCM WAV via `ffmpeg` before STT.
+  - If enabled and `ffmpeg` is missing or conversion fails, bridge logs detailed pipeline diagnostics and returns a safe fallback response.
+- Optional non-tutor Telegram STT language override:
+  - Set `TELEGRAM_STT_LANGUAGE=ru` (or another provider-supported code) to override the default non-tutor bridge STT language.
+- Optional non-tutor Telegram STT multipass (mixed RU+EN troubleshooting, opt-in):
+  - `TELEGRAM_STT_MULTIPASS=1` enables multi-pass decode attempts for non-tutor voice/audio STT.
+  - `TELEGRAM_STT_MULTIPASS_LANGS=auto,ru,en` controls pass order (`auto` = current default path language; duplicates are removed).
+  - `TELEGRAM_STT_MIXED_HEURISTIC=1` enables lightweight candidate scoring (length/tokens/script mix) to prefer mixed-script transcripts when present.
+  - Safety/compatibility: if `TELEGRAM_STT_LANGUAGE` is explicitly set, multipass is skipped and the explicit language override is used (logged as `stt_multipass_skip`).
 
 Preference smoke:
 - `python scripts/openclaw_prefs_smoke.py`
@@ -207,8 +217,130 @@ Diagnostics and observability smoke:
 - Verifies `/diag` short/full output shape (no secrets) and runtime in-memory error counters.
 - `python scripts/openclaw_voice_source_select_smoke.py`
 - Verifies Telegram media source priority (`voice` -> `audio` -> audio `document` -> transcript`), voice-note download/STT fallback behavior, and no bad file-format UX fallback for normal `message.voice`.
+- `python scripts/openclaw_voice_dispatch_smoke.py`
+- Includes `TELEGRAM_STT_LANGUAGE` override coverage and a synthetic `audio_conversion_failed` fallback case (no `ffmpeg` dependency required for the smoke).
+- Also includes a deterministic `ffmpeg_missing` fallback case (`TELEGRAM_STT_NORMALIZE_AUDIO=1` + monkeypatched `shutil.which`) with exact `pipeline_error_code=ffmpeg_missing` and preprocess stage log assertions.
 - `python scripts/openclaw_voice_log_summary.py --file <logfile> --lines 200`
 - Operator helper: extracts `telegram_stt_source_select` / `telegram_voice_ingest` and prints a per-`requestId` summary (`finalInputSource`, download/STT outcome, `finalOutcome`, `fallbackReason`, `responseMode`).
+- Runtime patch marker (live verification):
+  - On first bridge voice dispatch, the bridge logs `event=openclaw_bridge_voice_fix_loaded` with `bridgeFile` and `voiceFixRev`.
+  - Use this once per process to confirm the patched bridge module is actually loaded before analyzing voice-note fallback behavior.
+- Runtime import-path diagnostics (live verification):
+  - Bridge logs once per process: `event=openclaw_bridge_runtime_module_path` with `moduleFile`, `cwd`, `sysPathHead`, `pid`.
+  - Adapter logs at Telegram voice dispatch entry: `event=openclaw_bridge_runtime_dispatch_entry` with `moduleFile`, `hasVoice`, `hasAudio`, `hasDocument`.
+  - If `moduleFile` is not under the repo `src\\d_brain\\integrations\\openclaw_bridge.py`, the runtime is loading a different module copy.
+- Embedded OpenClaw audio bypass diagnostic (important):
+  - If `openclaw logs` / gateway log shows Telegram activity but no `telegram_voice_pipeline` / `stt_multipass_*`, inspect OpenClaw session JSONL (`%USERPROFILE%\\.openclaw\\agents\\main\\sessions\\*.jsonl`) for tool calls.
+  - If you see ad-hoc `exec` commands calling Deepgram directly, the message used the embedded direct STT path (`embedded_direct_stt`) instead of the `d_brain` bridge.
+- Embedded audio bridge wrapper (diagnostic + restore path):
+  - Redirect shim (workspace glue, wrapper-first):
+    - `scripts/openclaw_embedded_media_redirect_cli.py`
+    - Use this as the embedded-agent entry for Telegram embedded prompts with media.
+    - It detects audio vs non-audio media, emits redirect proof/error markers, and invokes the wrapper CLI only for audio/voice/audio-document payloads.
+    - Redirect proof marker (audio path): `event=openclaw_voice_dispatch_path_select`, `selectedPath=wrapper_cli_bridge`
+    - Redirect skip marker (non-audio/text): `event=openclaw_voice_dispatch_path_select`, `selectedPath=embedded_default_flow`
+    - Redirect anti-silent-bypass error marker: `event=openclaw_voice_dispatch_path_error`, `selectedPath=none`, `intendedPath=wrapper_cli_bridge`
+  - Wrapper: `scripts/openclaw_live_voice_bridge_cli.py`
+  - Input: full OpenClaw embedded Telegram message text (the message containing `[media attached ...]` / `<media:audio>` / optional `Transcript:`).
+  - Encoding hardening:
+    - Wrapper supports `TranscriptB64` / `TranscriptBase64` and decodes UTF-8 in Python (preferred over raw shell transcript text when available).
+    - Wrapper normalizes empty embedded transcript to `EMPTY_TRANSCRIPT` (diagnostics only) and detects common mojibake patterns (garbled token patterns, replacement char).
+    - If embedded transcript looks mojibake-corrupted, wrapper suppresses it before adapter handoff and relies on media STT instead of forwarding corrupted text as fallback input.
+  - Output: JSON with proof marker `event=openclaw_voice_dispatch_path_select`, selected path, branch reason, `messageKind`, `isAudioDocument`, and adapter response summary or safe fallback.
+  - Expected `selectedPath` for audio media: `d_brain_openclaw_bridge`
+  - Diagnostic skip for non-audio documents: `selectedPath=embedded_direct_stt`, `error_code=non_audio_media`
+  - Anti-silent-bypass guard:
+    - If audio media is detected but the wrapper cannot dispatch to the bridge, it returns `error_code=bridge_dispatch_unavailable`
+    - Wrapper emits `error_marker.event=openclaw_voice_dispatch_path_error` with `selectedPath=none` and `intendedPath=d_brain_openclaw_bridge`
+    - Use `user_safe_text` and do not silently fall back to direct `exec` STT.
+  - Wrapper transcript diagnostics (safe, no secrets):
+    - `embedded_transcript_status` (`OK` | `EMPTY_TRANSCRIPT`)
+    - `embedded_transcript_decode_mode` (`raw_utf8` | `base64_utf8` | `base64_invalid`)
+    - `embedded_transcript_len`
+    - `embedded_transcript_base64_decoded`
+    - `embedded_transcript_mojibake_suspected`
+- Voice pipeline debug logs (bridge):
+  - `event=telegram_voice_pipeline` with stages such as `download_start`, `download_result`, `stt_preprocess_start|skip|ok|error`, `stt_request_start|error`, `stt_result`.
+  - Multipass debug stages (opt-in): `stt_multipass_start`, `stt_multipass_candidate`, `stt_multipass_selected`, `stt_multipass_skip`.
+  - Logs include sanitized metadata only (message kind, MIME, download result, ffmpeg args/exit, STT provider/model/language, transcript preview, fallback/pipeline error code).
+  - Preprocess stage diagnostics now include `normalizeAudioEnabled`, `ffmpegPathFound`, `inputMimeType`, and `inputExt` (when available).
+  - Multipass stages also include candidate/selection fields such as pass language, token count, script flags (Cyrillic/Latin), heuristic score, and selection/skip reason.
+  - After embedded audio wrapper routing is used, expect this sequence for audio media:
+    - proof marker JSON from wrapper: `openclaw_voice_dispatch_path_select` (`d_brain_openclaw_bridge`)
+    - adapter proof marker: `openclaw_voice_dispatch_path_select` (`d_brain_openclaw_bridge`)
+    - bridge stages: `telegram_voice_pipeline` and (if enabled) `stt_multipass_*`
+
+Live bridge path confirmation (single mixed RU+EN voice test, PowerShell):
+- Restart with multipass env:
+  - `cd D:\openclaw_bot\agent-second-brain`
+  - `$env:TELEGRAM_STT_MULTIPASS='1'`
+  - `$env:TELEGRAM_STT_MULTIPASS_LANGS='auto,ru,en'`
+  - `$env:TELEGRAM_STT_MIXED_HEURISTIC='1'`
+  - `powershell -ExecutionPolicy Bypass -File .\ops\restart-openclaw.ps1`
+- Capture live logs to file (keep one terminal open):
+  - `openclaw logs --follow --json --plain | Tee-Object -FilePath .\artifacts\openclaw_live_voice_bridge_verify.log`
+- Send one Telegram mixed RU+EN voice/audio message through the wrapper-first embedded path.
+- Verify expected markers in log file:
+  - `Select-String -Path .\artifacts\openclaw_live_voice_bridge_verify.log -Pattern 'openclaw_voice_dispatch_path_select','openclaw_bridge_runtime_module_path','openclaw_bridge_runtime_dispatch_entry','telegram_voice_pipeline','stt_multipass_'`
+- Verify the loaded bridge module path points to repo source:
+  - `Select-String -Path .\artifacts\openclaw_live_voice_bridge_verify.log -Pattern 'openclaw_bridge_runtime_module_path','src\\\\d_brain\\\\integrations\\\\openclaw_bridge.py'`
+- Check active OpenClaw session JSONL tail for bypass evidence (`exec` + direct Deepgram):
+  - `$s=(Get-ChildItem "$env:USERPROFILE\.openclaw\agents\main\sessions" -Filter *.jsonl | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName`
+  - `Get-Content $s -Tail 200 | Select-String -Pattern 'openclaw_voice_dispatch_path_select','telegram_voice_pipeline','exec','deepgram'`
+- Success sequence (audio media):
+  1. runtime exec-guard `openclaw_voice_dispatch_path_select` (`selectedPath=wrapper_cli_bridge`, `sourceModule=pi-embedded.before_tool_call.exec_audio_guard`)
+  2. redirect shim `openclaw_voice_dispatch_path_select` (`selectedPath=wrapper_cli_bridge`)
+  3. wrapper `openclaw_voice_dispatch_path_select` (`selectedPath=d_brain_openclaw_bridge`)
+  4. adapter `openclaw_voice_dispatch_path_select` (`selectedPath=d_brain_openclaw_bridge`)
+  5. bridge `telegram_voice_pipeline`
+  6. bridge `stt_multipass_start/candidate/selected` (when multipass envs are enabled)
+- Bypass indicators:
+  - Session JSONL shows ad-hoc `exec` + direct Deepgram STT tool calls
+  - Wrapper/adapter proof markers are missing
+  - `telegram_voice_pipeline` and `stt_multipass_*` are missing for the same test message
+- Core runtime patch-point hypothesis (minimal, outside this repo):
+  - Priority 1: embedded tool dispatcher / exec-tool guard, immediately before executing `toolCall exec`.
+    - If the current embedded message contains `<media:audio>` or audio media attachment metadata, redirect to `scripts/openclaw_embedded_media_redirect_cli.py --message-text "<embedded prompt>"` instead of allowing ad-hoc direct STT `exec`.
+    - Add runtime proof/error markers (`openclaw_voice_dispatch_path_select` / `openclaw_voice_dispatch_path_error`) with `selectedPath=wrapper_cli_bridge` and `intendedPath=wrapper_cli_bridge`.
+  - Priority 2: embedded planner tool-policy/prompt template (fallback only if dispatcher guard is not patchable).
+    - Enforce wrapper-first for audio media and block direct Deepgram STT `exec` generation.
+    - Lower confidence than a dispatcher guard because prompt/policy rules can drift.
+- Applied local runtime hotfix (MSI/OpenClaw npm install, bundled `pi-embedded`):
+  - Patched `runBeforeToolCallHook(...)` in both installed `pi-embedded-*.js` bundles to intercept direct Deepgram STT `exec`/`bash` calls when the latest `chat.history` user message contains embedded audio media markup.
+  - The guard rewrites the `exec` command to the repo redirect shim (`scripts/openclaw_embedded_media_redirect_cli.py --message-file <tmp>`) and emits runtime proof marker `openclaw_voice_dispatch_path_select` with `selectedPath=wrapper_cli_bridge`.
+  - The rewritten PowerShell command now also sets UTF-8 console/input/output encoding and `PYTHONUTF8=1` / `PYTHONIOENCODING=utf-8` before invoking the Python shim to reduce Windows shell mojibake risk.
+  - If shim/python path cannot be resolved, it emits `openclaw_voice_dispatch_path_error` (`intendedPath=wrapper_cli_bridge`) and blocks with a safe diagnostic error (no silent direct Deepgram fallback).
+  - Optional runtime env overrides for local paths:
+    - `OPENCLAW_AUDIO_REDIRECT_SHIM`
+    - `OPENCLAW_AUDIO_REDIRECT_PY`
+    - `OPENCLAW_AUDIO_REDIRECT_REPO`
+
+One-shot live proof (copy/paste, PowerShell):
+```powershell
+cd D:\openclaw_bot\agent-second-brain
+$env:TELEGRAM_STT_MULTIPASS='1'
+$env:TELEGRAM_STT_MULTIPASS_LANGS='auto,ru,en'
+$env:TELEGRAM_STT_MIXED_HEURISTIC='1'
+powershell -ExecutionPolicy Bypass -File .\ops\restart-openclaw.ps1
+$log='.\artifacts\openclaw_live_voice_path_proof.jsonl'
+openclaw logs --follow --json --plain | Tee-Object -FilePath $log
+# send one mixed RU+EN Telegram voice/audio message through wrapper-first embedded path, then stop follow
+Select-String -Path $log -Pattern 'openclaw_voice_dispatch_path_select','openclaw_voice_dispatch_path_error','telegram_voice_pipeline','stt_multipass_'
+$s=(Get-ChildItem "$env:USERPROFILE\.openclaw\agents\main\sessions" -Filter *.jsonl | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+Get-Content $s -Tail 250 | Select-String -Pattern 'toolCall','exec','deepgram','openclaw_voice_dispatch_path_select','openclaw_voice_dispatch_path_error','telegram_voice_pipeline'
+.\.venv\Scripts\python.exe .\scripts\openclaw_live_voice_path_verdict.py --log-capture $log --session-jsonl $s
+```
+
+Verdict helper:
+- `scripts/openclaw_live_voice_path_verdict.py` summarizes evidence from log capture + session JSONL and prints:
+  - `LIVE_PATH_CONFIRMED_BRIDGE`
+  - `LIVE_PATH_BYPASS_EXEC_DEEPGRAM`
+  - `INCONCLUSIVE`
+- Temporary repo hardening workaround (no core patch):
+  - Keep redirect-shim-first workflow (`scripts/openclaw_embedded_media_redirect_cli.py` -> wrapper -> adapter -> bridge).
+  - If `openclaw_live_voice_path_verdict.py` returns `LIVE_PATH_BYPASS_EXEC_DEEPGRAM`, treat the response as bypassed/unsupported for bridge verification and return an explicit diagnostic message to the operator/user instead of trusting transcript quality.
+  - Suggested safe diagnostic text:
+    - `Live audio request bypassed the bridge path (direct exec STT was used). Please retry with the wrapper-first embedded media path.`
 
 Single poller reminder:
 - Keep OpenClaw as the only Telegram poller in production.
@@ -1066,6 +1198,11 @@ Run from repo root (`D:\openclaw_bot\agent-second-brain`):
   - `.\.venv\Scripts\python.exe scripts\no_polling_when_disabled_check.py`
 - Run RC smoke suite (no Telegram polling):
   - `.\.venv\Scripts\python.exe scripts\openclaw_rc_smoke.py`
+- Import-path sanity (optional, before live Telegram voice tests):
+  - `openclaw logs --tail 200` and look for:
+    - `openclaw_bridge_runtime_module_path`
+    - `openclaw_bridge_voice_fix_loaded`
+    - `openclaw_bridge_runtime_dispatch_entry` (after one voice message)
 
 ## v1.0 Cutover Execution (Production Sign-off)
 Use `docs/cutover-checklist.md` as the canonical checklist for final cutover execution and sign-off evidence.
@@ -1143,10 +1280,20 @@ Final GO gating rule:
   - Source priority is `voice` -> `audio` -> audio `document` -> transcript/text fallback.
   - If `message.voice.file_id` exists, the bridge should attempt file download/STT before treating transcript text as primary.
   - Voice-note failures should return a retry message (no ".ogg/.m4a file" request for normal voice notes).
+  - Final voice-note safety override blocks generic "resend as file/.ogg/.m4a" UX on all `message.voice` fallback paths (download missing/fail, STT empty/error, malformed shape, transcript-only auto fallback).
 - Check logs (structured, no secrets):
   - `event=telegram_stt_source_select`
   - `event=telegram_voice_ingest`
+  - `event=telegram_voice_pipeline`
   - Key fields: `requestId`, `userIdHash`, `messageKind`, `telegramFileIdPresent`, `telegramFileUniqueIdPresent`, `downloaderName`, `downloaderPath`, `mediaBytesPresent`, `mediaBytesLen`, `mediaPathPresent`, `mediaPathExists`, `mediaPathSize`, `transcriptLen`, `transcriptLooksAuto`, `finalInputSource`, `downloadAttempted`, `downloadOk`, `sttAttempted`, `sttOk`, `finalOutcome`, `fallbackReason`, `responseMode`
+  - Additional fields for live verification: `isVoiceNote`, `sttProvider`, `sttModel`
+  - If `TELEGRAM_STT_NORMALIZE_AUDIO=1`, check `telegram_voice_pipeline` for ffmpeg conversion stages and `pipelineErrorCode` (`ffmpeg_missing`, `audio_conversion_failed`) when normalization fails.
+  - For mixed RU+EN speech quality issues (non-tutor), test:
+    - `TELEGRAM_STT_MULTIPASS=1`
+    - `TELEGRAM_STT_MULTIPASS_LANGS=auto,ru,en`
+    - `TELEGRAM_STT_MIXED_HEURISTIC=1`
+    - optional `TELEGRAM_STT_NORMALIZE_AUDIO=1` (with `ffmpeg`)
+  - Confirm `telegram_voice_pipeline` includes `stt_multipass_*` stages and note `selectedLang` / `selectionReason`.
 - Common interpretations:
   - `downloadAttempted=false` + `telegramFileIdPresent=true`: no downloader was available in the message path (`voice_download_not_attempted`).
   - `downloadAttempted=true` + `downloadOk=false`: voice file download failed (`voice_download_failed`).
@@ -1181,3 +1328,64 @@ Use this sequence when the gateway is stuck or `409 getUpdates` conflicts are su
 Optional live debugging:
 - `openclaw logs --follow`
 
+
+## Troubleshooting: Windows `gateway/ws` Pretty-Log Mojibake
+- Symptom:
+  - OpenClaw `gateway/ws` pretty `req/res` lines in Windows logs show mojibake-like token sequences instead of directional/status glyphs.
+  - File logs may contain ANSI escapes (`\u001b[...m`) and unicode decorative symbols in `gateway/ws` entries.
+- Cause:
+  - The `gateway/ws` pretty formatter path writes colorized ANSI plus unicode strings into the logger/file path, which is fragile in some Windows decoding/rendering paths.
+- Temporary local runtime fix (installed OpenClaw bundle, outside repo source):
+  - Patch installed `push-apns-*.js` bundles under `C:\Users\User\AppData\Roaming\npm\node_modules\openclaw\dist\` to use ASCII-safe `gateway/ws` markers (`<-`, `->`, `<->`, `OK`, `ERR`, `...`) and sanitized file-log writes (`stripAnsi`, `normalizeLogForWindows`) while preserving `consoleMessage` for console pretty output.
+- Verify patch syntax:
+  - `C:\Program Files\nodejs\node.exe --check C:\Users\User\AppData\Roaming\npm\node_modules\openclaw\dist\push-apns-BRGDsNym.js`
+  - `C:\Program Files\nodejs\node.exe --check C:\Users\User\AppData\Roaming\npm\node_modules\openclaw\dist\push-apns-A3yh2vIh.js`
+- Verify new file-log output after restarting OpenClaw and triggering a Control UI request:
+  - `Select-String -Path "C:\Users\User\AppData\Local\Temp\openclaw\openclaw-2026-02-25.log" -Pattern 'gateway/ws','agent.identity.get' | Select-Object -Last 20`
+  - Confirm new `gateway/ws` pretty `req/res` entries do not contain `\u001b[` and use ASCII-safe markers instead of mojibake/decorative glyphs.
+- Note:
+  - Historical log lines remain unchanged; only new entries after restart reflect the patch.
+
+## Troubleshooting: Voice-Call STT RU Speech Becomes Latin Transliteration (`priyat kagula`-style)
+- Symptom:
+  - In OpenClaw `voice-call` live calls, Russian or mixed RU/EN speech is transcribed as English-phonetic Latin transliteration (for example, RU text appears in Latin), while EN-only speech is mostly correct.
+- Active branch affected (current diagnosis):
+  - Twilio Media Streams -> `voice-call` streaming STT -> OpenAI Realtime transcription (`extensions/voice-call/src/providers/stt-openai-realtime.ts` in the installed OpenClaw runtime extension).
+- Root cause (patched in local installed runtime extension):
+  - The realtime `transcription_session.update` payload sent only the STT model and omitted explicit `input_audio_transcription.language` and a multilingual transcription hint/prompt, which allowed an English-biased decode path for telephony audio.
+- Current local runtime patch behavior (installed extension, outside repo source):
+  - `voice-call` streaming config now supports:
+    - `streaming.sttLanguage` (default `ru`; use `auto` to omit the hint)
+    - `streaming.sttPrompt` (default bilingual anti-transliteration prompt)
+  - OpenAI Realtime `transcription_session.update` now passes `model` plus `language` (unless `auto`) and `prompt`.
+  - Safe diagnostics now log:
+    - selected STT provider/model/language/prompt-set
+    - short final transcript preview from Realtime STT
+    - short raw transcript preview before agent/manager processing (`hasCyrillic=true|false`)
+- Verify config and transcript path (PowerShell):
+  - Restart OpenClaw:
+    - `cd D:\openclaw_bot\agent-second-brain`
+    - `powershell -ExecutionPolicy Bypass -File .\ops\restart-openclaw.ps1`
+  - Tail logs:
+    - `& "$env:APPDATA\npm\openclaw.cmd" logs --follow --plain | Tee-Object -FilePath .\artifacts\voicecall_stt_check.log`
+  - Filter diagnostic lines:
+    - `Select-String -Path .\artifacts\voicecall_stt_check.log -Pattern 'Streaming STT config','session.update stt_provider','Transcript final len','Transcript raw provider'`
+- Voice-call validation checklist (manual, live):
+  - RU-only test:
+    - say a short Russian phrase (for example, a greeting + a simple question)
+    - expected: transcript preview contains Cyrillic (`hasCyrillic=true`)
+  - EN-only test:
+    - say a short English phrase
+    - expected: EN transcript remains correct (`hasCyrillic=false`)
+  - Mixed RU+EN test:
+    - say one sentence mixing Russian and English words
+    - expected: Russian words remain Cyrillic and English words remain Latin (no RU transliteration into Latin)
+- Notes:
+  - This session patched only the active streaming STT branch used by the diagnosed voice-call path.
+  - Other provider-native STT paths still contain English defaults and may need separate fixes if you are not using streaming:
+    - Twilio `<Gather ... language="en-US">`
+    - Telnyx `transcription_start language: "en"`
+    - Plivo speech XML defaults `en-US`
+
+
+## Embedded Voice Bridge Runtime Fix (2026-02-25)\nWhen openclaw_embedded_media_redirect_cli.py returns ridge_dispatch_unavailable with ridge_import_or_runtime_failed, check in order:\n1. Python deps present in wrapper runtime: python -m pip install -r requirements.txt\n2. Wrapper adapter import dataclass crash fix present in openclaw_live_voice_bridge_cli.py (sys.modules[module_name]=module before exec_module).\n3. Session directory exists: ault/.sessions\n4. Retry wrapper CLI directly with a real media-attached prompt.\nExpected proof chain on success:\n- redirect: selectedPath=wrapper_cli_bridge\n- wrapper: selectedPath=d_brain_openclaw_bridge\n- adapter response contains text + diagnostics (stt_language, stt_multipass).
