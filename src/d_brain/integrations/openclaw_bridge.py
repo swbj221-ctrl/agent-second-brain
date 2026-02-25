@@ -7,8 +7,12 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeou
 import hashlib
 import json
 import logging
+import os
 import re
+import shutil
 import subprocess
+import sys
+import tempfile
 import threading
 import time
 from collections import deque
@@ -63,6 +67,7 @@ from d_brain.services.tts import TTSAdapter, TTSResult, TTS_TIMEOUT_S, build_tts
 from d_brain.ux_actions import build_help_text, build_status_text
 
 logger = logging.getLogger(__name__)
+VOICE_FIX_REV = "2026-02-25b"
 BRIDGE_STT_TIMEOUT_S = max(float(STT_TIMEOUT_S), 1.0) + 2.0
 BRIDGE_TTS_TIMEOUT_S = max(float(TTS_TIMEOUT_S), 1.0) + 2.0
 BRIDGE_GIT_TIMEOUT_S = 1.5
@@ -109,6 +114,9 @@ _OBS_LOCK = threading.Lock()
 _OBS_COUNTERS: dict[str, int] = {}
 _OBS_LAST_ERROR_AT: str | None = None
 _OBS_RECENT_ERRORS: deque[dict[str, str]] = deque(maxlen=20)
+_VOICE_FIX_MARKER_LOCK = threading.Lock()
+_VOICE_FIX_MARKER_LOGGED = False
+_BRIDGE_RUNTIME_MODULE_LOGGED = False
 
 _SECRET_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s,;]+"),
@@ -128,6 +136,9 @@ _VOICE_FALLBACK_REASON_WHITELIST = {
     "no_voice_content",
     "unsupported_media_shape",
 }
+_AUDIO_STT_EXTENSIONS = {".ogg", ".opus", ".m4a", ".mp3", ".wav", ".mpeg"}
+_CYRILLIC_RE = re.compile(r"[\u0400-\u04FF]")
+_LATIN_RE = re.compile(r"[A-Za-z]")
 
 
 def _utc_now_z() -> str:
@@ -147,6 +158,14 @@ def _sanitize_text_for_logs(value: Any, *, max_len: int = 240) -> str:
     return text[:max_len]
 
 
+def _trim_text_preview(value: Any, *, max_len: int = 200) -> str:
+    text = str(value or "").strip()
+    text = " ".join(text.split())
+    if len(text) <= max_len:
+        return text
+    return text[:max_len] + "...<trimmed>"
+
+
 def _hash_user_id_for_logs(user_id: Any) -> str:
     raw = str(user_id or "").strip()
     if not raw:
@@ -162,6 +181,68 @@ def _safe_log_basename(path_value: Any) -> str:
         return Path(path_text).name[:120]
     except Exception:  # pragma: no cover - defensive
         return path_text.split("/")[-1].split("\\")[-1][:120]
+
+
+def _log_telegram_voice_pipeline(stage: str, payload: dict[str, Any]) -> None:
+    logger.info(
+        "%s",
+        json.dumps(
+            {
+                "event": "telegram_voice_pipeline",
+                "stage": str(stage or ""),
+                "requestId": str(payload.get("requestId") or payload.get("request_id") or ""),
+                "messageKind": str(payload.get("messageKind") or payload.get("message_kind") or ""),
+                "isVoiceNote": bool(payload.get("isVoiceNote") or payload.get("telegram_voice_note")),
+                "fileIdPresent": bool(payload.get("fileIdPresent") or payload.get("telegramFileIdPresent")),
+                "mimeType": str(payload.get("mimeType") or payload.get("mime_type") or ""),
+                "fileSize": int(payload.get("fileSize") or payload.get("file_size") or 0),
+                "duration": int(payload.get("voiceDuration") or payload.get("duration") or 0) if (payload.get("voiceDuration") is not None or payload.get("duration") is not None) else None,
+                "downloadAttempted": bool(payload.get("downloadAttempted")),
+                "downloadOk": bool(payload.get("downloadOk")),
+                "downloadError": _sanitize_text_for_logs(payload.get("downloadError") or payload.get("download_error") or "", max_len=160),
+                "normalizeAudioEnabled": bool(payload.get("normalizeAudioEnabled")),
+                "ffmpegPathFound": bool(payload.get("ffmpegPathFound")) if payload.get("ffmpegPathFound") is not None else None,
+                "inputMimeType": str(payload.get("inputMimeType") or payload.get("mimeType") or payload.get("mime_type") or ""),
+                "inputExt": str(payload.get("inputExt") or ""),
+                "inputFormat": str(payload.get("inputFormat") or ""),
+                "outputFormat": str(payload.get("outputFormat") or ""),
+                "inputPath": _safe_log_basename(payload.get("inputPath") or ""),
+                "outputPath": _safe_log_basename(payload.get("outputPath") or ""),
+                "inputBytes": int(payload.get("inputBytes") or 0),
+                "outputBytes": int(payload.get("outputBytes") or 0),
+                "ffmpegCommand": [str(x)[:80] for x in (payload.get("ffmpegCommand") or [])][:20],
+                "ffmpegExitCode": payload.get("ffmpegExitCode"),
+                "ffmpegError": _sanitize_text_for_logs(payload.get("ffmpegError") or "", max_len=200),
+                "sttProvider": str(payload.get("sttProvider") or payload.get("stt_provider") or ""),
+                "sttModel": str(payload.get("sttModel") or payload.get("stt_model") or ""),
+                "sttLanguage": str(payload.get("sttLanguage") or payload.get("stt_language") or ""),
+                "sttResultLanguage": str(payload.get("sttResultLanguage") or ""),
+                "sttErrorCode": str(payload.get("sttErrorCode") or payload.get("stt_error_code") or ""),
+                "sttErrorMessage": _sanitize_text_for_logs(payload.get("sttErrorMessage") or payload.get("stt_error_message") or "", max_len=200),
+                "transcriptPreview": _trim_text_preview(payload.get("transcriptPreview") or ""),
+                "sttMultipass": bool(payload.get("sttMultipass") or payload.get("stt_multipass")),
+                "sttMultipassHeuristic": bool(payload.get("sttMultipassHeuristic") or payload.get("stt_multipass_heuristic")),
+                "sttMultipassLangs": [str(x)[:16] for x in (payload.get("sttMultipassLangs") or payload.get("stt_multipass_langs") or [])][:10],
+                "sttPassIndex": payload.get("sttPassIndex"),
+                "sttPassCount": payload.get("sttPassCount"),
+                "sttPassToken": str(payload.get("sttPassToken") or ""),
+                "candidateLang": str(payload.get("candidateLang") or ""),
+                "candidateScore": payload.get("candidateScore"),
+                "candidateTokenCount": payload.get("candidateTokenCount"),
+                "candidateLen": payload.get("candidateLen"),
+                "candidateHasCyrillic": payload.get("candidateHasCyrillic"),
+                "candidateHasLatin": payload.get("candidateHasLatin"),
+                "selectedLang": str(payload.get("selectedLang") or ""),
+                "selectionReason": _sanitize_text_for_logs(payload.get("selectionReason") or "", max_len=200),
+                "skipReason": _sanitize_text_for_logs(payload.get("skipReason") or "", max_len=120),
+                "fallbackReason": _normalize_voice_fallback_reason(payload.get("fallbackReason") or payload.get("fallback_reason")),
+                "pipelineErrorCode": str(payload.get("pipelineErrorCode") or payload.get("pipeline_error_code") or ""),
+                "pipelineErrorMessage": _sanitize_text_for_logs(payload.get("pipelineErrorMessage") or payload.get("pipeline_error_message") or "", max_len=200),
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
 
 
 def _normalize_voice_fallback_reason(value: Any) -> str:
@@ -192,6 +273,275 @@ def _voice_message_kind_from_flags(payload: dict[str, Any]) -> str:
     if bool(payload.get("hasDocument")):
         return "document"
     return "transcript_only"
+
+
+def _is_voice_note_payload(payload: dict[str, Any] | None) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    if bool(payload.get("isVoiceNote")):
+        return True
+    if bool(payload.get("telegramVoiceNote") or payload.get("telegram_voice_note")):
+        return True
+    if bool(payload.get("hasVoice")):
+        return True
+    message_kind = str(payload.get("messageKind") or payload.get("message_kind") or "").strip().lower()
+    return message_kind == "voice"
+
+
+def _env_flag_enabled(name: str) -> bool:
+    return str(os.getenv(name) or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _parse_stt_multipass_langs(raw_value: str | None, *, default_lang: str) -> list[str]:
+    raw = str(raw_value or "").strip()
+    if not raw:
+        return ["auto", "ru", "en"]
+    result: list[str] = []
+    seen: set[str] = set()
+    for part in raw.split(","):
+        token = str(part or "").strip().lower()
+        if not token:
+            continue
+        if token in {"default", "current"}:
+            token = "auto"
+        if token not in {"auto", "ru", "en"}:
+            continue
+        if token not in seen:
+            seen.add(token)
+            result.append(token)
+    if not result:
+        result = ["auto", "ru", "en"]
+    # Keep current/default pass first unless explicitly omitted.
+    if "auto" not in result and default_lang:
+        result = ["auto", *result]
+    return result
+
+
+def _stt_has_cyrillic(text: str) -> bool:
+    return bool(_CYRILLIC_RE.search(text or ""))
+
+
+def _stt_has_latin(text: str) -> bool:
+    return bool(_LATIN_RE.search(text or ""))
+
+
+def _score_stt_candidate(text: str, *, prefer_mixed_script: bool = False) -> dict[str, Any]:
+    normalized = " ".join(str(text or "").strip().split())
+    tokens = [tok for tok in normalized.split(" ") if tok]
+    token_count = len(tokens)
+    has_cyr = _stt_has_cyrillic(normalized)
+    has_lat = _stt_has_latin(normalized)
+    unique_ratio = (len(set(tokens)) / token_count) if token_count else 0.0
+    repeated_penalty = 0
+    if token_count >= 3 and unique_ratio < 0.5:
+        repeated_penalty = 12
+    score = 0
+    score += min(len(normalized), 300)
+    score += min(token_count, 40) * 6
+    if token_count <= 1:
+        score -= 20
+    if len(normalized) < 6:
+        score -= 10
+    score -= repeated_penalty
+    if has_cyr:
+        score += 8
+    if has_lat:
+        score += 8
+    if has_cyr and has_lat:
+        score += 24 if prefer_mixed_script else 12
+    return {
+        "text": normalized,
+        "len": len(normalized),
+        "token_count": token_count,
+        "has_cyrillic": has_cyr,
+        "has_latin": has_lat,
+        "score": int(score),
+        "repeated_penalty": repeated_penalty,
+    }
+
+
+def _select_best_stt_candidate(
+    candidates: list[dict[str, Any]],
+    *,
+    heuristic_enabled: bool,
+) -> dict[str, Any] | None:
+    valid = [c for c in candidates if str(c.get("text") or "").strip()]
+    if not valid:
+        return None
+    if not heuristic_enabled:
+        return valid[0]
+
+    any_cyr = any(bool(c.get("has_cyrillic")) for c in valid)
+    any_lat = any(bool(c.get("has_latin")) for c in valid)
+    prefer_mixed = any(bool(c.get("has_cyrillic")) and bool(c.get("has_latin")) for c in valid) or (any_cyr and any_lat)
+
+    rescored: list[dict[str, Any]] = []
+    for c in valid:
+        score_meta = _score_stt_candidate(str(c.get("text") or ""), prefer_mixed_script=prefer_mixed)
+        merged = dict(c)
+        merged.update(score_meta)
+
+        lang = str(merged.get("lang") or "").lower()
+        has_cyr = bool(merged.get("has_cyrillic"))
+        has_lat = bool(merged.get("has_latin"))
+
+        score_adjust = 0
+        # Keep explicit language passes consistent with their script.
+        if lang == "ru" and not has_cyr:
+            score_adjust -= 28
+        if lang == "en" and not has_lat:
+            score_adjust -= 28
+
+        # In mixed runs prefer candidates that preserve Russian if any RU evidence exists,
+        # because user default is RU and this prevents losing RU fragments.
+        if any_cyr and has_cyr:
+            score_adjust += 14
+
+        # Prefer genuinely mixed-script candidate when available.
+        if prefer_mixed and has_cyr and has_lat:
+            score_adjust += 18
+
+        # Mild preference for auto pass in mixed context if it contains both scripts.
+        if prefer_mixed and str(merged.get("lang_token") or "").lower() == "auto" and has_cyr and has_lat:
+            score_adjust += 8
+
+        merged["score_adjust"] = int(score_adjust)
+        merged["score"] = int(merged.get("score") or 0) + int(score_adjust)
+        rescored.append(merged)
+
+    rescored.sort(key=lambda c: (int(c.get("score") or 0), int(c.get("len") or 0)), reverse=True)
+    return rescored[0]
+
+
+def _contains_file_resend_ux_hint(text: str) -> bool:
+    lowered = str(text or "").lower()
+    return ".ogg" in lowered or ".m4a" in lowered or "file" in lowered or "media attached" in lowered
+
+
+def _voice_note_safe_fallback_text(
+    *,
+    user_id: int,
+    fallback_reason: str,
+    error_code: str,
+    transcript_looks_auto: bool,
+    media_declared: bool,
+) -> str:
+    _ = media_declared
+    empty_like = fallback_reason in {
+        "transcript_only_auto",
+        "empty_transcript_voice_note",
+        "stt_empty",
+        "unsupported_media_shape",
+    } or transcript_looks_auto
+    if empty_like and error_code in {"", "stt_empty", "invalid_usage"}:
+        return _brevity_text(
+            user_id,
+            short="Не разобрал голосовое. Повтори чуть громче/длиннее.",
+            normal="Не разобрал голосовое. Повтори, пожалуйста, чуть громче или на 2–4 секунды длиннее.",
+        )
+    return _brevity_text(
+        user_id,
+        short="Не удалось обработать голосовое. Повтори еще раз.",
+        normal="Не удалось обработать голосовое. Повтори это же сообщение еще раз (чуть громче/длиннее).",
+    )
+
+
+def _finalize_voice_fallback_text(
+    *,
+    user_id: int,
+    text: str,
+    diagnostics: dict[str, Any],
+    error_code: str,
+) -> str:
+    fallback_reason = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason"))
+    is_voice_note = _is_voice_note_payload(diagnostics)
+    final_outcome = str(diagnostics.get("final_outcome") or "").strip()
+    transcript_looks_auto = bool(diagnostics.get("transcript_looks_auto"))
+    media_declared = bool(
+        diagnostics.get("media_declared_without_bytes")
+        or diagnostics.get("hasVoice")
+        or diagnostics.get("hasAudio")
+        or diagnostics.get("hasDocument")
+    )
+    if not is_voice_note:
+        return text
+    if final_outcome == "stt_ok" and not _contains_file_resend_ux_hint(text):
+        return text
+    if not (
+        _contains_file_resend_ux_hint(text)
+        or fallback_reason
+        or final_outcome in {"fallback_transcript", "fallback_no_media", "stt_error", "stt_empty"}
+        or error_code
+    ):
+        return text
+    # Final safety override: never ask Telegram voice-note users to resend as .ogg/.m4a/file.
+    if _contains_file_resend_ux_hint(text) or fallback_reason in {
+        "voice_download_not_attempted",
+        "voice_download_failed",
+        "empty_transcript_voice_note",
+        "stt_error",
+        "stt_empty",
+        "transcript_only_auto",
+        "unsupported_media_shape",
+    }:
+        return _voice_note_safe_fallback_text(
+            user_id=user_id,
+            fallback_reason=fallback_reason,
+            error_code=error_code,
+            transcript_looks_auto=transcript_looks_auto,
+            media_declared=media_declared,
+        )
+    return text
+
+
+def _log_voice_fix_marker_once() -> None:
+    global _VOICE_FIX_MARKER_LOGGED
+    if _VOICE_FIX_MARKER_LOGGED:
+        return
+    with _VOICE_FIX_MARKER_LOCK:
+        if _VOICE_FIX_MARKER_LOGGED:
+            return
+        logger.info(
+            "%s",
+            json.dumps(
+                {
+                    "event": "openclaw_bridge_voice_fix_loaded",
+                    "bridgeFile": str(__file__),
+                    "voiceFixRev": VOICE_FIX_REV,
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            ),
+        )
+        _VOICE_FIX_MARKER_LOGGED = True
+
+
+def _log_bridge_runtime_module_path_once() -> None:
+    global _BRIDGE_RUNTIME_MODULE_LOGGED
+    if _BRIDGE_RUNTIME_MODULE_LOGGED:
+        return
+    with _VOICE_FIX_MARKER_LOCK:
+        if _BRIDGE_RUNTIME_MODULE_LOGGED:
+            return
+        try:
+            cwd = str(Path.cwd())
+        except Exception:  # pragma: no cover - defensive
+            cwd = ""
+        logger.info(
+            "%s",
+            json.dumps(
+                {
+                    "event": "openclaw_bridge_runtime_module_path",
+                    "moduleFile": str(__file__),
+                    "cwd": cwd,
+                    "sysPathHead": [str(x) for x in sys.path[:5]],
+                    "pid": int(os.getpid()),
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            ),
+        )
+        _BRIDGE_RUNTIME_MODULE_LOGGED = True
 
 
 def _safe_downloader_name(value: Any) -> str:
@@ -1754,6 +2104,240 @@ def _normalize_media_downloader_result(value: Any) -> tuple[bytes | None, str | 
     return None, None
 
 
+def _looks_like_wav_bytes(value: bytes | None) -> bool:
+    return isinstance(value, (bytes, bytearray)) and len(value) >= 12 and bytes(value[:4]) == b"RIFF" and bytes(value[8:12]) == b"WAVE"
+
+
+def _detect_audio_input_format(*, diagnostics: dict[str, Any], audio_path: str | None, audio_bytes: bytes | None) -> str:
+    mime_type = str(diagnostics.get("mimeType") or "").lower()
+    if "ogg" in mime_type or "opus" in mime_type:
+        return "ogg_opus"
+    if "mpeg" in mime_type or "mp3" in mime_type:
+        return "mp3"
+    if "mp4" in mime_type or "m4a" in mime_type:
+        return "m4a"
+    if "wav" in mime_type:
+        return "wav"
+    if audio_path:
+        suffix = Path(str(audio_path)).suffix.lower()
+        if suffix in _AUDIO_STT_EXTENSIONS:
+            return suffix.lstrip(".")
+    if _looks_like_wav_bytes(audio_bytes):
+        return "wav"
+    return ""
+
+
+def _should_convert_for_stt(input_format: str) -> bool:
+    return input_format in {"ogg_opus", "ogg", "opus", "m4a", "mp3", "mpeg"}
+
+
+def _preprocess_audio_for_stt(
+    *,
+    audio_bytes: bytes | None,
+    audio_path: str | None,
+    diagnostics: dict[str, Any],
+) -> tuple[bytes | None, str | None, str | None]:
+    normalize_enabled = str(os.getenv("TELEGRAM_STT_NORMALIZE_AUDIO") or "").strip().lower() in {"1", "true", "yes", "on"}
+    input_format = _detect_audio_input_format(diagnostics=diagnostics, audio_path=audio_path, audio_bytes=audio_bytes)
+    input_ext = ""
+    if audio_path:
+        try:
+            input_ext = Path(str(audio_path)).suffix.lower().lstrip(".")
+        except Exception:
+            input_ext = ""
+    diagnostics["stt_input_format_before"] = input_format or ""
+    _log_telegram_voice_pipeline(
+        "stt_preprocess_start",
+        {
+            **diagnostics,
+            "messageKind": diagnostics.get("message_kind"),
+            "isVoiceNote": diagnostics.get("telegram_voice_note"),
+            "fileIdPresent": diagnostics.get("telegramFileIdPresent"),
+            "mimeType": diagnostics.get("mimeType"),
+            "fileSize": diagnostics.get("mediaBytesLen") or diagnostics.get("downloadBytes"),
+            "duration": diagnostics.get("voiceDuration"),
+            "downloadAttempted": diagnostics.get("downloadAttempted"),
+            "downloadOk": diagnostics.get("downloadOk"),
+            "downloadError": diagnostics.get("download_error"),
+            "normalizeAudioEnabled": normalize_enabled,
+            "ffmpegPathFound": None,
+            "inputMimeType": diagnostics.get("mimeType"),
+            "inputExt": input_ext,
+            "inputFormat": input_format,
+            "inputPath": diagnostics.get("mediaPathBase"),
+            "inputBytes": len(audio_bytes) if isinstance(audio_bytes, bytes) else 0,
+        },
+    )
+    if not (audio_bytes is not None or audio_path):
+        return audio_bytes, audio_path, None
+    if not normalize_enabled:
+        diagnostics["audio_preprocess"] = "disabled"
+        diagnostics["stt_input_format_after"] = input_format or ""
+        _log_telegram_voice_pipeline(
+            "stt_preprocess_skip",
+            {
+                **diagnostics,
+                "normalizeAudioEnabled": normalize_enabled,
+                "ffmpegPathFound": None,
+                "inputMimeType": diagnostics.get("mimeType"),
+                "inputExt": input_ext,
+                "inputFormat": input_format,
+                "outputFormat": input_format,
+                "pipelineErrorCode": "audio_preprocess_disabled",
+            },
+        )
+        return audio_bytes, audio_path, None
+    if not _should_convert_for_stt(input_format):
+        diagnostics["stt_input_format_after"] = input_format or ""
+        diagnostics["audio_preprocess"] = "none"
+        return audio_bytes, audio_path, None
+
+    ffmpeg_path = shutil.which("ffmpeg")
+    if not ffmpeg_path:
+        diagnostics["pipeline_error_code"] = "ffmpeg_missing"
+        diagnostics["pipeline_error_message"] = "ffmpeg not found in PATH"
+        diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "stt_error")
+        _log_telegram_voice_pipeline(
+            "stt_preprocess_error",
+            {
+                **diagnostics,
+                "normalizeAudioEnabled": normalize_enabled,
+                "ffmpegPathFound": False,
+                "inputMimeType": diagnostics.get("mimeType"),
+                "inputExt": input_ext,
+                "inputFormat": input_format,
+                "pipelineErrorCode": diagnostics.get("pipeline_error_code"),
+                "pipelineErrorMessage": diagnostics.get("pipeline_error_message"),
+            },
+        )
+        return None, None, "ffmpeg_missing"
+
+    temp_input_path: Path | None = None
+    temp_output_path: Path | None = None
+    try:
+        if audio_path:
+            input_path = Path(audio_path)
+        else:
+            suffix = "." + (input_format if input_format and "." not in input_format else "bin")
+            tmp_in = tempfile.NamedTemporaryFile(prefix="stt_in_", suffix=suffix, delete=False)
+            temp_input_path = Path(tmp_in.name)
+            tmp_in.write(audio_bytes or b"")
+            tmp_in.close()
+            input_path = temp_input_path
+        tmp_out = tempfile.NamedTemporaryFile(prefix="stt_out_", suffix=".wav", delete=False)
+        temp_output_path = Path(tmp_out.name)
+        tmp_out.close()
+        cmd = [
+            ffmpeg_path,
+            "-y",
+            "-i",
+            str(input_path),
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-f",
+            "wav",
+            str(temp_output_path),
+        ]
+        try:
+            proc = subprocess.run(  # noqa: S603
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
+            )
+        except FileNotFoundError:
+            diagnostics["pipeline_error_code"] = "ffmpeg_missing"
+            diagnostics["pipeline_error_message"] = "ffmpeg executable missing"
+            _log_telegram_voice_pipeline(
+                "stt_preprocess_error",
+                {
+                    **diagnostics,
+                    "normalizeAudioEnabled": normalize_enabled,
+                    "ffmpegPathFound": True,
+                    "inputMimeType": diagnostics.get("mimeType"),
+                    "inputExt": input_ext,
+                    "inputFormat": input_format,
+                    "ffmpegCommand": cmd,
+                    "pipelineErrorCode": diagnostics.get("pipeline_error_code"),
+                    "pipelineErrorMessage": diagnostics.get("pipeline_error_message"),
+                },
+            )
+            return None, None, "ffmpeg_missing"
+        except subprocess.TimeoutExpired:
+            diagnostics["pipeline_error_code"] = "audio_conversion_failed"
+            diagnostics["pipeline_error_message"] = "ffmpeg timeout"
+            _log_telegram_voice_pipeline(
+                "stt_preprocess_error",
+                {
+                    **diagnostics,
+                    "normalizeAudioEnabled": normalize_enabled,
+                    "ffmpegPathFound": True,
+                    "inputMimeType": diagnostics.get("mimeType"),
+                    "inputExt": input_ext,
+                    "inputFormat": input_format,
+                    "ffmpegCommand": cmd,
+                    "ffmpegError": "timeout",
+                    "pipelineErrorCode": diagnostics.get("pipeline_error_code"),
+                    "pipelineErrorMessage": diagnostics.get("pipeline_error_message"),
+                },
+            )
+            return None, None, "audio_conversion_failed"
+        if proc.returncode != 0 or (not temp_output_path.exists()) or temp_output_path.stat().st_size <= 0:
+            diagnostics["pipeline_error_code"] = "audio_conversion_failed"
+            diagnostics["pipeline_error_message"] = _sanitize_text_for_logs(proc.stderr or proc.stdout or "ffmpeg failed", max_len=160)
+            _log_telegram_voice_pipeline(
+                "stt_preprocess_error",
+                {
+                    **diagnostics,
+                    "normalizeAudioEnabled": normalize_enabled,
+                    "ffmpegPathFound": True,
+                    "inputMimeType": diagnostics.get("mimeType"),
+                    "inputExt": input_ext,
+                    "inputFormat": input_format,
+                    "outputFormat": "wav_pcm_s16le_16k_mono",
+                    "ffmpegCommand": cmd,
+                    "ffmpegExitCode": proc.returncode,
+                    "ffmpegError": proc.stderr or proc.stdout or "",
+                    "pipelineErrorCode": diagnostics.get("pipeline_error_code"),
+                    "pipelineErrorMessage": diagnostics.get("pipeline_error_message"),
+                },
+            )
+            return None, None, "audio_conversion_failed"
+        converted_bytes = temp_output_path.read_bytes()
+        diagnostics["audio_preprocess"] = "ffmpeg_pcm16k_mono_wav"
+        diagnostics["stt_input_format_after"] = "wav_pcm_s16le_16k_mono"
+        _log_telegram_voice_pipeline(
+            "stt_preprocess_ok",
+            {
+                **diagnostics,
+                "normalizeAudioEnabled": normalize_enabled,
+                "ffmpegPathFound": True,
+                "inputMimeType": diagnostics.get("mimeType"),
+                "inputExt": input_ext,
+                "inputFormat": input_format,
+                "outputFormat": "wav_pcm_s16le_16k_mono",
+                "inputPath": str(input_path),
+                "outputPath": str(temp_output_path),
+                "inputBytes": int((Path(input_path).stat().st_size if Path(input_path).exists() else 0) if str(input_path) else 0),
+                "outputBytes": len(converted_bytes),
+                "ffmpegCommand": cmd,
+                "ffmpegExitCode": proc.returncode,
+            },
+        )
+        return converted_bytes, None, None
+    finally:
+        for path_obj in (temp_input_path, temp_output_path):
+            if path_obj is None:
+                continue
+            try:
+                path_obj.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
 def _call_message_media_downloader(
     message: dict[str, Any],
     *,
@@ -1804,6 +2388,12 @@ def _log_telegram_voice_path(event: str, payload: dict[str, Any]) -> None:
     downloader_name = str(payload.get("downloaderName") or payload.get("downloader_name") or "")
     downloader_path = str(payload.get("downloaderPath") or payload.get("downloader_path") or "")
     message_kind = str(payload.get("messageKind") or payload.get("message_kind") or "") or _voice_message_kind_from_flags(payload)
+    is_voice_note = _is_voice_note_payload(payload)
+    transcript_looks_auto = bool(
+        payload.get("transcriptLooksAuto")
+        if payload.get("transcriptLooksAuto") is not None
+        else payload.get("transcript_looks_auto")
+    )
     if event == "telegram_stt_source_select":
         if final_input_source == "voice_file":
             _obs_increment_counter("telegram_voice_source.voice_file")
@@ -1823,13 +2413,14 @@ def _log_telegram_voice_path(event: str, payload: dict[str, Any]) -> None:
                 "requestId": str(payload.get("requestId") or payload.get("request_id") or ""),
                 "userIdHash": str(payload.get("userIdHash") or payload.get("user_id_hash") or ""),
                 "messageKind": message_kind,
+                "isVoiceNote": is_voice_note,
                 "hasVoice": bool(payload.get("hasVoice")),
                 "hasAudio": bool(payload.get("hasAudio")),
                 "hasDocument": bool(payload.get("hasDocument")),
                 "hasText": bool(payload.get("hasText")),
                 "hasTranscript": bool(payload.get("hasTranscript")),
                 "transcriptLen": int(payload.get("transcriptLen") or payload.get("transcript_len") or payload.get("sttResultLen") or 0),
-                "transcriptLooksAuto": bool(payload.get("transcriptLooksAuto")),
+                "transcriptLooksAuto": transcript_looks_auto,
                 "voiceDuration": int(payload.get("voiceDuration") or 0) if payload.get("voiceDuration") is not None else None,
                 "mimeType": str(payload.get("mimeType") or ""),
                 "telegramFileIdPresent": bool(payload.get("telegramFileIdPresent") if payload.get("telegramFileIdPresent") is not None else payload.get("fileIdPresent")),
@@ -1848,6 +2439,8 @@ def _log_telegram_voice_path(event: str, payload: dict[str, Any]) -> None:
                 "mediaPathBase": str(payload.get("mediaPathBase") or ""),
                 "sttAttempted": bool(payload.get("sttAttempted")),
                 "sttOk": bool(payload.get("sttOk")),
+                "sttProvider": str(payload.get("sttProvider") or payload.get("stt_provider") or ""),
+                "sttModel": str(payload.get("sttModel") or payload.get("stt_model") or ""),
                 "sttSource": str(payload.get("sttSource") or payload.get("stt_source") or ""),
                 "sttResultLen": int(payload.get("sttResultLen") or 0),
                 "finalInputSource": final_input_source,
@@ -1936,6 +2529,18 @@ def _normalize_voice_payload(
             downloader_path = candidate_key
             break
     if source_type in {"voice_file", "audio_file", "document_file"} and audio_bytes is None and not audio_path and file_id:
+        _log_telegram_voice_pipeline(
+            "download_start",
+            {
+                "requestId": str(message.get("request_id") or ""),
+                "messageKind": "voice" if has_voice else ("audio" if has_audio else ("document" if has_document else "")),
+                "isVoiceNote": telegram_voice_note if "telegram_voice_note" in locals() else has_voice,
+                "fileIdPresent": bool(file_id),
+                "mimeType": mime_type,
+                "fileSize": 0,
+                "duration": voice_duration,
+            },
+        )
         dl_bytes, dl_path, dl_attempted, dl_ok, dl_err = _call_message_media_downloader(
             message,
             media_kind=selected_kind or source_type.replace("_file", ""),
@@ -1955,6 +2560,22 @@ def _normalize_voice_payload(
                 fallback_reason = "stt_error"
             if dl_err:
                 download_error = dl_err
+        _log_telegram_voice_pipeline(
+            "download_result",
+            {
+                "requestId": str(message.get("request_id") or ""),
+                "messageKind": "voice" if has_voice else ("audio" if has_audio else ("document" if has_document else "")),
+                "isVoiceNote": has_voice,
+                "fileIdPresent": bool(file_id),
+                "mimeType": mime_type,
+                "duration": voice_duration,
+                "downloadAttempted": download_attempted,
+                "downloadOk": download_ok,
+                "downloadError": download_error,
+                "inputBytes": download_bytes,
+                "pipelineErrorCode": "file_download_failed" if (dl_attempted and not dl_ok) else ("file_download_not_attempted" if (not dl_attempted) else ""),
+            },
+        )
     elif source_type in {"voice_file", "audio_file", "document_file"} and audio_bytes is None and not audio_path and not file_id:
         malformed_selected_media = True
         fallback_reason = "unsupported_media_shape"
@@ -1991,10 +2612,13 @@ def _normalize_voice_payload(
         # transcript branch will normalize to transcript_only_auto only if no existing reason
         pass
 
+    message_kind = "voice" if has_voice else ("audio" if has_audio else ("document" if has_document else "transcript_only"))
+    telegram_voice_note = bool(has_voice or message_kind == "voice")
     path_meta = {
         "requestId": str(message.get("request_id") or ""),
         "userIdHash": _hash_user_id_for_logs(message.get("user_id") or message.get("from_user_id") or ""),
-        "messageKind": "voice" if has_voice else ("audio" if has_audio else ("document" if has_document else "transcript_only")),
+        "messageKind": message_kind,
+        "isVoiceNote": telegram_voice_note,
         "hasVoice": has_voice,
         "hasAudio": has_audio,
         "hasDocument": has_document,
@@ -2026,7 +2650,7 @@ def _normalize_voice_payload(
         "sttResultLen": 0,
         "fallbackReason": _normalize_voice_fallback_reason(fallback_reason),
         "downloadError": download_error,
-        "telegramVoiceNote": source_type == "voice_file",
+        "telegramVoiceNote": telegram_voice_note,
         "telegramMediaKind": selected_kind or "",
     }
     return {
@@ -2050,9 +2674,16 @@ def _build_voice_response(
     diagnostics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     diag = diagnostics or {}
+    user_id = int(diag.get("user_id") or 0) if str(diag.get("user_id") or "").strip() else 0
+    final_text = _finalize_voice_fallback_text(
+        user_id=user_id,
+        text=text,
+        diagnostics=diag,
+        error_code=str(error_code or ""),
+    )
     return _build_bridge_response(
         ok=bool(handled and status == "ok"),
-        text=text,
+        text=final_text,
         audio_intent=audio_intent,
         audio_path=None,
         meta={"route": "voice"},
@@ -2172,56 +2803,21 @@ def _short_request_id(value: str | None = None) -> str:
     return uuid4().hex[:12]
 
 
-def _voice_stt_fail_response(*, diagnostics: dict[str, Any], error_code: str) -> dict[str, Any]:
-    user_id_raw = diagnostics.get("user_id")
-    user_id = int(user_id_raw) if isinstance(user_id_raw, int) else 0
-    is_voice_note = bool(diagnostics.get("telegram_voice_note"))
-    if not diagnostics.get("fallback_reason"):
-        if is_voice_note and error_code == "stt_empty":
-            diagnostics["fallback_reason"] = "empty_transcript_voice_note"
-        elif is_voice_note and error_code in {"stt_failed", "stt_timeout"}:
-            diagnostics["fallback_reason"] = "stt_error"
-        elif is_voice_note and error_code == "media_unavailable":
-            diagnostics["fallback_reason"] = "voice_download_failed"
-    diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason"))
-    diagnostics["final_outcome"] = "stt_empty" if error_code == "stt_empty" else ("fallback_no_media" if error_code == "media_unavailable" and not diagnostics.get("sttAttempted") else "stt_error")
-    diagnostics["response_mode"] = "text"
-    if is_voice_note and error_code == "stt_empty":
-        text = _brevity_text(
-            user_id,
-            short="Не разобрал голосовое. Повтори чуть громче/длиннее.",
-            normal=(
-                "Не удалось распознать текст в голосовом сообщении. "
-                "Попробуй повторить голосовое чуть громче, 2-3 секунды, без сильного шума."
-            ),
-        )
-    elif is_voice_note:
-        text = _brevity_text(
-            user_id,
-            short="Не удалось обработать голосовое. Повтори еще раз.",
-            normal=(
-                "Не удалось обработать сам файл голосового сообщения. "
-                "Я теперь пытаюсь читать сам файл голосового. "
-                "Если снова не вышло — повтори 2-3 секунды чуть громче."
-            ),
-        )
-    else:
-        text = _brevity_text(
-            user_id,
-            short="Не удалось распознать голос.",
-            normal=STT_FAIL_FALLBACK_RU,
-        )
+def _log_telegram_voice_ingest_from_diagnostics(diagnostics: dict[str, Any]) -> None:
     _log_telegram_voice_path(
         "telegram_voice_ingest",
         {
-            "hasVoice": diagnostics.get("hasVoice"),
             "requestId": diagnostics.get("request_id"),
             "userIdHash": diagnostics.get("user_id_hash"),
             "messageKind": diagnostics.get("message_kind"),
+            "isVoiceNote": diagnostics.get("telegram_voice_note"),
+            "hasVoice": diagnostics.get("hasVoice"),
             "hasAudio": diagnostics.get("hasAudio"),
             "hasDocument": diagnostics.get("hasDocument"),
             "hasText": diagnostics.get("hasText"),
             "hasTranscript": diagnostics.get("hasTranscript"),
+            "transcriptLen": diagnostics.get("transcript_len"),
+            "transcriptLooksAuto": diagnostics.get("transcript_looks_auto"),
             "voiceDuration": diagnostics.get("voiceDuration"),
             "mimeType": diagnostics.get("mimeType"),
             "telegramFileIdPresent": diagnostics.get("telegramFileIdPresent"),
@@ -2239,18 +2835,40 @@ def _voice_stt_fail_response(*, diagnostics: dict[str, Any], error_code: str) ->
             "mediaPathExists": diagnostics.get("mediaPathExists"),
             "mediaPathSize": diagnostics.get("mediaPathSize"),
             "mediaPathBase": diagnostics.get("mediaPathBase"),
-            "transcriptLen": diagnostics.get("transcript_len"),
-            "transcriptLooksAuto": diagnostics.get("transcript_looks_auto"),
             "sttAttempted": diagnostics.get("sttAttempted"),
             "sttOk": diagnostics.get("sttOk"),
+            "sttProvider": diagnostics.get("stt_provider"),
+            "sttModel": diagnostics.get("stt_model"),
             "sttSource": diagnostics.get("stt_source"),
-            "sttResultLen": diagnostics.get("transcript_len"),
+            "sttResultLen": diagnostics.get("sttResultLen") or diagnostics.get("transcript_len"),
             "finalInputSource": diagnostics.get("stt_source"),
             "finalOutcome": diagnostics.get("final_outcome"),
             "fallbackReason": diagnostics.get("fallback_reason"),
             "responseMode": diagnostics.get("response_mode"),
         },
     )
+
+
+def _voice_stt_fail_response(*, diagnostics: dict[str, Any], error_code: str) -> dict[str, Any]:
+    user_id_raw = diagnostics.get("user_id")
+    user_id = int(user_id_raw) if isinstance(user_id_raw, int) else 0
+    is_voice_note = bool(diagnostics.get("telegram_voice_note"))
+    if not diagnostics.get("fallback_reason"):
+        if is_voice_note and error_code == "stt_empty":
+            diagnostics["fallback_reason"] = "empty_transcript_voice_note"
+        elif is_voice_note and error_code in {"stt_failed", "stt_timeout"}:
+            diagnostics["fallback_reason"] = "stt_error"
+        elif is_voice_note and error_code == "media_unavailable":
+            diagnostics["fallback_reason"] = "voice_download_failed"
+    diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason"))
+    diagnostics["final_outcome"] = "stt_empty" if error_code == "stt_empty" else ("fallback_no_media" if error_code == "media_unavailable" and not diagnostics.get("sttAttempted") else "stt_error")
+    diagnostics["response_mode"] = "text"
+    text = _brevity_text(
+        user_id,
+        short="Не удалось распознать голос.",
+        normal=STT_FAIL_FALLBACK_RU,
+    )
+    _log_telegram_voice_ingest_from_diagnostics(diagnostics)
     return _build_voice_response(
         handled=True,
         status="error",
@@ -2329,14 +2947,28 @@ async def dispatch_voice(
     source = source_ref or "openclaw"
     mode = _detect_mode(user_id, mode_hint)
     stt_language = STT_TUTOR_LANGUAGE if mode == "tutor" else STT_DEFAULT_LANGUAGE
+    env_stt_lang = str(os.getenv("TELEGRAM_STT_LANGUAGE") or "").strip()
+    if mode != "tutor" and env_stt_lang:
+        stt_language = env_stt_lang
     diagnostics: dict[str, Any] = {
         "source_ref": source,
         "mode": mode,
         "stt_language": stt_language,
+        "stt_language_source": "env" if (mode != "tutor" and env_stt_lang) else ("mode_tutor" if mode == "tutor" else "default"),
         "user_id": user_id,
         "language_mode_pref": get_language_mode_preference(user_id),
         "brevity_pref": get_brevity_preference(user_id),
+        "stt_model": str(getattr(settings, "stt_deepgram_model", "") or ""),
     }
+    multipass_enabled = mode != "tutor" and _env_flag_enabled("TELEGRAM_STT_MULTIPASS")
+    multipass_heuristic_enabled = multipass_enabled and _env_flag_enabled("TELEGRAM_STT_MIXED_HEURISTIC")
+    multipass_lang_tokens = _parse_stt_multipass_langs(
+        os.getenv("TELEGRAM_STT_MULTIPASS_LANGS"),
+        default_lang=stt_language,
+    )
+    diagnostics["stt_multipass"] = multipass_enabled
+    diagnostics["stt_multipass_heuristic"] = multipass_heuristic_enabled
+    diagnostics["stt_multipass_langs"] = list(multipass_lang_tokens)
     if isinstance(input_context, dict):
         diagnostics.update(
             {
@@ -2367,7 +2999,11 @@ async def dispatch_voice(
                 "mediaPathSize": input_context.get("mediaPathSize"),
                 "mediaPathBase": str(input_context.get("mediaPathBase") or ""),
                 "stt_source": str(input_context.get("sttSource") or ""),
-                "telegram_voice_note": bool(input_context.get("telegramVoiceNote")),
+                "telegram_voice_note": bool(
+                    input_context.get("telegramVoiceNote")
+                    or input_context.get("hasVoice")
+                    or str(input_context.get("messageKind") or "").strip().lower() == "voice"
+                ),
                 "telegram_media_kind": str(input_context.get("telegramMediaKind") or ""),
             }
         )
@@ -2419,22 +3055,295 @@ async def dispatch_voice(
                 return _voice_stt_fail_response(diagnostics=diagnostics, error_code="media_unavailable")
 
         if audio_bytes is not None:
+            processed_bytes, processed_path, preprocess_error = _preprocess_audio_for_stt(
+                audio_bytes=audio_bytes,
+                audio_path=audio_path,
+                diagnostics=diagnostics,
+            )
+            if preprocess_error:
+                diagnostics["stt_error_code"] = preprocess_error
+                diagnostics["pipeline_error_code"] = diagnostics.get("pipeline_error_code") or preprocess_error
+                if preprocess_error == "ffmpeg_missing":
+                    diagnostics["pipeline_error_message"] = diagnostics.get("pipeline_error_message") or "ffmpeg not installed"
+                diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "stt_error")
+                return _voice_stt_fail_response(diagnostics=diagnostics, error_code=preprocess_error)
+            if processed_bytes is not None:
+                audio_bytes = processed_bytes
+            elif processed_path:
+                audio_path = processed_path
             diagnostics["sttAttempted"] = True
             diagnostics["downloadBytes"] = int(diagnostics.get("downloadBytes") or len(audio_bytes))
             diagnostics["mediaBytesPresent"] = True
             diagnostics["mediaBytesLen"] = len(audio_bytes)
-            try:
-                stt_result = await asyncio.wait_for(
-                    stt_adapter.transcribe(audio_bytes, language=stt_language),
-                    timeout=BRIDGE_STT_TIMEOUT_S,
+            provider_name = getattr(stt_adapter, "__class__", type("X", (), {})).__name__
+
+            async def _run_stt_attempt(pass_lang: str, *, pass_index: int, pass_count: int, pass_token: str) -> tuple[str, Any | None]:
+                _log_telegram_voice_pipeline(
+                    "stt_request_start",
+                    {
+                        **diagnostics,
+                        "messageKind": diagnostics.get("message_kind"),
+                        "isVoiceNote": diagnostics.get("telegram_voice_note"),
+                        "mimeType": diagnostics.get("mimeType"),
+                        "sttLanguage": pass_lang,
+                        "sttProvider": provider_name,
+                        "sttModel": diagnostics.get("stt_model"),
+                        "inputFormat": diagnostics.get("stt_input_format_after") or diagnostics.get("stt_input_format_before"),
+                        "inputBytes": len(audio_bytes),
+                        "sttPassIndex": pass_index,
+                        "sttPassCount": pass_count,
+                        "sttPassToken": pass_token,
+                    },
                 )
-            except asyncio.TimeoutError:
-                diagnostics["stt_error_code"] = "stt_timeout"
-                diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "stt_error")
-                return _voice_stt_fail_response(diagnostics=diagnostics, error_code="stt_timeout")
-            except Exception as exc:
-                diagnostics["stt_error_code"] = "stt_failed"
-                diagnostics["stt_error_message"] = f"stt_exception:{_sanitize_text_for_logs(exc)}"
+                try:
+                    result = await asyncio.wait_for(
+                        stt_adapter.transcribe(audio_bytes, language=pass_lang),
+                        timeout=BRIDGE_STT_TIMEOUT_S,
+                    )
+                    return "ok", result
+                except asyncio.TimeoutError:
+                    _log_telegram_voice_pipeline(
+                        "stt_request_error",
+                        {
+                            **diagnostics,
+                            "sttLanguage": pass_lang,
+                            "sttErrorCode": "stt_timeout",
+                            "pipelineErrorCode": "stt_timeout",
+                            "pipelineErrorMessage": "stt timeout",
+                            "sttPassIndex": pass_index,
+                            "sttPassCount": pass_count,
+                            "sttPassToken": pass_token,
+                        },
+                    )
+                    return "timeout", None
+                except Exception as exc:
+                    _log_telegram_voice_pipeline(
+                        "stt_request_error",
+                        {
+                            **diagnostics,
+                            "sttLanguage": pass_lang,
+                            "sttErrorCode": "stt_failed",
+                            "sttErrorMessage": f"stt_exception:{_sanitize_text_for_logs(exc)}",
+                            "pipelineErrorCode": "stt_provider_error",
+                            "pipelineErrorMessage": _sanitize_text_for_logs(exc, max_len=160),
+                            "sttPassIndex": pass_index,
+                            "sttPassCount": pass_count,
+                            "sttPassToken": pass_token,
+                        },
+                    )
+                    return "exception", exc
+
+            use_multipass = bool(multipass_enabled)
+            multipass_skip_reason = ""
+            if use_multipass and env_stt_lang:
+                use_multipass = False
+                multipass_skip_reason = "explicit_language_override"
+            if use_multipass and len(multipass_lang_tokens) <= 1:
+                use_multipass = False
+                multipass_skip_reason = "single_pass_lang_list"
+            if not use_multipass and multipass_enabled:
+                _log_telegram_voice_pipeline(
+                    "stt_multipass_skip",
+                    {
+                        **diagnostics,
+                        "sttMultipass": True,
+                        "sttMultipassHeuristic": multipass_heuristic_enabled,
+                        "sttMultipassLangs": multipass_lang_tokens,
+                        "skipReason": multipass_skip_reason or "disabled",
+                        "sttProvider": provider_name,
+                        "sttModel": diagnostics.get("stt_model"),
+                    },
+                )
+
+            stt_result = None
+            transcript = ""
+            if use_multipass:
+                resolved_passes: list[tuple[str, str]] = []
+                seen_langs: set[str] = set()
+                for token in multipass_lang_tokens:
+                    resolved = stt_language if token == "auto" else token
+                    if not resolved:
+                        resolved = stt_language
+                    if resolved in seen_langs:
+                        continue
+                    seen_langs.add(resolved)
+                    resolved_passes.append((token, resolved))
+                if len(resolved_passes) <= 1:
+                    use_multipass = False
+                    _log_telegram_voice_pipeline(
+                        "stt_multipass_skip",
+                        {
+                            **diagnostics,
+                            "sttMultipass": True,
+                            "sttMultipassHeuristic": multipass_heuristic_enabled,
+                            "sttMultipassLangs": multipass_lang_tokens,
+                            "skipReason": "resolved_single_pass",
+                            "sttProvider": provider_name,
+                            "sttModel": diagnostics.get("stt_model"),
+                        },
+                    )
+                else:
+                    _log_telegram_voice_pipeline(
+                        "stt_multipass_start",
+                        {
+                            **diagnostics,
+                            "sttMultipass": True,
+                            "sttMultipassHeuristic": multipass_heuristic_enabled,
+                            "sttMultipassLangs": [tok for tok, _ in resolved_passes],
+                            "sttProvider": provider_name,
+                            "sttModel": diagnostics.get("stt_model"),
+                        },
+                    )
+                    candidates: list[dict[str, Any]] = []
+                    first_error_kind = ""
+                    first_error_code = ""
+                    first_error_message = ""
+                    for idx, (pass_token, pass_lang) in enumerate(resolved_passes, start=1):
+                        status, attempt_value = await _run_stt_attempt(
+                            pass_lang,
+                            pass_index=idx,
+                            pass_count=len(resolved_passes),
+                            pass_token=pass_token,
+                        )
+                        if status == "ok" and attempt_value is not None:
+                            attempt_result = attempt_value
+                            attempt_text = (attempt_result.text or "").strip()
+                            attempt_error_code = attempt_result.error_code
+                            attempt_error_message = _sanitize_text_for_logs(getattr(attempt_result, "error_message", ""), max_len=160)
+                            _log_telegram_voice_pipeline(
+                                "stt_result",
+                                {
+                                    **diagnostics,
+                                    "sttProvider": attempt_result.provider_ref or "",
+                                    "sttModel": diagnostics.get("stt_model"),
+                                    "sttLanguage": pass_lang,
+                                    "sttResultLanguage": getattr(attempt_result, "language", None) or "",
+                                    "sttErrorCode": attempt_error_code,
+                                    "sttErrorMessage": attempt_error_message,
+                                    "transcriptPreview": attempt_text,
+                                    "sttPassIndex": idx,
+                                    "sttPassCount": len(resolved_passes),
+                                    "sttPassToken": pass_token,
+                                    "sttMultipass": True,
+                                    "sttMultipassHeuristic": multipass_heuristic_enabled,
+                                    "sttMultipassLangs": [tok for tok, _ in resolved_passes],
+                                },
+                            )
+                            score_meta = _score_stt_candidate(attempt_text, prefer_mixed_script=False)
+                            candidate = {
+                                "lang": pass_lang,
+                                "lang_token": pass_token,
+                                "result": attempt_result,
+                                "text": attempt_text,
+                                **score_meta,
+                            }
+                            candidates.append(candidate)
+                            _log_telegram_voice_pipeline(
+                                "stt_multipass_candidate",
+                                {
+                                    **diagnostics,
+                                    "sttMultipass": True,
+                                    "sttMultipassHeuristic": multipass_heuristic_enabled,
+                                    "sttMultipassLangs": [tok for tok, _ in resolved_passes],
+                                    "candidateLang": pass_lang,
+                                    "candidateScore": candidate.get("score"),
+                                    "candidateTokenCount": candidate.get("token_count"),
+                                    "candidateLen": candidate.get("len"),
+                                    "candidateHasCyrillic": candidate.get("has_cyrillic"),
+                                    "candidateHasLatin": candidate.get("has_latin"),
+                                    "transcriptPreview": attempt_text,
+                                    "sttPassIndex": idx,
+                                    "sttPassCount": len(resolved_passes),
+                                    "sttPassToken": pass_token,
+                                },
+                            )
+                            if not first_error_kind and not attempt_result.ok and (attempt_error_code or "").strip():
+                                first_error_kind = "result_error"
+                                first_error_code = str(attempt_error_code or "stt_failed")
+                                first_error_message = attempt_error_message
+                        else:
+                            if not first_error_kind:
+                                if status == "timeout":
+                                    first_error_kind = "timeout"
+                                    first_error_code = "stt_timeout"
+                                    first_error_message = "stt timeout"
+                                elif status == "exception":
+                                    first_error_kind = "exception"
+                                    first_error_code = "stt_failed"
+                                    first_error_message = "stt provider error"
+                    selected_candidate = _select_best_stt_candidate(
+                        candidates,
+                        heuristic_enabled=multipass_heuristic_enabled,
+                    )
+                    if selected_candidate:
+                        stt_result = selected_candidate.get("result")
+                        transcript = str(selected_candidate.get("text") or "")
+                        diagnostics["stt_language"] = str(selected_candidate.get("lang") or stt_language)
+                        _log_telegram_voice_pipeline(
+                            "stt_multipass_selected",
+                            {
+                                **diagnostics,
+                                "sttMultipass": True,
+                                "sttMultipassHeuristic": multipass_heuristic_enabled,
+                                "sttMultipassLangs": [tok for tok, _ in resolved_passes],
+                                "selectedLang": diagnostics.get("stt_language"),
+                                "candidateScore": selected_candidate.get("score"),
+                                "candidateTokenCount": selected_candidate.get("token_count"),
+                                "candidateLen": selected_candidate.get("len"),
+                                "candidateHasCyrillic": selected_candidate.get("has_cyrillic"),
+                                "candidateHasLatin": selected_candidate.get("has_latin"),
+                                "transcriptPreview": transcript,
+                                "selectionReason": "heuristic_best_score" if multipass_heuristic_enabled else "first_nonempty_candidate",
+                            },
+                        )
+                    else:
+                        diagnostics["stt_error_code"] = first_error_code or "stt_failed"
+                        diagnostics["stt_error_message"] = first_error_message
+                        diagnostics["pipeline_error_code"] = "stt_provider_error" if first_error_kind == "exception" else (first_error_code or "stt_failed")
+                        diagnostics["pipeline_error_message"] = first_error_message or "stt multipass failed"
+                        diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "stt_error")
+                        return _voice_stt_fail_response(diagnostics=diagnostics, error_code=diagnostics["stt_error_code"])
+
+            if not use_multipass:
+                status, attempt_value = await _run_stt_attempt(
+                    stt_language,
+                    pass_index=1,
+                    pass_count=1,
+                    pass_token="default",
+                )
+                if status == "timeout":
+                    diagnostics["stt_error_code"] = "stt_timeout"
+                    diagnostics["pipeline_error_code"] = "stt_timeout"
+                    diagnostics["pipeline_error_message"] = "stt timeout"
+                    diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "stt_error")
+                    return _voice_stt_fail_response(diagnostics=diagnostics, error_code="stt_timeout")
+                if status == "exception":
+                    exc = attempt_value
+                    diagnostics["stt_error_code"] = "stt_failed"
+                    diagnostics["stt_error_message"] = f"stt_exception:{_sanitize_text_for_logs(exc)}"
+                    diagnostics["pipeline_error_code"] = "stt_provider_error"
+                    diagnostics["pipeline_error_message"] = _sanitize_text_for_logs(exc, max_len=160)
+                    diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "stt_error")
+                    return _voice_stt_fail_response(diagnostics=diagnostics, error_code="stt_failed")
+                stt_result = attempt_value
+                transcript = (stt_result.text or "").strip() if stt_result is not None else ""
+                _log_telegram_voice_pipeline(
+                    "stt_result",
+                    {
+                        **diagnostics,
+                        "sttProvider": (stt_result.provider_ref if stt_result else "") or "",
+                        "sttModel": diagnostics.get("stt_model"),
+                        "sttLanguage": diagnostics.get("stt_language"),
+                        "sttResultLanguage": (getattr(stt_result, "language", None) if stt_result else None) or "",
+                        "sttErrorCode": (stt_result.error_code if stt_result else "") or "",
+                        "sttErrorMessage": _sanitize_text_for_logs((getattr(stt_result, "error_message", "") if stt_result else ""), max_len=160),
+                        "transcriptPreview": transcript,
+                        "pipelineErrorCode": diagnostics.get("pipeline_error_code"),
+                        "pipelineErrorMessage": diagnostics.get("pipeline_error_message"),
+                    },
+                )
+
+            if stt_result is None:
                 diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "stt_error")
                 return _voice_stt_fail_response(diagnostics=diagnostics, error_code="stt_failed")
             diagnostics["stt_provider"] = stt_result.provider_ref or ""
@@ -2444,7 +3353,6 @@ async def dispatch_voice(
                     getattr(stt_result, "error_message", ""),
                     max_len=160,
                 )
-            transcript = (stt_result.text or "").strip()
             if not stt_result.ok:
                 if not transcript and not (stt_result.error_code or "").strip():
                     diagnostics["transcript_len"] = 0
@@ -2473,46 +3381,7 @@ async def dispatch_voice(
                 diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason"))
                 return _voice_stt_fail_response(diagnostics=diagnostics, error_code="stt_empty")
             diagnostics["final_outcome"] = "stt_ok"
-            _log_telegram_voice_path(
-                "telegram_voice_ingest",
-                {
-                    "requestId": diagnostics.get("request_id"),
-                    "userIdHash": diagnostics.get("user_id_hash"),
-                    "messageKind": diagnostics.get("message_kind"),
-                    "hasVoice": diagnostics.get("hasVoice"),
-                    "hasAudio": diagnostics.get("hasAudio"),
-                    "hasDocument": diagnostics.get("hasDocument"),
-                    "hasText": diagnostics.get("hasText"),
-                    "hasTranscript": diagnostics.get("hasTranscript"),
-                    "transcriptLen": diagnostics.get("transcript_len"),
-                    "transcriptLooksAuto": diagnostics.get("transcript_looks_auto"),
-                    "voiceDuration": diagnostics.get("voiceDuration"),
-                    "mimeType": diagnostics.get("mimeType"),
-                    "telegramFileIdPresent": diagnostics.get("telegramFileIdPresent"),
-                    "telegramFileUniqueIdPresent": diagnostics.get("telegramFileUniqueIdPresent"),
-                    "downloaderName": diagnostics.get("downloader_name"),
-                    "downloaderPath": diagnostics.get("downloader_path"),
-                    "fileIdPresent": diagnostics.get("fileIdPresent"),
-                    "downloadAttempted": diagnostics.get("downloadAttempted"),
-                    "downloadOk": diagnostics.get("downloadOk"),
-                    "downloadBytes": diagnostics.get("downloadBytes"),
-                    "downloadError": diagnostics.get("download_error"),
-                    "mediaBytesPresent": diagnostics.get("mediaBytesPresent"),
-                    "mediaBytesLen": diagnostics.get("mediaBytesLen"),
-                    "mediaPathPresent": diagnostics.get("mediaPathPresent"),
-                    "mediaPathExists": diagnostics.get("mediaPathExists"),
-                    "mediaPathSize": diagnostics.get("mediaPathSize"),
-                    "mediaPathBase": diagnostics.get("mediaPathBase"),
-                    "sttAttempted": diagnostics.get("sttAttempted"),
-                    "sttOk": diagnostics.get("sttOk"),
-                    "sttSource": diagnostics.get("stt_source"),
-                    "sttResultLen": diagnostics.get("transcript_len"),
-                    "finalInputSource": diagnostics.get("stt_source"),
-                    "finalOutcome": diagnostics.get("final_outcome"),
-                    "fallbackReason": diagnostics.get("fallback_reason"),
-                    "responseMode": diagnostics.get("response_mode"),
-                },
-            )
+            _log_telegram_voice_ingest_from_diagnostics(diagnostics)
             if mode in {"tutor", "reflection"}:
                 try:
                     ingest_message_event(
@@ -2693,52 +3562,15 @@ async def dispatch_voice(
                 diagnostics=diagnostics,
             )
             if not route.allowed:
+                if diagnostics.get("telegram_voice_note"):
+                    _log_telegram_voice_ingest_from_diagnostics(diagnostics)
                 return _build_voice_response(handled=False, diagnostics=diagnostics)
             diagnostics["transcript_only_warning"] = True
             diagnostics["stt_source"] = diagnostics.get("stt_source") or "transcript"
             diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "transcript_only_auto")
             diagnostics["final_outcome"] = "fallback_transcript"
             diagnostics["response_mode"] = "text"
-            _log_telegram_voice_path(
-                "telegram_voice_ingest",
-                {
-                    "requestId": diagnostics.get("request_id"),
-                    "userIdHash": diagnostics.get("user_id_hash"),
-                    "messageKind": diagnostics.get("message_kind"),
-                    "hasVoice": diagnostics.get("hasVoice"),
-                    "hasAudio": diagnostics.get("hasAudio"),
-                    "hasDocument": diagnostics.get("hasDocument"),
-                    "hasText": diagnostics.get("hasText"),
-                    "hasTranscript": diagnostics.get("hasTranscript"),
-                    "transcriptLen": diagnostics.get("transcript_len"),
-                    "transcriptLooksAuto": diagnostics.get("transcript_looks_auto"),
-                    "voiceDuration": diagnostics.get("voiceDuration"),
-                    "mimeType": diagnostics.get("mimeType"),
-                    "telegramFileIdPresent": diagnostics.get("telegramFileIdPresent"),
-                    "telegramFileUniqueIdPresent": diagnostics.get("telegramFileUniqueIdPresent"),
-                    "downloaderName": diagnostics.get("downloader_name"),
-                    "downloaderPath": diagnostics.get("downloader_path"),
-                    "fileIdPresent": diagnostics.get("fileIdPresent"),
-                    "downloadAttempted": diagnostics.get("downloadAttempted"),
-                    "downloadOk": diagnostics.get("downloadOk"),
-                    "downloadBytes": diagnostics.get("downloadBytes"),
-                    "downloadError": diagnostics.get("download_error"),
-                    "mediaBytesPresent": diagnostics.get("mediaBytesPresent"),
-                    "mediaBytesLen": diagnostics.get("mediaBytesLen"),
-                    "mediaPathPresent": diagnostics.get("mediaPathPresent"),
-                    "mediaPathExists": diagnostics.get("mediaPathExists"),
-                    "mediaPathSize": diagnostics.get("mediaPathSize"),
-                    "mediaPathBase": diagnostics.get("mediaPathBase"),
-                    "sttAttempted": diagnostics.get("sttAttempted"),
-                    "sttOk": diagnostics.get("sttOk"),
-                    "sttSource": diagnostics.get("stt_source"),
-                    "sttResultLen": diagnostics.get("sttResultLen"),
-                    "finalInputSource": diagnostics.get("stt_source"),
-                    "finalOutcome": diagnostics.get("final_outcome"),
-                    "fallbackReason": diagnostics.get("fallback_reason"),
-                    "responseMode": diagnostics.get("response_mode"),
-                },
-            )
+            _log_telegram_voice_ingest_from_diagnostics(diagnostics)
             return _build_voice_response(
                 handled=True,
                 text=_brevity_text(
@@ -2753,6 +3585,8 @@ async def dispatch_voice(
             diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "no_voice_content")
             diagnostics["final_outcome"] = "fallback_no_media"
             diagnostics["response_mode"] = "text"
+            if diagnostics.get("telegram_voice_note"):
+                _log_telegram_voice_ingest_from_diagnostics(diagnostics)
             return _build_voice_response(handled=False, diagnostics=diagnostics)
         if mode in {"tutor", "reflection"}:
             try:
@@ -2885,6 +3719,8 @@ def dispatch_voice_sync(
     request_id: str | None = None,
     input_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    _log_voice_fix_marker_once()
+    _log_bridge_runtime_module_path_once()
     req_id = _short_request_id(request_id)
     source_key = str(source_ref or "openclaw")
     duplicate_key = f"voice:{user_id}:{source_key}:{bool(audio_bytes)}:{bool(audio_path)}:{bool(message_text and str(message_text).strip())}:{str(mode_hint or '').lower()}"
@@ -2964,6 +3800,12 @@ def dispatch_voice_from_message(
             input_context["requestId"] = str(request_id)
         if not input_context.get("userIdHash"):
             input_context["userIdHash"] = _hash_user_id_for_logs(user_id)
+        if input_context.get("isVoiceNote") is None:
+            input_context["isVoiceNote"] = bool(
+                input_context.get("telegramVoiceNote")
+                or input_context.get("hasVoice")
+                or str(input_context.get("messageKind") or "").strip().lower() == "voice"
+            )
         _log_telegram_voice_path("telegram_stt_source_select", input_context)
     source_ref = str(message.get("source_ref") or "") or None
     if not source_ref:
