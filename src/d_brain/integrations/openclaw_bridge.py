@@ -67,7 +67,7 @@ from d_brain.services.tts import TTSAdapter, TTSResult, TTS_TIMEOUT_S, build_tts
 from d_brain.ux_actions import build_help_text, build_status_text
 
 logger = logging.getLogger(__name__)
-VOICE_FIX_REV = "2026-02-25b"
+VOICE_FIX_REV = "2026-02-25c"
 BRIDGE_STT_TIMEOUT_S = max(float(STT_TIMEOUT_S), 1.0) + 2.0
 BRIDGE_TTS_TIMEOUT_S = max(float(TTS_TIMEOUT_S), 1.0) + 2.0
 BRIDGE_GIT_TIMEOUT_S = 1.5
@@ -139,6 +139,67 @@ _VOICE_FALLBACK_REASON_WHITELIST = {
 _AUDIO_STT_EXTENSIONS = {".ogg", ".opus", ".m4a", ".mp3", ".wav", ".mpeg"}
 _CYRILLIC_RE = re.compile(r"[\u0400-\u04FF]")
 _LATIN_RE = re.compile(r"[A-Za-z]")
+_LATIN_WORD_RE = re.compile(r"[A-Za-z]+")
+_CYR_WORD_RE = re.compile(r"[\u0400-\u04FF]+")
+_WORD_TOKEN_RE = re.compile(r"[A-Za-z\u0400-\u04FF]+")
+_REPEATED_LATIN_RUN_RE = re.compile(r"([A-Za-z])\1{2,}")
+_RU_TRANSLIT_CHUNK_RE = re.compile(r"(?:zh|kh|ts|ch|sh|sch|shch|ya|yu|yo|iy|ii|ia|iu)", re.IGNORECASE)
+_ENGLISH_HINT_WORDS = {
+    "hello",
+    "hi",
+    "hey",
+    "how",
+    "are",
+    "you",
+    "what",
+    "when",
+    "where",
+    "why",
+    "the",
+    "and",
+    "please",
+    "thanks",
+    "thank",
+    "ok",
+    "okay",
+    "yes",
+    "no",
+    "can",
+    "understand",
+}
+_RU_TRANSLIT_HINT_WORDS = {
+    "privet",
+    "kak",
+    "dela",
+    "spasibo",
+    "pozhaluysta",
+    "ponimaesh",
+    "ponimaeshsya",
+    "menya",
+    "tebya",
+    "tebia",
+    "mne",
+    "ty",
+    "ti",
+    "ya",
+    "net",
+    "da",
+    "zdravstvuyte",
+    "zdravstvuite",
+}
+_EN_TO_RU_LAYOUT = str.maketrans(
+    "qwertyuiop[]asdfghjkl;'zxcvbnm,./`",
+    "йцукенгшщзхъфывапролджэячсмитьбю.ё",
+)
+_RU_TO_EN_LAYOUT = str.maketrans(
+    "йцукенгшщзхъфывапролджэячсмитьбю.ё",
+    "qwertyuiop[]asdfghjkl;'zxcvbnm,./`",
+)
+_LAYOUT_CONFIRM_HINTS = {
+    "привет",
+    "hello",
+    "hi",
+}
 
 
 def _utc_now_z() -> str:
@@ -232,6 +293,10 @@ def _log_telegram_voice_pipeline(stage: str, payload: dict[str, Any]) -> None:
                 "candidateLen": payload.get("candidateLen"),
                 "candidateHasCyrillic": payload.get("candidateHasCyrillic"),
                 "candidateHasLatin": payload.get("candidateHasLatin"),
+                "candidateTranslitLikeLatin": bool(payload.get("candidateTranslitLikeLatin")),
+                "candidateTranslitHintHits": int(payload.get("candidateTranslitHintHits") or 0),
+                "candidateEnglishHintHits": int(payload.get("candidateEnglishHintHits") or 0),
+                "candidateRepeatedLatinRuns": int(payload.get("candidateRepeatedLatinRuns") or 0),
                 "selectedLang": str(payload.get("selectedLang") or ""),
                 "selectionReason": _sanitize_text_for_logs(payload.get("selectionReason") or "", max_len=200),
                 "skipReason": _sanitize_text_for_logs(payload.get("skipReason") or "", max_len=120),
@@ -325,6 +390,48 @@ def _stt_has_latin(text: str) -> bool:
     return bool(_LATIN_RE.search(text or ""))
 
 
+def _latin_words(text: str) -> list[str]:
+    return [m.group(0).lower() for m in _LATIN_WORD_RE.finditer(str(text or ""))]
+
+
+def _cyr_words(text: str) -> list[str]:
+    return [m.group(0).lower() for m in _CYR_WORD_RE.finditer(str(text or ""))]
+
+
+def _translit_noise_meta(text: str) -> dict[str, Any]:
+    normalized = " ".join(str(text or "").strip().split())
+    latin_words = _latin_words(normalized)
+    has_cyr = _stt_has_cyrillic(normalized)
+    has_lat = _stt_has_latin(normalized)
+    translit_hint_hits = 0
+    english_hint_hits = 0
+    for token in latin_words:
+        if token in _ENGLISH_HINT_WORDS:
+            english_hint_hits += 1
+        if token in _RU_TRANSLIT_HINT_WORDS:
+            translit_hint_hits += 2
+        if _RU_TRANSLIT_CHUNK_RE.search(token):
+            translit_hint_hits += 1
+        if token.endswith(("ov", "ev", "iy", "aya", "ogo")) and len(token) >= 4:
+            translit_hint_hits += 1
+    repeated_runs = len(_REPEATED_LATIN_RUN_RE.findall(normalized))
+    translit_like_latin = bool(
+        has_lat
+        and not has_cyr
+        and latin_words
+        and (
+            (translit_hint_hits >= 2 and translit_hint_hits >= english_hint_hits + 1)
+            or (repeated_runs > 0 and translit_hint_hits >= 1 and english_hint_hits == 0)
+        )
+    )
+    return {
+        "translit_like_latin": translit_like_latin,
+        "translit_hint_hits": translit_hint_hits,
+        "english_hint_hits": english_hint_hits,
+        "repeated_latin_runs": repeated_runs,
+    }
+
+
 def _score_stt_candidate(text: str, *, prefer_mixed_script: bool = False) -> dict[str, Any]:
     normalized = " ".join(str(text or "").strip().split())
     tokens = [tok for tok in normalized.split(" ") if tok]
@@ -349,6 +456,9 @@ def _score_stt_candidate(text: str, *, prefer_mixed_script: bool = False) -> dic
         score += 8
     if has_cyr and has_lat:
         score += 24 if prefer_mixed_script else 12
+    translit_meta = _translit_noise_meta(normalized)
+    if bool(translit_meta.get("translit_like_latin")):
+        score -= 16
     return {
         "text": normalized,
         "len": len(normalized),
@@ -357,6 +467,36 @@ def _score_stt_candidate(text: str, *, prefer_mixed_script: bool = False) -> dic
         "has_latin": has_lat,
         "score": int(score),
         "repeated_penalty": repeated_penalty,
+        "translit_like_latin": bool(translit_meta.get("translit_like_latin")),
+        "translit_hint_hits": int(translit_meta.get("translit_hint_hits") or 0),
+        "english_hint_hits": int(translit_meta.get("english_hint_hits") or 0),
+        "repeated_latin_runs": int(translit_meta.get("repeated_latin_runs") or 0),
+    }
+
+
+def _leading_token_meta(text: str) -> dict[str, Any]:
+    normalized = " ".join(str(text or "").strip().split())
+    tokens = [tok for tok in _WORD_TOKEN_RE.findall(normalized) if tok]
+    if not tokens:
+        return {
+            "first_token": "",
+            "first_len": 0,
+            "first_has_cyrillic": False,
+            "first_has_latin": False,
+            "tail_signature": "",
+            "tail_latin_tokens": 0,
+        }
+    first = str(tokens[0])
+    tail_tokens = [str(tok).lower() for tok in tokens[1:]]
+    tail_signature = " ".join(tail_tokens)
+    tail_latin_tokens = sum(1 for tok in tail_tokens if _LATIN_RE.search(tok))
+    return {
+        "first_token": first,
+        "first_len": len(first),
+        "first_has_cyrillic": _stt_has_cyrillic(first),
+        "first_has_latin": _stt_has_latin(first),
+        "tail_signature": tail_signature,
+        "tail_latin_tokens": tail_latin_tokens,
     }
 
 
@@ -374,6 +514,20 @@ def _select_best_stt_candidate(
     any_cyr = any(bool(c.get("has_cyrillic")) for c in valid)
     any_lat = any(bool(c.get("has_latin")) for c in valid)
     prefer_mixed = any(bool(c.get("has_cyrillic")) and bool(c.get("has_latin")) for c in valid) or (any_cyr and any_lat)
+    any_translit_latin = any(bool(c.get("translit_like_latin")) for c in valid)
+
+    lead_meta_by_text: dict[str, dict[str, Any]] = {}
+    lead_ru_tail_signatures: set[str] = set()
+    for c in valid:
+        text = str(c.get("text") or "")
+        lead_meta = _leading_token_meta(text)
+        lead_meta_by_text[text] = lead_meta
+        if (
+            bool(lead_meta.get("first_has_cyrillic"))
+            and int(lead_meta.get("tail_latin_tokens") or 0) >= 2
+            and str(lead_meta.get("tail_signature") or "")
+        ):
+            lead_ru_tail_signatures.add(str(lead_meta.get("tail_signature") or ""))
 
     rescored: list[dict[str, Any]] = []
     for c in valid:
@@ -384,6 +538,9 @@ def _select_best_stt_candidate(
         lang = str(merged.get("lang") or "").lower()
         has_cyr = bool(merged.get("has_cyrillic"))
         has_lat = bool(merged.get("has_latin"))
+        lead_meta = lead_meta_by_text.get(str(merged.get("text") or "")) or _leading_token_meta(str(merged.get("text") or ""))
+        tail_signature = str(lead_meta.get("tail_signature") or "")
+        first_len = int(lead_meta.get("first_len") or 0)
 
         score_adjust = 0
         # Keep explicit language passes consistent with their script.
@@ -391,6 +548,8 @@ def _select_best_stt_candidate(
             score_adjust -= 28
         if lang == "en" and not has_lat:
             score_adjust -= 28
+        if any_cyr and lang == "ru" and not has_cyr:
+            score_adjust -= 18
 
         # In mixed runs prefer candidates that preserve Russian if any RU evidence exists,
         # because user default is RU and this prevents losing RU fragments.
@@ -399,11 +558,26 @@ def _select_best_stt_candidate(
 
         # Prefer genuinely mixed-script candidate when available.
         if prefer_mixed and has_cyr and has_lat:
-            score_adjust += 18
+            score_adjust += 28
+        elif prefer_mixed and not has_cyr:
+            score_adjust -= 20
 
         # Mild preference for auto pass in mixed context if it contains both scripts.
         if prefer_mixed and str(merged.get("lang_token") or "").lower() == "auto" and has_cyr and has_lat:
             score_adjust += 8
+        if any_cyr and bool(merged.get("translit_like_latin")):
+            score_adjust -= 34
+        if prefer_mixed and any_translit_latin and bool(merged.get("translit_like_latin")) and not has_cyr:
+            score_adjust -= 10
+
+        # Guard against mixed phrase collapse like "priya/riviere how are you":
+        # if we already have a Cyrillic-leading candidate with the same English tail,
+        # strongly prefer keeping that RU leading token.
+        if lead_ru_tail_signatures and tail_signature and tail_signature in lead_ru_tail_signatures:
+            if bool(lead_meta.get("first_has_cyrillic")) and has_cyr:
+                score_adjust += 26
+            elif bool(lead_meta.get("first_has_latin")) and not has_cyr and first_len <= 10:
+                score_adjust -= 30
 
         merged["score_adjust"] = int(score_adjust)
         merged["score"] = int(merged.get("score") or 0) + int(score_adjust)
@@ -416,6 +590,81 @@ def _select_best_stt_candidate(
 def _contains_file_resend_ux_hint(text: str) -> bool:
     lowered = str(text or "").lower()
     return ".ogg" in lowered or ".m4a" in lowered or "file" in lowered or "media attached" in lowered
+
+
+def _swap_keyboard_layout_text(text: str, *, to_ru: bool) -> str:
+    lowered = str(text or "").lower()
+    table = _EN_TO_RU_LAYOUT if to_ru else _RU_TO_EN_LAYOUT
+    return lowered.translate(table)
+
+
+def _extract_layout_guess(text: str) -> tuple[str, str]:
+    normalized = " ".join(str(text or "").strip().split())
+    if not normalized:
+        return "", ""
+    lowered = normalized.lower()
+    if lowered.startswith("transcript:"):
+        return "", ""
+    latin_words = _latin_words(normalized)
+    cyr_words = _cyr_words(normalized)
+    alpha_chars = len(latin_words) + len(cyr_words)
+    if alpha_chars == 0:
+        return "", ""
+    # Keep layout-typo detection conservative for short greeting-like messages.
+    words = normalized.split()
+    if len(normalized) > 20 or len(words) != 1:
+        return "", ""
+    if not (3 <= len(words[0]) <= 14):
+        return "", ""
+    if _stt_has_latin(normalized) and not _stt_has_cyrillic(normalized):
+        guess = _swap_keyboard_layout_text(normalized, to_ru=True).strip()
+        if guess and guess != normalized and any(ch.isalpha() for ch in guess):
+            return "layout_en_to_ru", guess
+    if _stt_has_cyrillic(normalized) and not _stt_has_latin(normalized):
+        guess = _swap_keyboard_layout_text(normalized, to_ru=False).strip()
+        if guess and guess != normalized and any(ch.isalpha() for ch in guess):
+            return "layout_ru_to_en", guess
+    return "", ""
+
+
+def _looks_like_transcript_only_garbage(text: str) -> tuple[bool, str]:
+    normalized = " ".join(str(text or "").strip().split())
+    if not normalized:
+        return False, ""
+    layout_reason, layout_guess = _extract_layout_guess(normalized)
+    if layout_reason and layout_guess:
+        # Only confirm if the guessed text looks like a plausible short word/phrase.
+        guess_words = _latin_words(layout_guess) + _cyr_words(layout_guess)
+        if guess_words and (guess_words[0] in _LAYOUT_CONFIRM_HINTS or len(guess_words[0]) >= 4):
+            return True, layout_reason
+    translit_meta = _translit_noise_meta(normalized)
+    if bool(translit_meta.get("translit_like_latin")):
+        return True, "translit_like_latin"
+    return False, ""
+
+
+def _transcript_only_clarification_text(user_id: int, transcript_text: str) -> tuple[str, str, str]:
+    normalized = " ".join(str(transcript_text or "").strip().split())
+    layout_reason, layout_guess = _extract_layout_guess(normalized)
+    if layout_reason and layout_guess:
+        return (
+            _brevity_text(
+                user_id,
+                short=f"Вы имели в виду: {layout_guess}?",
+                normal=f"Похоже, это текст в другой раскладке. Вы имели в виду: {layout_guess}?",
+            ),
+            layout_reason,
+            layout_guess,
+        )
+    return (
+        _brevity_text(
+            user_id,
+            short="Не уверен, что правильно понял текст. Повторите, пожалуйста.",
+            normal="Не уверен, что правильно понял текст/авто-транскрипт. Повторите, пожалуйста, коротко еще раз.",
+        ),
+        "translit_like_latin",
+        "",
+    )
 
 
 def _voice_note_safe_fallback_text(
@@ -2458,6 +2707,7 @@ def _log_telegram_voice_path(event: str, payload: dict[str, Any]) -> None:
 def _normalize_voice_payload(
     message: dict[str, Any],
 ) -> dict[str, Any]:
+    canonical_request_id = _canonical_request_id(fallback_payload=message)
     transcript_text = str(message.get("transcript") or message.get("auto_transcript") or "")
     text = str(message.get("text") or message.get("content") or transcript_text or "")
     voice_obj = message.get("voice") if isinstance(message.get("voice"), dict) else None
@@ -2532,7 +2782,7 @@ def _normalize_voice_payload(
         _log_telegram_voice_pipeline(
             "download_start",
             {
-                "requestId": str(message.get("request_id") or ""),
+                "requestId": canonical_request_id,
                 "messageKind": "voice" if has_voice else ("audio" if has_audio else ("document" if has_document else "")),
                 "isVoiceNote": telegram_voice_note if "telegram_voice_note" in locals() else has_voice,
                 "fileIdPresent": bool(file_id),
@@ -2563,7 +2813,7 @@ def _normalize_voice_payload(
         _log_telegram_voice_pipeline(
             "download_result",
             {
-                "requestId": str(message.get("request_id") or ""),
+                "requestId": canonical_request_id,
                 "messageKind": "voice" if has_voice else ("audio" if has_audio else ("document" if has_document else "")),
                 "isVoiceNote": has_voice,
                 "fileIdPresent": bool(file_id),
@@ -2615,7 +2865,7 @@ def _normalize_voice_payload(
     message_kind = "voice" if has_voice else ("audio" if has_audio else ("document" if has_document else "transcript_only"))
     telegram_voice_note = bool(has_voice or message_kind == "voice")
     path_meta = {
-        "requestId": str(message.get("request_id") or ""),
+        "requestId": canonical_request_id,
         "userIdHash": _hash_user_id_for_logs(message.get("user_id") or message.get("from_user_id") or ""),
         "messageKind": message_kind,
         "isVoiceNote": telegram_voice_note,
@@ -2652,6 +2902,7 @@ def _normalize_voice_payload(
         "downloadError": download_error,
         "telegramVoiceNote": telegram_voice_note,
         "telegramMediaKind": selected_kind or "",
+        "strictMediaPriority": bool(has_voice or has_audio or (has_document and _is_audio_document_payload(document_obj))),
     }
     return {
         "audio_bytes": audio_bytes,
@@ -2803,6 +3054,18 @@ def _short_request_id(value: str | None = None) -> str:
     return uuid4().hex[:12]
 
 
+def _canonical_request_id(value: str | None = None, *, fallback_payload: dict[str, Any] | None = None) -> str:
+    direct = str(value or "").strip()
+    if direct:
+        return direct
+    if isinstance(fallback_payload, dict):
+        for key in ("requestId", "request_id"):
+            candidate = str(fallback_payload.get(key) or "").strip()
+            if candidate:
+                return candidate
+    return ""
+
+
 def _log_telegram_voice_ingest_from_diagnostics(diagnostics: dict[str, Any]) -> None:
     _log_telegram_voice_path(
         "telegram_voice_ingest",
@@ -2941,6 +3204,7 @@ async def dispatch_voice(
     tts: TTSAdapter | None = None,
     tutor_service: EnglishTutorService | None = None,
     reflection_service: ReflectionVoiceService | None = None,
+    request_id: str | None = None,
     input_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     settings = get_settings()
@@ -2950,12 +3214,14 @@ async def dispatch_voice(
     env_stt_lang = str(os.getenv("TELEGRAM_STT_LANGUAGE") or "").strip()
     if mode != "tutor" and env_stt_lang:
         stt_language = env_stt_lang
+    canonical_request_id = _canonical_request_id(request_id, fallback_payload=input_context)
     diagnostics: dict[str, Any] = {
         "source_ref": source,
         "mode": mode,
         "stt_language": stt_language,
         "stt_language_source": "env" if (mode != "tutor" and env_stt_lang) else ("mode_tutor" if mode == "tutor" else "default"),
         "user_id": user_id,
+        "request_id": canonical_request_id,
         "language_mode_pref": get_language_mode_preference(user_id),
         "brevity_pref": get_brevity_preference(user_id),
         "stt_model": str(getattr(settings, "stt_deepgram_model", "") or ""),
@@ -2972,7 +3238,10 @@ async def dispatch_voice(
     if isinstance(input_context, dict):
         diagnostics.update(
             {
-                "request_id": str(input_context.get("requestId") or ""),
+                "request_id": _canonical_request_id(
+                    diagnostics.get("request_id"),
+                    fallback_payload=input_context,
+                ),
                 "user_id_hash": str(input_context.get("userIdHash") or ""),
                 "message_kind": str(input_context.get("messageKind") or ""),
                 "hasVoice": bool(input_context.get("hasVoice")),
@@ -3251,6 +3520,10 @@ async def dispatch_voice(
                                     "candidateLen": candidate.get("len"),
                                     "candidateHasCyrillic": candidate.get("has_cyrillic"),
                                     "candidateHasLatin": candidate.get("has_latin"),
+                                    "candidateTranslitLikeLatin": candidate.get("translit_like_latin"),
+                                    "candidateTranslitHintHits": candidate.get("translit_hint_hits"),
+                                    "candidateEnglishHintHits": candidate.get("english_hint_hits"),
+                                    "candidateRepeatedLatinRuns": candidate.get("repeated_latin_runs"),
                                     "transcriptPreview": attempt_text,
                                     "sttPassIndex": idx,
                                     "sttPassCount": len(resolved_passes),
@@ -3292,6 +3565,10 @@ async def dispatch_voice(
                                 "candidateLen": selected_candidate.get("len"),
                                 "candidateHasCyrillic": selected_candidate.get("has_cyrillic"),
                                 "candidateHasLatin": selected_candidate.get("has_latin"),
+                                "candidateTranslitLikeLatin": selected_candidate.get("translit_like_latin"),
+                                "candidateTranslitHintHits": selected_candidate.get("translit_hint_hits"),
+                                "candidateEnglishHintHits": selected_candidate.get("english_hint_hits"),
+                                "candidateRepeatedLatinRuns": selected_candidate.get("repeated_latin_runs"),
                                 "transcriptPreview": transcript,
                                 "selectionReason": "heuristic_best_score" if multipass_heuristic_enabled else "first_nonempty_candidate",
                             },
@@ -3533,14 +3810,62 @@ async def dispatch_voice(
             )
 
         if media_declared:
-            if diagnostics.get("fallback_reason") == "unsupported_media_shape" and transcript_text:
+            strict_media_priority = bool(
+                diagnostics.get("strictMediaPriority")
+                or diagnostics.get("hasVoice")
+                or diagnostics.get("hasAudio")
+                or diagnostics.get("hasDocument")
+            )
+            if diagnostics.get("fallback_reason") == "unsupported_media_shape" and transcript_text and not strict_media_priority:
                 diagnostics["stt_source"] = "transcript"
                 diagnostics["final_outcome"] = "fallback_transcript"
                 diagnostics["response_mode"] = "text"
+                _log_telegram_voice_pipeline(
+                    "transcript_only_fallback",
+                    {
+                        **diagnostics,
+                        "messageKind": diagnostics.get("message_kind"),
+                        "fallbackReason": diagnostics.get("fallback_reason"),
+                        "selectionReason": "media_declared_non_strict_unsupported_shape_transcript_fallback",
+                        "transcriptPreview": transcript_text,
+                    },
+                )
             else:
                 diagnostics["media_declared_without_bytes"] = True
                 diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "media_declared_without_bytes")
                 return _voice_stt_fail_response(diagnostics=diagnostics, error_code="media_unavailable")
+
+        if not media_declared and transcript_text:
+            needs_clarify, _clarify_probe_reason = _looks_like_transcript_only_garbage(transcript_text)
+            if needs_clarify:
+                clarify_text, clarify_reason, clarify_guess = _transcript_only_clarification_text(user_id, transcript_text)
+                diagnostics["transcript_only_warning"] = True
+                diagnostics["transcript_only_clarification"] = True
+                diagnostics["transcript_only_clarify_reason"] = clarify_reason
+                if clarify_guess:
+                    diagnostics["transcript_only_guess"] = clarify_guess
+                diagnostics["stt_source"] = diagnostics.get("stt_source") or "transcript"
+                diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(
+                    diagnostics.get("fallback_reason") or "transcript_only_no_media"
+                )
+                diagnostics["final_outcome"] = "fallback_transcript"
+                diagnostics["response_mode"] = "text"
+                _log_telegram_voice_pipeline(
+                    "transcript_only_clarify",
+                    {
+                        **diagnostics,
+                        "messageKind": diagnostics.get("message_kind"),
+                        "fallbackReason": diagnostics.get("fallback_reason"),
+                        "selectionReason": f"transcript_only_{clarify_reason}",
+                        "transcriptPreview": transcript_text,
+                    },
+                )
+                _log_telegram_voice_ingest_from_diagnostics(diagnostics)
+                return _build_voice_response(
+                    handled=True,
+                    text=clarify_text,
+                    diagnostics=diagnostics,
+                )
 
         if looks_like_auto_transcript(transcript_text):
             route = resolve_route(TASK_LIGHT_CLASSIFICATION, settings)
@@ -3570,6 +3895,16 @@ async def dispatch_voice(
             diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "transcript_only_auto")
             diagnostics["final_outcome"] = "fallback_transcript"
             diagnostics["response_mode"] = "text"
+            _log_telegram_voice_pipeline(
+                "transcript_only_fallback",
+                {
+                    **diagnostics,
+                    "messageKind": diagnostics.get("message_kind"),
+                    "fallbackReason": diagnostics.get("fallback_reason"),
+                    "selectionReason": "auto_transcript_warning",
+                    "transcriptPreview": transcript_text,
+                },
+            )
             _log_telegram_voice_ingest_from_diagnostics(diagnostics)
             return _build_voice_response(
                 handled=True,
@@ -3762,6 +4097,7 @@ def dispatch_voice_sync(
             audio_path=audio_path,
             media_declared=media_declared,
             mode_hint=mode_hint,
+            request_id=request_id,
             input_context=input_context,
         )
     )
@@ -3796,8 +4132,12 @@ def dispatch_voice_from_message(
     media_declared = bool(normalized.get("media_declared"))
     input_context = normalized.get("path_meta") if isinstance(normalized.get("path_meta"), dict) else None
     if isinstance(input_context, dict):
-        if request_id and not input_context.get("requestId"):
-            input_context["requestId"] = str(request_id)
+        canonical_request_id = _canonical_request_id(request_id, fallback_payload=input_context)
+        if canonical_request_id:
+            if not input_context.get("requestId"):
+                input_context["requestId"] = canonical_request_id
+            if not input_context.get("request_id"):
+                input_context["request_id"] = canonical_request_id
         if not input_context.get("userIdHash"):
             input_context["userIdHash"] = _hash_user_id_for_logs(user_id)
         if input_context.get("isVoiceNote") is None:
@@ -3825,6 +4165,3 @@ def dispatch_voice_from_message(
         request_id=request_id,
         input_context=input_context,
     )
-
-
-

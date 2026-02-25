@@ -35,6 +35,11 @@
 - Purpose: preserve continuity across sessions while keeping context minimal and explicit.
 - Keep the next exact operator command in workspace heartbeat for live cutover/sign-off continuation.
 
+## Mixed RU+EN Voice Candidate Selection (Live Path)
+- Multipass mixed-language selection keeps a Cyrillic-leading candidate when competing latin-only candidates share the same English tail.
+- Purpose: prevent short RU lead-token collapse in live transcripts (`priya/riviere how are you` style drift).
+- Scope is limited to STT candidate scoring/selection in the bridge; wrapper-first routing, anti-bypass behavior, and strict same-`requestId` proof chain are unchanged.
+
 ## Skills in Workflow (Internal)
 - `skill-creator`: use when creating/updating skills; follow `docs/skill-contract.md`.
 - `self-improving-agent`: if available in the active skill registry, use it for learning capture workflow; otherwise use `docs/learnings.md` fallback and document the same outcome.

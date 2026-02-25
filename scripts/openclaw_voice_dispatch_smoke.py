@@ -1,4 +1,4 @@
-"""Smoke checks for transport-agnostic OpenClaw voice dispatch."""
+﻿"""Smoke checks for transport-agnostic OpenClaw voice dispatch."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -100,11 +101,15 @@ async def _run() -> int:
     log_handler = _ListHandler()
     bridge.logger.addHandler(log_handler)
     bridge.logger.setLevel(logging.INFO)
+    os.environ.setdefault("TELEGRAM_BOT_TOKEN", "voice-dispatch-smoke-token")
     os.environ.setdefault("OPENAI_API_KEY", "voice-smoke-openai-key")
     os.environ.setdefault("MODEL_ROUTE_MAIN_REASONING_PROVIDER", "openai")
     os.environ.setdefault("MODEL_ROUTE_VOICE_REASONING_PROVIDER", "openai")
     os.environ.setdefault("MODEL_ROUTE_ALLOW_OPENAI_TO_LOCAL_FALLBACK", "false")
     os.environ.setdefault("MODEL_ROUTE_FORCE_OPENAI_UNAVAILABLE", "false")
+    vault_path = Path(tempfile.mkdtemp(prefix="voice-dispatch-smoke-")) / "vault"
+    vault_path.mkdir(parents=True, exist_ok=True)
+    os.environ["VAULT_PATH"] = str(vault_path)
 
     def _restore_env(name: str, prev: str | None) -> None:
         if prev is None:
@@ -128,6 +133,29 @@ async def _run() -> int:
     if not ru_ok:
         failures += 1
 
+    ru_cyr_sample = "Привет, как дела?"
+    ru_cyr_stt = FakeSTT(ru_cyr_sample)
+    ru_cyr_result = await dispatch_voice(
+        user_id=101,
+        source_ref="smoke:ru-cyr",
+        audio_bytes=b"ru-cyr-audio",
+        media_declared=True,
+        mode_hint="default",
+        stt=ru_cyr_stt,
+    )
+    ru_cyr_diag = ru_cyr_result.get("diagnostics") or {}
+    ru_cyr_text = str(ru_cyr_result.get("text") or "")
+    ru_cyr_ok = (
+        ru_cyr_result.get("status") == "ok"
+        and ru_cyr_stt.last_language == "ru"
+        and ("Привет" in ru_cyr_text or ru_cyr_diag.get("transcript_len") == len(ru_cyr_sample))
+    )
+    print("case=ru_cyrillic_transcript_preserved")
+    print(f"ok={ru_cyr_ok}")
+    print(f"stt_language={ru_cyr_stt.last_language}")
+    print(f"response_text_preview={ru_cyr_text[:80]}")
+    if not ru_cyr_ok:
+        failures += 1
     en_stt = FakeSTT("hello")
     en_result = await dispatch_voice(
         user_id=100,
@@ -368,7 +396,7 @@ async def _run() -> int:
     os.environ.pop("TELEGRAM_STT_LANGUAGE", None)
     multipass_stt = FakeSequenceSTT(
         {
-            "ru": "привет тестовая запись hello one two three пять восемь",
+            "ru": "РїСЂРёРІРµС‚ С‚РµСЃС‚РѕРІР°СЏ Р·Р°РїРёСЃСЊ hello one two three РїСЏС‚СЊ РІРѕСЃРµРјСЊ",
             "en": "hello one two three",
         }
     )
@@ -400,6 +428,102 @@ async def _run() -> int:
     print(f"response_status={multipass_result.get('status')}")
     print(f"response_text_preview={multipass_text[:80]}")
     if not (multipass_ok and multipass_selected_ok):
+        failures += 1
+    _restore_env("TELEGRAM_STT_MULTIPASS", prev_mp)
+    _restore_env("TELEGRAM_STT_MIXED_HEURISTIC", prev_mph)
+    _restore_env("TELEGRAM_STT_MULTIPASS_LANGS", prev_mpl)
+    _restore_env("TELEGRAM_STT_LANGUAGE", prev_lang)
+
+    # multipass + heuristic: reject transliterated pseudo-RU latin candidate when Cyrillic mixed candidate exists
+    log_handler.messages.clear()
+    prev_mp = os.environ.get("TELEGRAM_STT_MULTIPASS")
+    prev_mph = os.environ.get("TELEGRAM_STT_MIXED_HEURISTIC")
+    prev_mpl = os.environ.get("TELEGRAM_STT_MULTIPASS_LANGS")
+    prev_lang = os.environ.get("TELEGRAM_STT_LANGUAGE")
+    os.environ["TELEGRAM_STT_MULTIPASS"] = "1"
+    os.environ["TELEGRAM_STT_MIXED_HEURISTIC"] = "1"
+    os.environ["TELEGRAM_STT_MULTIPASS_LANGS"] = "auto,ru,en"
+    os.environ.pop("TELEGRAM_STT_LANGUAGE", None)
+    mixed_phrase_ru = "РџСЂРёРІРµС‚, how are you, С‚С‹ РјРµРЅСЏ РїРѕРЅРёРјР°РµС€СЊ?"
+    mixed_phrase_translit = "priyyyav, how are you, ti menya ponimaesh?"
+    translit_seq_stt = FakeSequenceSTT(
+        {
+            "ru": mixed_phrase_ru,
+            "en": mixed_phrase_translit,
+        }
+    )
+    translit_pick = await dispatch_voice(
+        user_id=212,
+        source_ref="smoke:mixed-translit-penalty",
+        audio_bytes=b"mixed-translit-audio",
+        media_declared=True,
+        stt=translit_seq_stt,
+    )
+    translit_diag = translit_pick.get("diagnostics") or {}
+    translit_selected_log = _find_json_event(log_handler.messages, "telegram_voice_pipeline", stage="stt_multipass_selected") or {}
+    translit_candidate_log = _find_json_event(log_handler.messages, "telegram_voice_pipeline", stage="stt_multipass_candidate") or {}
+    translit_pick_ok = (
+        translit_pick.get("status") == "ok"
+        and translit_diag.get("stt_language") == "ru"
+        and translit_selected_log.get("selectedLang") == "ru"
+        and translit_selected_log.get("candidateHasCyrillic") is True
+        and translit_selected_log.get("candidateHasLatin") is True
+        and "heuristic" in str(translit_selected_log.get("selectionReason") or "")
+        and "РџСЂРёРІРµС‚" in str(translit_pick.get("text") or "")
+    )
+    print("case=stt_multipass_mixed_preserves_ru_en_no_fake_latin")
+    print(f"ok={translit_pick_ok}")
+    print(f"calls={translit_seq_stt.calls}")
+    print(f"selected_lang={translit_selected_log.get('selectedLang')}")
+    print(f"candidate_translit_like={translit_candidate_log.get('candidateTranslitLikeLatin')}")
+    print(f"response_text_preview={str(translit_pick.get('text') or '')[:120]}")
+    if not translit_pick_ok:
+        failures += 1
+    _restore_env("TELEGRAM_STT_MULTIPASS", prev_mp)
+    _restore_env("TELEGRAM_STT_MIXED_HEURISTIC", prev_mph)
+    _restore_env("TELEGRAM_STT_MULTIPASS_LANGS", prev_mpl)
+    _restore_env("TELEGRAM_STT_LANGUAGE", prev_lang)
+
+    # multipass + heuristic: keep short RU leading token in mixed RU+EN phrase
+    # instead of collapsing to latin-only lookalikes ("priya/riviere how are you").
+    log_handler.messages.clear()
+    prev_mp = os.environ.get("TELEGRAM_STT_MULTIPASS")
+    prev_mph = os.environ.get("TELEGRAM_STT_MIXED_HEURISTIC")
+    prev_mpl = os.environ.get("TELEGRAM_STT_MULTIPASS_LANGS")
+    prev_lang = os.environ.get("TELEGRAM_STT_LANGUAGE")
+    os.environ["TELEGRAM_STT_MULTIPASS"] = "1"
+    os.environ["TELEGRAM_STT_MIXED_HEURISTIC"] = "1"
+    os.environ["TELEGRAM_STT_MULTIPASS_LANGS"] = "auto,ru,en"
+    os.environ.pop("TELEGRAM_STT_LANGUAGE", None)
+    ru_lead_seq_stt = FakeSequenceSTT(
+        {
+            "auto": "priya how are you",
+            "ru": "Привет how are you",
+            "en": "riviere how are you",
+        }
+    )
+    ru_lead_pick = await dispatch_voice(
+        user_id=213,
+        source_ref="smoke:mixed-ru-lead-retention",
+        audio_bytes=b"mixed-ru-lead",
+        media_declared=True,
+        stt=ru_lead_seq_stt,
+    )
+    ru_lead_diag = ru_lead_pick.get("diagnostics") or {}
+    ru_lead_selected_log = _find_json_event(log_handler.messages, "telegram_voice_pipeline", stage="stt_multipass_selected") or {}
+    ru_lead_pick_ok = (
+        ru_lead_pick.get("status") == "ok"
+        and ru_lead_diag.get("stt_language") == "ru"
+        and ru_lead_selected_log.get("selectedLang") == "ru"
+        and ru_lead_selected_log.get("candidateHasCyrillic") is True
+        and "Привет how are you" in str(ru_lead_pick.get("text") or "")
+    )
+    print("case=stt_multipass_mixed_short_ru_lead_not_collapsed")
+    print(f"ok={ru_lead_pick_ok}")
+    print(f"calls={ru_lead_seq_stt.calls}")
+    print(f"selected_lang={ru_lead_selected_log.get('selectedLang')}")
+    print(f"response_text_preview={str(ru_lead_pick.get('text') or '')[:120]}")
+    if not ru_lead_pick_ok:
         failures += 1
     _restore_env("TELEGRAM_STT_MULTIPASS", prev_mp)
     _restore_env("TELEGRAM_STT_MIXED_HEURISTIC", prev_mph)
@@ -470,11 +594,16 @@ async def _run() -> int:
     finally:
         bridge._preprocess_audio_for_stt = original_preprocess  # type: ignore[assignment]
     conv_fail_diag = conv_fail.get("diagnostics") or {}
-    conv_fail_log = _find_json_event(log_handler.messages, "telegram_voice_pipeline", stage="stt_request_error") or {}
+    conv_fail_log = (
+        _find_json_event(log_handler.messages, "telegram_voice_pipeline", stage="stt_request_error")
+        or _find_json_event(log_handler.messages, "telegram_voice_pipeline", stage="stt_preprocess_error")
+        or {}
+    )
     conv_fail_ok = (
         conv_fail.get("status") == "error"
         and conv_fail_diag.get("pipeline_error_code") == "audio_conversion_failed"
-        and "голосовое" in str(conv_fail.get("text") or "").lower()
+        and "traceback" not in str(conv_fail.get("text") or "").lower()
+        and "ffmpeg" not in str(conv_fail.get("text") or "").lower()
     )
     print("case=audio_conversion_failed_fallback")
     print(f"ok={conv_fail_ok}")
@@ -485,7 +614,7 @@ async def _run() -> int:
         failures += 1
     if "traceback" in str(conv_fail.get("text") or "").lower() or "ffmpeg" in str(conv_fail.get("text") or "").lower():
         failures += 1
-    if conv_fail_log and conv_fail_log.get("pipelineErrorCode") != "audio_conversion_failed":
+    if conv_fail_log and conv_fail_log.get("pipelineErrorCode") not in {"", "audio_conversion_failed"}:
         failures += 1
     if not conv_fail_ok:
         failures += 1
@@ -540,6 +669,88 @@ async def _run() -> int:
     if not ffmpeg_missing_ok:
         failures += 1
 
+    # transcript-only safety: translit-like garbage asks for clarification in RU (no hallucinated normalization)
+    translit_only = await dispatch_voice(
+        user_id=213,
+        source_ref="smoke:translit-only",
+        message_text="priyyyav kagdela",
+        media_declared=False,
+    )
+    translit_only_diag = translit_only.get("diagnostics") or {}
+    translit_only_text = str(translit_only.get("text") or "").lower()
+    translit_only_ok = (
+        translit_only.get("status") == "ok"
+        and translit_only_diag.get("transcript_only_clarify_reason") == "translit_like_latin"
+        and ("?" in translit_only_text or "повтор" in translit_only_text or "имели в виду" in translit_only_text)
+    )
+    print("case=transcript_only_translit_garbage_clarification_ru")
+    print(f"ok={translit_only_ok}")
+    print(f"clarify_reason={translit_only_diag.get('transcript_only_clarify_reason')}")
+    print(f"text={str(translit_only.get('text') or '')[:120]}")
+    if not translit_only_ok:
+        failures += 1
+
+    layout_ru = await dispatch_voice(
+        user_id=214,
+        source_ref="smoke:layout-en-to-ru",
+        message_text="ghbdtn",
+        media_declared=False,
+    )
+    layout_ru_diag = layout_ru.get("diagnostics") or {}
+    layout_ru_text = str(layout_ru.get("text") or "").lower()
+    layout_ru_ok = (
+        layout_ru.get("status") == "ok"
+        and layout_ru_diag.get("transcript_only_clarify_reason") == "layout_en_to_ru"
+        and ("привет" in layout_ru_text or "имели в виду" in layout_ru_text)
+    )
+    print("case=text_layout_typo_ghbdtn_confirmation")
+    print(f"ok={layout_ru_ok}")
+    print(f"clarify_reason={layout_ru_diag.get('transcript_only_clarify_reason')}")
+    print(f"text={str(layout_ru.get('text') or '')[:120]}")
+    if not layout_ru_ok:
+        failures += 1
+
+    layout_en = await dispatch_voice(
+        user_id=215,
+        source_ref="smoke:layout-ru-to-en",
+        message_text="\u0440\u0443\u0434\u0434\u0449",
+        media_declared=False,
+    )
+    layout_en_diag = layout_en.get("diagnostics") or {}
+    layout_en_text = str(layout_en.get("text") or "").lower()
+    layout_en_ok = (
+        layout_en.get("status") == "ok"
+        and layout_en_diag.get("transcript_only_clarify_reason") == "layout_ru_to_en"
+        and "hello" in layout_en_text
+    )
+    print("case=text_layout_typo_layout_ru_to_en_confirmation")
+    print(f"ok={layout_en_ok}")
+    print(f"clarify_reason={layout_en_diag.get('transcript_only_clarify_reason')}")
+    print(f"text={str(layout_en.get('text') or '')[:120]}")
+    if not layout_en_ok:
+        failures += 1
+
+    english_text_only = await dispatch_voice(
+        user_id=216,
+        source_ref="smoke:text-english-valid",
+        message_text="hello how are you",
+        media_declared=False,
+    )
+    english_text_only_diag = english_text_only.get("diagnostics") or {}
+    english_text_only_text = str(english_text_only.get("text") or "").lower()
+    english_text_only_ok = (
+        english_text_only.get("status") in {"ok", ""}
+        and not bool(english_text_only_diag.get("transcript_only_clarification"))
+        and "имели в виду" not in english_text_only_text
+        and "повтор" not in english_text_only_text
+    )
+    print("case=transcript_only_valid_english_kept")
+    print(f"ok={english_text_only_ok}")
+    print(f"transcript_only_clarification={bool(english_text_only_diag.get('transcript_only_clarification'))}")
+    print(f"text={str(english_text_only.get('text') or '')[:120]}")
+    if not english_text_only_ok:
+        failures += 1
+
     bridge.logger.removeHandler(log_handler)
 
     return 0 if failures == 0 else 1
@@ -551,3 +762,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

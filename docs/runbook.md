@@ -36,6 +36,11 @@ Conditional updates (if impacted):
 - skill docs (`vault/.claude/skills/...` or `docs/skills/...`)
 - smoke checks in `scripts/*`
 
+### Voice Multipass Heuristic Note (Mixed RU+EN)
+- In mixed phrases with an English tail, short RU leading words must not be collapsed into latin-only lookalikes (`priya/riviere ...`).
+- Candidate selection now prefers a Cyrillic-leading candidate when another candidate has the same tail but only a latin leading token.
+- This is scoring-only behavior: no changes to wrapper-first routing, anti-bypass policy, or strict same-`requestId` proof-chain requirements.
+
 ### Self-Improvement Log (Required Workflow)
 - Use `docs/learnings.md` as the lightweight self-improvement log.
 - Required entry triggers:
