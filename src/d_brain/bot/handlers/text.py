@@ -6,29 +6,15 @@ from datetime import datetime
 from aiogram import Router
 from aiogram.types import Message
 
+from d_brain.bot.text_utils import safe_answer
 from d_brain.config import get_settings
-from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
-from d_brain.services.reflection_voice import (
-    ReflectionVoiceService,
-    get_active_reflection_session,
-)
+from d_brain.integrations.openclaw_bridge import dispatch_voice
 from d_brain.services.session import SessionStore
 from d_brain.services.storage import VaultStorage
 
 router = Router(name="text")
 logger = logging.getLogger(__name__)
 INTERNAL_ERROR_MESSAGE = "Р’СЂРµРјРµРЅРЅР°СЏ РѕС€РёР±РєР°. РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·Р¶Рµ."
-TRANSCRIPT_WARNING = (
-    "Получил только авто-транскрипт Telegram (он может быть неточным). "
-    "Лучше отправь обычное голосовое сообщение — тогда расшифрую точнее."
-)
-
-
-def _looks_like_auto_transcript(text: str) -> bool:
-    normalized = text.strip().lower()
-    return normalized.startswith("transcript:") or normalized.startswith("transcription:")
-
-
 @router.message(lambda m: m.text is not None and not m.text.startswith("/"))
 async def handle_text(message: Message) -> None:
     """Handle text messages (excluding commands)."""
@@ -36,33 +22,14 @@ async def handle_text(message: Message) -> None:
         return
 
     try:
-        if _looks_like_auto_transcript(message.text):
-            logger.info("Auto-transcript text received without media; path=transcript_fallback")
-            await message.answer(TRANSCRIPT_WARNING)
-            return
-
-        reflection_state = get_active_reflection_session(message.from_user.id)
-        if reflection_state:
-            reflection_service = ReflectionVoiceService()
-            reply_text, error = await reflection_service.handle_user_turn(
-                message.from_user.id, message.text
-            )
-            if error:
-                await message.answer(error)
-                return
-            await message.answer(reply_text or "")
-            return
-
-        tutor_state = get_active_tutor_session(message.from_user.id)
-        if tutor_state:
-            tutor_service = EnglishTutorService()
-            reply_text, error = await tutor_service.handle_user_turn(
-                message.from_user.id, message.text
-            )
-            if error:
-                await message.answer(error)
-                return
-            await message.answer(reply_text or "")
+        routed = await dispatch_voice(
+            user_id=message.from_user.id,
+            source_ref=f"{message.chat.id}:{message.message_id}",
+            message_text=message.text,
+            media_declared=False,
+        )
+        if routed.get("handled"):
+            await safe_answer(message, str(routed.get("text") or ""))
             return
 
         settings = get_settings()
@@ -80,8 +47,8 @@ async def handle_text(message: Message) -> None:
             msg_id=message.message_id,
         )
 
-        await message.answer("вњ… РЎРѕС…СЂР°РЅРµРЅРѕ")
+        await safe_answer(message, "вњ… РЎРѕС…СЂР°РЅРµРЅРѕ")
         logger.info("Text message saved: %d chars", len(message.text))
     except Exception:
         logger.exception("Error processing text message")
-        await message.answer(INTERNAL_ERROR_MESSAGE)
+        await safe_answer(message, INTERNAL_ERROR_MESSAGE)

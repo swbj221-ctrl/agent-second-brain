@@ -18,6 +18,11 @@ from d_brain.services.telegram_delivery import (
     send_telegram_message,
 )
 from d_brain.services.db_backup import run_backup
+from d_brain.services.model_routing import (
+    TASK_CRON_SUMMARY,
+    TASK_HEARTBEAT,
+    resolve_route,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +47,17 @@ def _log_reminder_delivery(
     message_id: int | None,
     error: str | None,
 ) -> None:
+    settings = get_settings()
+    route = resolve_route(TASK_HEARTBEAT, settings)
+    logger.info(
+        "Model routing: channel=job action=reminder_delivery task_type=%s provider=%s model=%s fallback_used=%s allowed=%s reason=%s",
+        route.task_type,
+        route.selected_provider,
+        route.selected_model,
+        route.fallback_used,
+        route.allowed,
+        route.reason or "",
+    )
     for reminder in reminders:
         store.create_heartbeat_log(
             event_type="reminder_delivery",
@@ -54,6 +70,7 @@ def _log_reminder_delivery(
                 "event_id": reminder.get("event_id"),
                 "message_id": message_id,
                 "error": error,
+                "model_routing": route.to_diagnostics(),
             },
         )
 
@@ -129,6 +146,25 @@ def reminder_delivery_telegram_job() -> None:
 def news_briefing_generate_daily_job() -> None:
     """Generate a daily news briefing using existing pipeline."""
     settings = get_settings()
+    route = resolve_route(TASK_CRON_SUMMARY, settings)
+    logger.info(
+        "Model routing: channel=job action=news_briefing_generate_daily task_type=%s provider=%s model=%s fallback_used=%s allowed=%s reason=%s",
+        route.task_type,
+        route.selected_provider,
+        route.selected_model,
+        route.fallback_used,
+        route.allowed,
+        route.reason or "",
+    )
+    if not route.allowed:
+        logger.warning(
+            "Skipping daily news briefing generation: task_type=%s provider=%s model=%s reason=%s",
+            route.task_type,
+            route.selected_provider,
+            route.selected_model,
+            route.reason or "",
+        )
+        return
     store = SQLiteStore(settings.db_path)
     logger.info("Generating daily news briefing...")
     generate_manual_briefing(
@@ -148,6 +184,16 @@ def news_briefing_deliver_telegram_job() -> None:
     """Deliver the latest news briefing to Telegram."""
     settings = get_settings()
     store = SQLiteStore(settings.db_path)
+    route = resolve_route(TASK_HEARTBEAT, settings)
+    logger.info(
+        "Model routing: channel=job action=news_briefing_deliver_telegram task_type=%s provider=%s model=%s fallback_used=%s allowed=%s reason=%s",
+        route.task_type,
+        route.selected_provider,
+        route.selected_model,
+        route.fallback_used,
+        route.allowed,
+        route.reason or "",
+    )
     briefing = store.get_latest_briefing()
     message = format_news_briefing(briefing, max_items=5)
     logger.info("Delivering latest news briefing to Telegram. briefing_id=%s", briefing.get("id") if briefing else None)
@@ -161,6 +207,7 @@ def news_briefing_deliver_telegram_job() -> None:
                 "briefing_id": briefing.get("id"),
                 "status": "skipped",
                 "error": "No allowed_user_ids configured",
+                "model_routing": route.to_diagnostics(),
             },
         )
     for result in results:
@@ -177,6 +224,7 @@ def news_briefing_deliver_telegram_job() -> None:
                 "status": "sent" if result.ok else "failed",
                 "message_id": result.message_id,
                 "error": result.error,
+                "model_routing": route.to_diagnostics(),
             },
         )
 

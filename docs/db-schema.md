@@ -137,3 +137,4 @@ Deterministic dedupe uses `content_hash` computed from a normalized JSON payload
 - Keep schema minimal; avoid storing large context blobs.
 - Stage 18 statuses: projects use `active`/`archived`; tasks use `open`/`done`/`canceled`.
 - `tasks.due_at` is optional (nullable).
+- OpenClaw-first memory ingestion MVP introduced no new DB migration; it reuses existing vault/session storage and optional deferred indexing queue at `vault/.index_queue.jsonl`.

@@ -1,30 +1,20 @@
 ﻿"""Voice message handler."""
 
 import logging
-from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
 from aiogram import Bot, Router
 from aiogram.types import FSInputFile, Message
 
+from d_brain.bot.text_utils import safe_answer
 from d_brain.config import get_settings
-from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
-from d_brain.services.reflection_voice import (
-    ReflectionVoiceService,
-    get_active_reflection_session,
-)
-from d_brain.services.session import SessionStore
-from d_brain.services.storage import VaultStorage
-from d_brain.services.transcription import build_stt_adapter
-from d_brain.services.tts import build_tts_adapter
+from d_brain.integrations.openclaw_bridge import dispatch_voice
 
 router = Router(name="voice")
 logger = logging.getLogger(__name__)
 INTERNAL_ERROR_MESSAGE = "Р’СЂРµРјРµРЅРЅР°СЏ РѕС€РёР±РєР°. РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·Р¶Рµ."
 TTS_LOG_TRIM = 500
-STT_DEFAULT_LANGUAGE = "ru"
-STT_TUTOR_LANGUAGE = "en"
 AUDIO_EXTENSIONS = {".ogg", ".m4a", ".mp3", ".wav"}
 
 
@@ -62,12 +52,13 @@ def _log_tts_diagnostics(
     stderr: str,
     output_path: Path | None,
     output_size: int,
+    mime_type: str | None,
     error_code: str | None,
     error_message: str | None,
 ) -> None:
     logger.info(
         "TTS generation: provider=%s command=%s exit_code=%s stdout=%s stderr=%s "
-        "output_path=%s output_size=%s error_code=%s error_message=%s",
+        "output_path=%s output_size=%s mime_type=%s error_code=%s error_message=%s",
         provider,
         command_label,
         exit_code,
@@ -75,9 +66,19 @@ def _log_tts_diagnostics(
         _trim_log(stderr),
         str(output_path) if output_path else "",
         output_size,
+        mime_type or "",
         error_code or "",
         _trim_log(error_message),
     )
+
+
+def _choose_telegram_method(output_path: Path, mime_type: str | None) -> str:
+    suffix = output_path.suffix.lower()
+    if suffix in {".ogg", ".opus"}:
+        return "sendVoice"
+    if mime_type and "ogg" in mime_type.lower():
+        return "sendVoice"
+    return "sendAudio"
 
 
 def _is_audio_document(doc: object) -> bool:
@@ -143,6 +144,7 @@ async def _deliver_tts_reply(
     audio_bytes: bytes | None,
     error_code: str | None,
     error_message: str | None,
+    mime_type: str | None = None,
 ) -> None:
     command_label = _tts_command_label(provider)
     stdout = ""
@@ -166,26 +168,41 @@ async def _deliver_tts_reply(
         stderr,
         output_path,
         output_size,
+        mime_type,
         error_code,
         error_message,
     )
 
-    if not output_path or output_size <= 0:
+    output_exists = output_path.exists() if output_path else False
+    output_size = output_path.stat().st_size if output_path and output_exists else 0
+    if not output_path or not output_exists or output_size <= 0:
         logger.warning(
-            "TTS output invalid; falling back to text. provider=%s output_path=%s output_size=%s",
+            "TTS output invalid; falling back to text. provider=%s output_path=%s exists=%s output_size=%s",
             provider,
             str(output_path) if output_path else "",
+            output_exists,
             output_size,
         )
         fallback_text = "TTS failed: generated audio file is empty."
         if reply_text:
             fallback_text = f"{fallback_text}\n\n{reply_text}"
-        await message.answer(fallback_text)
+        await safe_answer(message, fallback_text)
         return
 
     try:
-        voice_file = FSInputFile(output_path)
-        await message.answer_voice(voice=voice_file)
+        method = _choose_telegram_method(output_path, mime_type)
+        logger.info(
+            "TTS send: method=%s output_path=%s exists=%s output_size=%s",
+            method,
+            str(output_path),
+            output_exists,
+            output_size,
+        )
+        media_file = FSInputFile(output_path)
+        if method == "sendVoice":
+            await message.answer_voice(voice=media_file)
+        else:
+            await message.answer_audio(audio=media_file)
     except Exception:
         logger.exception(
             "TTS send voice failed; falling back to text. provider=%s output_path=%s output_size=%s",
@@ -196,7 +213,7 @@ async def _deliver_tts_reply(
         fallback_text = "TTS failed: unable to send audio."
         if reply_text:
             fallback_text = f"{fallback_text}\n\n{reply_text}"
-        await message.answer(fallback_text)
+        await safe_answer(message, fallback_text)
 
 
 @router.message(lambda m: m.voice is not None or m.audio is not None or m.document is not None)
@@ -206,12 +223,7 @@ async def handle_voice(message: Message, bot: Bot) -> None:
         return
 
     await message.chat.do(action="typing")
-
     settings = get_settings()
-    stt = build_stt_adapter(settings)
-    tts = build_tts_adapter(settings)
-    reflection_service = ReflectionVoiceService()
-    tutor_service = EnglishTutorService()
 
     try:
         media = _select_media(message)
@@ -239,183 +251,36 @@ async def handle_voice(message: Message, bot: Bot) -> None:
                 media["mime_type"],
                 media["file_size"],
             )
-            await message.answer(
+            await safe_answer(message, 
                 "Не удалось нормально распознать голосовое. Отправь ещё раз обычным голосовым сообщением."
             )
             return
 
-        logger.info(
-            "Audio media ready: path=%s media_type=%s file_name=%s mime_type=%s file_size=%s local_path=%s",
-            "voice_media" if media["media_type"] == "voice" else "audio_media",
-            media["media_type"],
-            media["file_name"],
-            media["mime_type"],
-            media["file_size"],
-            str(out_path),
+        response = await dispatch_voice(
+            user_id=message.from_user.id,
+            source_ref=f"{message.chat.id}:{message.message_id}",
+            message_text=message.text or "",
+            audio_bytes=audio_bytes,
+            media_declared=True,
         )
 
-        active_language = STT_DEFAULT_LANGUAGE
-        if get_active_tutor_session(message.from_user.id):
-            active_language = STT_TUTOR_LANGUAGE
-
-        reflection_state = get_active_reflection_session(message.from_user.id)
-        if reflection_state:
-            logger.info(
-                "STT request: path=%s language=%s provider=%s",
-                "voice_media" if media["media_type"] == "voice" else "audio_media",
-                active_language,
-                getattr(stt, "__class__", type(stt)).__name__,
-            )
-            stt_result = await stt.transcribe(audio_bytes, language=active_language)
-            logger.info(
-                "STT result: status=%s provider=%s language=%s",
-                "ok" if stt_result.ok else "error",
-                stt_result.provider_ref or "",
-                stt_result.language or active_language,
-            )
-            if not stt_result.ok:
-                await message.answer(
-                    "Не удалось нормально распознать голосовое. Отправь ещё раз обычным голосовым сообщением."
-                )
-                return
-            transcript = stt_result.text.strip()
-            if not transcript:
-                await message.answer(
-                    "Не удалось нормально распознать голосовое. Отправь ещё раз обычным голосовым сообщением."
-                )
-                return
-            reply_text, error = await reflection_service.handle_user_turn(
-                message.from_user.id, transcript
-            )
-            if error:
-                await message.answer(error)
-                return
-            tts_result = await tts.speak(reply_text or "", voice=settings.tts_voice)
-            if tts_result.ok and tts_result.audio_bytes:
-                await _deliver_tts_reply(
-                    message,
-                    reply_text,
-                    tts_result.provider_ref or settings.tts_provider or "unknown",
-                    tts_result.audio_bytes,
-                    tts_result.error_code,
-                    tts_result.error_message,
-                )
-            else:
-                _log_tts_diagnostics(
-                    tts_result.provider_ref or settings.tts_provider or "unknown",
-                    _tts_command_label(tts_result.provider_ref or settings.tts_provider or ""),
-                    None,
-                    "",
-                    "",
-                    None,
-                    0,
-                    tts_result.error_code,
-                    tts_result.error_message,
-                )
-                await message.answer(reply_text or "")
-            return
-
-        tutor_state = get_active_tutor_session(message.from_user.id)
-        if tutor_state:
-            logger.info(
-                "STT request: path=%s language=%s provider=%s",
-                "voice_media" if media["media_type"] == "voice" else "audio_media",
-                active_language,
-                getattr(stt, "__class__", type(stt)).__name__,
-            )
-            stt_result = await stt.transcribe(audio_bytes, language=active_language)
-            logger.info(
-                "STT result: status=%s provider=%s language=%s",
-                "ok" if stt_result.ok else "error",
-                stt_result.provider_ref or "",
-                stt_result.language or active_language,
-            )
-            if not stt_result.ok:
-                await message.answer(
-                    "Не удалось нормально распознать голосовое. Отправь ещё раз обычным голосовым сообщением."
-                )
-                return
-            transcript = stt_result.text.strip()
-            if not transcript:
-                await message.answer(
-                    "Не удалось нормально распознать голосовое. Отправь ещё раз обычным голосовым сообщением."
-                )
-                return
-            reply_text, error = await tutor_service.handle_user_turn(
-                message.from_user.id, transcript
-            )
-            if error:
-                await message.answer(error)
-                return
-            tts_result = await tts.speak(reply_text or "", voice=settings.tts_voice)
-            if tts_result.ok and tts_result.audio_bytes:
-                await _deliver_tts_reply(
-                    message,
-                    reply_text,
-                    tts_result.provider_ref or settings.tts_provider or "unknown",
-                    tts_result.audio_bytes,
-                    tts_result.error_code,
-                    tts_result.error_message,
-                )
-            else:
-                _log_tts_diagnostics(
-                    tts_result.provider_ref or settings.tts_provider or "unknown",
-                    _tts_command_label(tts_result.provider_ref or settings.tts_provider or ""),
-                    None,
-                    "",
-                    "",
-                    None,
-                    0,
-                    tts_result.error_code,
-                    tts_result.error_message,
-                )
-                await message.answer(reply_text or "")
-            return
-
-        logger.info(
-            "STT request: path=%s language=%s provider=%s",
-            "voice_media" if media["media_type"] == "voice" else "audio_media",
-            active_language,
-            getattr(stt, "__class__", type(stt)).__name__,
-        )
-        stt_result = await stt.transcribe(audio_bytes, language=active_language)
-        logger.info(
-            "STT result: status=%s provider=%s language=%s",
-            "ok" if stt_result.ok else "error",
-            stt_result.provider_ref or "",
-            stt_result.language or active_language,
-        )
-        if not stt_result.ok:
-            await message.answer(
-                "Не удалось нормально распознать голосовое. Отправь ещё раз обычным голосовым сообщением."
-            )
-            return
-        transcript = stt_result.text.strip()
-        if not transcript:
-            await message.answer(
-                "Не удалось нормально распознать голосовое. Отправь ещё раз обычным голосовым сообщением."
+        diagnostics = response.get("diagnostics") or {}
+        output_audio = response.get("audio_bytes")
+        if output_audio:
+            await _deliver_tts_reply(
+                message,
+                str(response.get("text") or ""),
+                str(diagnostics.get("tts_provider") or settings.tts_provider or "unknown"),
+                output_audio if isinstance(output_audio, bytes) else None,
+                diagnostics.get("tts_error_code"),
+                diagnostics.get("tts_error_message"),
+                str(response.get("mime_type") or "audio/ogg"),
             )
             return
 
-        storage = VaultStorage(settings.vault_path)
-        timestamp = datetime.fromtimestamp(message.date.timestamp())
-        storage.append_to_daily(transcript, timestamp, "[voice]")
-
-        session = SessionStore(settings.vault_path)
-        session.append(
-            message.from_user.id,
-            "voice",
-            text=transcript,
-            duration=message.voice.duration if message.voice else None,
-            msg_id=message.message_id,
-        )
-
-        await message.answer(
-            f"РЎР‚РЎСџР вЂ№Р’В¤ {transcript}\n\n"
-            "Р Р†РЎС™РІР‚Сљ Р В Р Р‹Р В РЎвЂўР РЋРІР‚В¦Р РЋР вЂљР В Р’В°Р В Р вЂ¦Р В Р’ВµР В Р вЂ¦Р В РЎвЂў"
-        )
-        logger.info("Voice message saved: %d chars", len(transcript))
+        await safe_answer(message, str(response.get("text") or ""))
 
     except Exception:
         logger.exception("Error processing voice message")
-        await message.answer(INTERNAL_ERROR_MESSAGE)
+        await safe_answer(message, INTERNAL_ERROR_MESSAGE)
+

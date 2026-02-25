@@ -18,6 +18,62 @@ class Settings(BaseSettings):
     )
 
     telegram_bot_token: str = Field(description="Telegram Bot API token")
+    openai_api_key: str = Field(
+        default="",
+        description="OpenAI API key for primary reasoning routes.",
+    )
+    openai_main_model: str = Field(
+        default="gpt-5",
+        description="Primary OpenAI model for main reasoning tasks.",
+    )
+    openai_utility_model: str = Field(
+        default="gpt-5-mini",
+        description="OpenAI model for utility-task fallback when local provider is unavailable.",
+    )
+    local_utility_model_ref: str = Field(
+        default="utility:heuristic",
+        description="Local utility model reference used in routing diagnostics.",
+    )
+    model_route_main_reasoning_provider: str = Field(
+        default="openai",
+        description="Provider for main reasoning tasks.",
+    )
+    model_route_voice_reasoning_provider: str = Field(
+        default="openai",
+        description="Provider for voice reasoning reply tasks.",
+    )
+    model_route_heartbeat_provider: str = Field(
+        default="local",
+        description="Provider for heartbeat utility tasks.",
+    )
+    model_route_cron_summary_provider: str = Field(
+        default="local",
+        description="Provider for cron summary utility tasks.",
+    )
+    model_route_light_classification_provider: str = Field(
+        default="local",
+        description="Provider for lightweight classification/parsing tasks.",
+    )
+    model_route_command_status_provider: str = Field(
+        default="deterministic",
+        description="Provider for command status/help routes; usually deterministic.",
+    )
+    model_route_allow_local_to_openai_fallback: bool = Field(
+        default=True,
+        description="Allow local utility routes to fall back to OpenAI when local is unavailable.",
+    )
+    model_route_allow_openai_to_local_fallback: bool = Field(
+        default=False,
+        description="Allow OpenAI routes to fall back to local only when explicitly enabled.",
+    )
+    model_route_force_openai_unavailable: bool = Field(
+        default=False,
+        description="Dev/test switch to simulate OpenAI unavailability in routing decisions.",
+    )
+    model_route_force_local_unavailable: bool = Field(
+        default=False,
+        description="Dev/test switch to simulate local provider unavailability in routing decisions.",
+    )
     deepgram_api_key: str = Field(
         default="",
         description="Deepgram API key for transcription (required for voice/STT only).",
@@ -71,6 +127,11 @@ class Settings(BaseSettings):
         default=False,
         description="Whether to allow access to all users (security risk!)",
     )
+    telegram_disabled: bool = Field(
+        default=True,
+        validation_alias="D_BRAIN_TELEGRAM_DISABLED",
+        description="Disable aiogram polling (useful when another gateway polls Telegram).",
+    )
     sidecar_payload_limit_bytes: int = Field(
         default=32_768,
         description="Max JSON payload size for sidecar requests in bytes.",
@@ -94,6 +155,26 @@ class Settings(BaseSettings):
     backup_snapshot_paths: list[str] = Field(
         default_factory=lambda: ["docs"],
         description="Project-relative paths to include in backup snapshot ZIP.",
+    )
+    heartbeat_state_path: Path = Field(
+        default=Path("./data/heartbeat_state.json"),
+        description="Path to lightweight heartbeat/cron state file.",
+    )
+    scheduler_heartbeat_interval_minutes_default: int = Field(
+        default=30,
+        description="Default heartbeat cron interval in minutes.",
+    )
+    scheduler_heartbeat_enabled_default: bool = Field(
+        default=True,
+        description="Default enabled flag for heartbeat tick schedule.",
+    )
+    scheduler_digest_enabled_default: bool = Field(
+        default=False,
+        description="Default enabled flag for digest daily schedule.",
+    )
+    scheduler_digest_daily_time_default: str = Field(
+        default="09:30",
+        description="Default local HH:MM for daily digest schedule.",
     )
 
     @property
@@ -122,7 +203,7 @@ def validate_settings(settings: Settings) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
 
-    if not settings.telegram_bot_token.strip():
+    if not settings.telegram_disabled and not settings.telegram_bot_token.strip():
         errors.append("TELEGRAM_BOT_TOKEN is required to start the bot.")
 
     if not settings.allow_all_users and not settings.allowed_user_ids:
@@ -147,6 +228,31 @@ def validate_settings(settings: Settings) -> tuple[list[str], list[str]]:
 
     if settings.sidecar_payload_limit_bytes <= 0:
         errors.append("SIDECAR_PAYLOAD_LIMIT_BYTES must be positive.")
+    if settings.scheduler_heartbeat_interval_minutes_default <= 0:
+        errors.append("SCHEDULER_HEARTBEAT_INTERVAL_MINUTES_DEFAULT must be positive.")
+
+    providers = {"openai", "local", "deterministic"}
+    provider_fields = {
+        "MODEL_ROUTE_MAIN_REASONING_PROVIDER": settings.model_route_main_reasoning_provider,
+        "MODEL_ROUTE_VOICE_REASONING_PROVIDER": settings.model_route_voice_reasoning_provider,
+        "MODEL_ROUTE_HEARTBEAT_PROVIDER": settings.model_route_heartbeat_provider,
+        "MODEL_ROUTE_CRON_SUMMARY_PROVIDER": settings.model_route_cron_summary_provider,
+        "MODEL_ROUTE_LIGHT_CLASSIFICATION_PROVIDER": settings.model_route_light_classification_provider,
+        "MODEL_ROUTE_COMMAND_STATUS_PROVIDER": settings.model_route_command_status_provider,
+    }
+    for env_name, value in provider_fields.items():
+        lowered = value.strip().lower()
+        if lowered not in providers:
+            warnings.append(
+                f"{env_name} has unsupported value '{value}'. Using default routing policy."
+            )
+
+    if settings.model_route_main_reasoning_provider.strip().lower() == "openai":
+        if not settings.openai_api_key.strip():
+            warnings.append("OPENAI_API_KEY is empty; main reasoning routes may be unavailable.")
+    if settings.model_route_voice_reasoning_provider.strip().lower() == "openai":
+        if not settings.openai_api_key.strip():
+            warnings.append("OPENAI_API_KEY is empty; voice reasoning routes may be unavailable.")
 
     if sys.version_info < (3, 12):
         errors.append("Python 3.12+ is required. Recreate the venv with Python 3.12.")

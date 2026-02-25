@@ -6,8 +6,318 @@
 - Update docs during implementation, not only at the end.
 - Documentation must be English-only (no Cyrillic).
 
+### Session Continuity Protocol (Required)
+Before closing a session:
+- Update required docs for any behavior/routing/workflow changes (see Documentation Contract below).
+- Write current status, exact next step, and one exact continuation command.
+- Update `.openclaw/workspace/heartbeat.md` with current state and next action if the workflow changed.
+- Add a learnings entry to `docs/learnings.md` if there was a failure, user correction, workaround, or repeated-error fix.
+
+On new session start:
+- Read `.openclaw/workspace/bootstrap.md`.
+- Read `.openclaw/workspace/heartbeat.md`.
+- Read `docs/progress.md`.
+- Read the latest entries in `docs/learnings.md`.
+- Confirm current step and immediate next action before changing code/docs.
+
+### Documentation Contract (Required for Code / Logic / Routing / Behavior Changes)
+If code or behavior changes through Codex/OpenClaw work, update docs in the same session (not end-only).
+
+Must-update files:
+- `docs/progress.md`
+- `docs/runbook.md`
+- `docs/openclaw-integration.md`
+- `.openclaw/workspace/BOOTSTRAP.md` (workspace file currently uses lowercase filename)
+- `.openclaw/workspace/HEARTBEAT.md` (workspace file currently uses lowercase filename)
+
+Conditional updates (if impacted):
+- `docs/cutover-checklist.md`
+- `docs/release-notes-v1.0-draft.md`
+- skill docs (`vault/.claude/skills/...` or `docs/skills/...`)
+- smoke checks in `scripts/*`
+
+### Self-Improvement Log (Required Workflow)
+- Use `docs/learnings.md` as the lightweight self-improvement log.
+- Required entry triggers:
+  - failed command/operation with identified cause
+  - user correction to agent behavior/assumption
+  - confirmed workaround/fix
+  - recurring error prevented
+- Entry format: `timestamp`, `symptom`, `root cause`, `fix`, `prevention`, plus short verification/reference notes.
+
+### Skill Creation / Update Workflow (Internal)
+- Use the `skill-creator` process when creating or updating skills.
+- Follow the project skill contract in `docs/skill-contract.md`.
+- If `self-improving-agent` is requested but unavailable in the current skill registry, use `docs/learnings.md` + this runbook workflow as the fallback and document the gap.
+
+## OpenClaw Local Bootstrap (Windows, SSH-friendly)
+Run from repo root:
+- Start (foreground):
+  - `powershell -ExecutionPolicy Bypass -File scripts/start_openclaw_stack.ps1`
+- Start (detached):
+  - `powershell -ExecutionPolicy Bypass -File scripts/start_openclaw_stack.ps1 -Detached`
+- Stop:
+  - `powershell -ExecutionPolicy Bypass -File scripts/stop_openclaw_stack.ps1`
+- Doctor checks:
+  - `powershell -ExecutionPolicy Bypass -File scripts/openclaw_doctor.ps1`
+
+Behavior:
+- Adds `C:\Program Files\nodejs` and `%APPDATA%\npm` to PATH for the current shell.
+- Normalizes process PATH segments (strips stray quotes) before command resolution to avoid Windows wrapper launch failures (for example `""node"" is not recognized`).
+- Activates `.venv` when available.
+- Sets `PYTHONPATH=src`.
+- Enforces OpenClaw-only transport by setting `D_BRAIN_TELEGRAM_DISABLED=1` for the shell.
+- Checks for port conflicts on `18789`.
+- Prints the resolved `node.exe` path and the OpenClaw command path before launch.
+
+Troubleshooting (startup wrapper):
+- If foreground startup fails with `""node"" is not recognized`, run:
+  - `Get-Command node`
+  - `Get-Command openclaw`
+  - `powershell -ExecutionPolicy Bypass -File .\scripts\start_openclaw_stack.ps1`
+- The script now fails early with a clear error if `node` or `openclaw` is not found in PATH.
+
+## OpenClaw ACL Hardening (Windows)
+Target paths:
+- `C:\Users\User\.openclaw`
+- `C:\Users\User\.openclaw\openclaw.json`
+- `C:\Users\User\.openclaw\credentials`
+- `C:\Users\User\.openclaw\agents\main\agent\auth-profiles.json`
+- `C:\Users\User\.openclaw\agents\main\sessions\sessions.json`
+
+Script:
+- Dry run:
+  - `powershell -ExecutionPolicy Bypass -File scripts/harden_openclaw_acl.ps1 -DryRun`
+- Apply:
+  - `powershell -ExecutionPolicy Bypass -File scripts/harden_openclaw_acl.ps1`
+
+Recommended elevated apply:
+- Open elevated PowerShell and run:
+  - `cd D:\openclaw_bot\agent-second-brain`
+  - `powershell -ExecutionPolicy Bypass -File scripts/harden_openclaw_acl.ps1`
+
+Verify:
+- `openclaw status`
+- `icacls "C:\Users\User\.openclaw\openclaw.json"`
+- `icacls "C:\Users\User\.openclaw\credentials"`
+
 ## Local Development
 TODO: steps to start local services, env vars, and health checks.
+
+## Telegram Polling (Conflict Prevention)
+- Run only one polling process at a time.
+- Option A: OpenClaw gateway polls Telegram (disable local polling).
+- Option B: `python -m d_brain` polls Telegram (stop the gateway polling).
+- Never run both simultaneously or you will get `getUpdates` conflicts (409).
+- To disable local polling: set `D_BRAIN_TELEGRAM_DISABLED=1`.
+- Production mode: OpenClaw is the only Telegram transport. Do not run `python -m d_brain` alongside `openclaw gateway`.
+- If you see `409 Conflict`, it means two pollers are running. Stop the extra process and run only one OpenClaw gateway.
+
+Windows PowerShell (recovery):
+- `Get-Process -Name openclaw, python -ErrorAction SilentlyContinue`
+- `Stop-Process -Name python -Force`
+- `Stop-Process -Name openclaw -Force`
+
+## OpenClaw UX CLI (Phase 1)
+- Use `scripts/ux_cli.py` to invoke reusable d_brain UX helpers without Telegram polling.
+- Examples:
+  - `python scripts/ux_cli.py status --user-id 123`
+  - `python scripts/ux_cli.py help`
+  - `python scripts/ux_cli.py command --user-id 123 --text "/plan list"`
+
+## OpenClaw Command Dispatch Smoke (No Telegram Polling)
+Run from repo root:
+- `python scripts/openclaw_command_dispatch_smoke.py --user-id 123 --chat-id 123 --plan-title "Smoke plan"`
+- `python scripts/openclaw_e2e_command_smoke.py`
+- The transport-agnostic dispatcher entrypoint is `d_brain.integrations.openclaw_bridge.dispatch_command`.
+
+Expected behavior:
+- `/help` returns command help text.
+- `/status` returns day status text.
+- `/plan list` returns either records or `No records found.`.
+- `/plan add <title>` returns created IDs and the next `/plan list` includes the new plan.
+
+Production command MVP (OpenClaw bridge):
+- `/help`, `/ping`, `/version`, `/status`, `/mode`
+- `/prefs`
+- `/prefs brevity short|normal`
+- `/prefs lang ru|en_tutor`
+- `/prefs voice on|off`
+- `/voice on|off|status`
+- `/plan add <title>`, `/plan list`, `/plan done <id>`, `/plan delete <id>`
+- `/plan delete <id>` is implemented as a soft-delete (`canceled`) to reuse existing sidecar plan lifecycle.
+
+New smoke coverage (`openclaw_command_dispatch_smoke.py`) also checks:
+- `/prefs` show/set flows and `/voice` alias compatibility
+- `/plan done <id>` and `/plan delete <id>`
+- invalid inputs:
+  - `/plan done`
+  - `/plan done abc`
+  - `/plan delete`
+  - `/plan delete qwe`
+
+CLI quick checks (PowerShell, from repo root):
+- `.\.venv\Scripts\python.exe scripts\ux_cli.py command --user-id 123 --text "/mode"`
+- `.\.venv\Scripts\python.exe scripts\ux_cli.py command --user-id 123 --text "/plan list"`
+- `.\.venv\Scripts\python.exe scripts\ux_cli.py command --user-id 123 --text "/diag"` (MVP+ diagnostics)
+- `.\.venv\Scripts\python.exe scripts\ux_cli.py command --user-id 123 --text "/diag full"` (extended diagnostics)
+
+Response normalization note:
+- Bridge command/voice outputs are normalized to a shared contract (`text`, `audio_intent`, `audio_path`, `meta`, `ok`, optional `error_code`) while legacy adapter-compatible fields remain available.
+- Duplicate guard note:
+  - Bridge entrypoints (`dispatch_command_response`, `dispatch_voice_sync`) use a short TTL duplicate cache to skip repeated processing of the same message/update payload.
+  - Structured bridge logs include `duplicate_skipped=true` when a duplicate is skipped.
+
+## Production Readiness Check (Offline)
+Run from repo root:
+- `.\.venv\Scripts\python.exe scripts\prod_readiness_check.py`
+
+Checks (no network where possible):
+- OpenClaw-first transport mode (`D_BRAIN_TELEGRAM_DISABLED` / effective config)
+- bridge import and command/voice dispatcher callables
+- workspace bootstrap/heartbeat files
+- warn-only env readiness hints (OpenAI/Deepgram keys)
+
+Expected summary:
+- `PASS` or `WARN` is acceptable for offline local verification.
+- `FAIL` requires fixing before production use.
+
+## OpenClaw Voice Dispatch Smoke (No Telegram Polling)
+Run from repo root:
+- `python scripts/openclaw_voice_dispatch_smoke.py`
+- `python scripts/openclaw_e2e_voice_smoke.py`
+- Voice routing entrypoint: `d_brain.integrations.openclaw_bridge.dispatch_voice`.
+
+Expected behavior:
+- Default STT language is Russian (`ru`) for normal voice flow.
+- English STT (`en`) is used only in tutor mode.
+- Preference `language_mode=en_tutor` routes default voice flow through tutor mode with English STT.
+- Preference `voice_reply=off` disables TTS attempts and returns text safely.
+- Preference `brevity=short` returns shorter fallback/warning text.
+- Transcript-only text warning path is returned when no media is present.
+- Empty TTS output falls back to text and does not crash.
+
+Preference smoke:
+- `python scripts/openclaw_prefs_smoke.py`
+- Verifies bridge-level `/prefs` set/get and `/voice` alias compatibility using the JSONL session-backed store (no Telegram).
+
+Diagnostics and observability smoke:
+- `python scripts/openclaw_diag_smoke.py`
+- `python scripts/openclaw_error_counter_smoke.py`
+- Verifies `/diag` short/full output shape (no secrets) and runtime in-memory error counters.
+- `python scripts/openclaw_voice_source_select_smoke.py`
+- Verifies Telegram media source priority (`voice` -> `audio` -> audio `document` -> transcript`), voice-note download/STT fallback behavior, and no bad file-format UX fallback for normal `message.voice`.
+- `python scripts/openclaw_voice_log_summary.py --file <logfile> --lines 200`
+- Operator helper: extracts `telegram_stt_source_select` / `telegram_voice_ingest` and prints a per-`requestId` summary (`finalInputSource`, download/STT outcome, `finalOutcome`, `fallbackReason`, `responseMode`).
+
+Single poller reminder:
+- Keep OpenClaw as the only Telegram poller in production.
+- Do not run `python -m d_brain` polling alongside `openclaw gateway`.
+
+## OpenClaw E2E Smoke (No Telegram Polling / No Network)
+Run from repo root:
+- `python scripts/openclaw_e2e_smoke.py`
+
+Output format:
+- JSONL (one JSON object per case).
+- Each line includes `case`, `ok`, `route`, `bridge_handler_used`, ingestion/outbound fields, and a safe `error` string (no raw traceback dump).
+
+PASS / FAIL reading:
+- `PASS`: line has `"ok": true` and `"error": null`.
+- `FAIL`: line has `"ok": false`; inspect `error`, `route`, `action_called`, and ingestion/outbound fields to see where routing or fallback behavior diverged.
+
+Scope covered (MVP):
+- Command bridge E2E (`/help`, `/plan add`, `/plan list`)
+- Voice bridge E2E (RU reflection voice -> text/TTS reply, transcript-only warning)
+- Job path E2E (`heartbeat_summary`, `daily_digest`) with runtime sender mock
+- Non-fatal ingestion fallback (`ingestion` exception swallowed)
+- Non-fatal indexer fallback (`indexed=deferred`)
+
+## Model Routing Policy Smoke (No Telegram Polling)
+Run from repo root:
+- `python scripts/model_routing_smoke.py`
+
+Expected behavior:
+- `/status` uses `deterministic` route (or OpenAI if configured that way).
+- Voice tutor/reflection reasoning routes to OpenAI.
+- Heartbeat and cron summary routes default to local.
+- Local-unavailable utility fallback can route to OpenAI when enabled.
+- OpenAI-unavailable main reasoning fails with `reasoning_provider_unavailable` unless explicit OpenAI->local fallback is enabled.
+
+Relevant env overrides:
+- `MODEL_ROUTE_MAIN_REASONING_PROVIDER`
+- `MODEL_ROUTE_VOICE_REASONING_PROVIDER`
+- `MODEL_ROUTE_HEARTBEAT_PROVIDER`
+- `MODEL_ROUTE_CRON_SUMMARY_PROVIDER`
+- `MODEL_ROUTE_LIGHT_CLASSIFICATION_PROVIDER`
+- `MODEL_ROUTE_COMMAND_STATUS_PROVIDER`
+- `MODEL_ROUTE_ALLOW_LOCAL_TO_OPENAI_FALLBACK`
+- `MODEL_ROUTE_ALLOW_OPENAI_TO_LOCAL_FALLBACK`
+- `MODEL_ROUTE_FORCE_OPENAI_UNAVAILABLE`
+- `MODEL_ROUTE_FORCE_LOCAL_UNAVAILABLE`
+- `OPENAI_API_KEY`
+
+## Heartbeat/Cron Smokes (OpenClaw-only)
+Run from repo root:
+- `python scripts/openclaw_heartbeat_smoke.py`
+- `python scripts/openclaw_cron_smoke.py`
+- `python scripts/openclaw_scheduler_bridge_smoke.py`
+- `python scripts/openclaw_scheduler_config_smoke.py`
+- `python scripts/openclaw_digest_smoke.py`
+- `python scripts/openclaw_digest_target_smoke.py`
+- `python scripts/openclaw_jobs_smoke.py`
+- `python scripts/memory_ingestion_smoke.py`
+
+Scheduler control commands:
+- `/hb interval <minutes>` (range `5..240`)
+- `/hb on` / `/hb off`
+- `/digest on` / `/digest off`
+- `/digest time HH:MM`
+- `/digest now` / `/digest preview` / `/digest status`
+- `/digest target here|show|on|off|clear|test`
+- `/cron sync`
+
+Expected behavior:
+- Main chat and voice reasoning stay on OpenAI routes (no silent switch to local).
+- Heartbeat and cron utility tasks route to local by default.
+- If local is unavailable and fallback is enabled, heartbeat/cron utility tasks can route to OpenAI with `fallback_used=true`.
+- `/hb now`, `/hb status`, `/cron list`, and `/cron run <job>` are handled through the OpenClaw bridge command path.
+- `/hb now` and cron `heartbeat.tick` run the same heartbeat runner path (single execution path).
+- `digest.daily` is scheduler-wired and uses the cron utility provider role.
+- Scheduled digest delivery requires target binding via `/digest target here`.
+- Delivery states: `sent`, `no_target`, `failed`, `deferred`.
+- `/digest target show` returns a short "not configured" message when no mapping exists.
+- Delivery state meaning:
+  - `sent`: outbound send succeeded to mapped target.
+  - `no_target`: no enabled digest target mapping for the user.
+  - `failed`: outbound adapter attempted send and returned an error.
+  - `deferred`: runtime outbound sender is unavailable (stub fallback).
+- Adapter behavior: `scheduled_openclaw` when runtime API is wired, otherwise `stub_fallback`.
+- Production transport reminder: keep OpenClaw as the only Telegram transport (no aiogram polling).
+
+Outbound smoke expectations (`openclaw_digest_target_smoke.py`):
+- `case=no_target`: `/cron run digest.daily` and `/digest status` report `delivery=no_target`.
+- `case=text_only`: unified outbound `send_text(...)` returns `delivery_state=sent` with a runtime sender stub.
+- `case=runtime_sent`: runtime sender is registered, `/cron run digest.daily` reports `delivery=sent`, and `/digest status` shows `delivery=sent`.
+- `case=tts_requested_but_empty`: unified outbound `send_tts(...)` falls back to text and returns a safe structured result.
+
+Runtime sender wiring note:
+- Unified outbound defaults to a safe `deferred` state when no runtime sender is registered.
+- OpenClaw runtime integration should register a sender via `d_brain.integrations.openclaw_outbound.register_runtime_sender(...)`.
+- Registration is process-local and must be re-applied on runtime startup.
+
+Transport-agnostic jobs smoke expectations (`openclaw_jobs_smoke.py`):
+- `case=heartbeat_no_target`: safe skip with outbound `delivery_state=no_target`.
+- `case=digest_dry_run`: digest payload is generated with safe `dry_run` deferred outbound result.
+- `case=plan_reminder_no_items`: no crash; job returns `skipped_reason=no_items`.
+- `case=outbound_fail_fallback`: outbound sender failure returns safe `delivery_state=failed` without uncaught exceptions.
+
+Memory ingestion smoke expectations (`memory_ingestion_smoke.py`):
+- `case=text_message_basic`: normalized text event is stored with `ok=true`.
+- `case=voice_transcript_basic`: voice transcript event is stored with `ok=true`.
+- `case=job_digest_ingest`: job summary ingestion is stored with `ok=true`.
+- `case=empty_content_skip`: empty content returns `skipped_reason=empty_content`.
+- `case=indexer_unavailable_fallback`: record is stored and indexing is `deferred` without crashing.
 
 ## Windows MSI Quickstart
 1. Create a Python 3.12 virtual environment:
@@ -31,6 +341,22 @@ Notes:
 ## Dependencies
 - Install (pip): `python -m pip install -r requirements.txt`
 - Install (uv): `uv sync`
+
+## Internal Skill Creation / Update (Workflow)
+Use this when adding or changing skills (OpenClaw-first workflow).
+
+Steps:
+1. Confirm the skill request and scope (trigger conditions, expected outputs, compatibility constraints).
+2. Use the `skill-creator` process to structure the skill work.
+3. Follow `docs/skill-contract.md` for required structure/docs/smokes/examples/rollback notes.
+4. Implement or update the skill (`vault/.claude/skills/<skill-name>/...`) with a lean `SKILL.md` and optional `references/` and `scripts/`.
+5. Add or update smoke checks (prefer no-network) and document commands + expected results in this runbook.
+6. Update docs affected by behavior/workflow changes per the Documentation Contract.
+7. Record any failures/corrections/workarounds in `docs/learnings.md`.
+
+Notes:
+- If `self-improving-agent` is not available in the active skill registry, use `docs/learnings.md` as the fallback self-improvement mechanism.
+- Keep OpenClaw as the only Telegram transport in production; aiogram polling remains dev-only.
 
 ## Web/URL Skills (Tavily + Summarize)
 Prereqs:
@@ -152,6 +478,140 @@ Output includes:
    - Task History tab (enable `All Tasks History` if disabled)
 
 ## Troubleshooting (MSI)
+### Fast Triage (OpenClaw-first)
+Run from repo root (`D:\openclaw_bot\agent-second-brain`):
+- Quick health (bridge command via CLI):
+  - `.\.venv\Scripts\python.exe scripts\ux_cli.py command --user-id 123 --text "/health"`
+- Quick health JSON (automation-friendly):
+  - `.\.venv\Scripts\python.exe scripts\ux_cli.py health --json`
+- Gateway diagnostics (no network calls):
+  - `.\.venv\Scripts\python.exe scripts\openclaw_prod_diag.py`
+- Fallback stability smoke:
+  - `.\.venv\Scripts\python.exe scripts\openclaw_fallback_smoke.py`
+
+If something fails:
+- `409 conflict`: stop duplicate pollers, keep OpenClaw as the only Telegram transport.
+  - `Get-Process -Name openclaw, python -ErrorAction SilentlyContinue`
+  - `Stop-Process -Name python -Force`
+  - `Stop-Process -Name openclaw -Force`
+  - `powershell -ExecutionPolicy Bypass -File scripts/start_openclaw_stack.ps1`
+- `TTS empty` / voice reply lost audio:
+  - `.\.venv\Scripts\python.exe scripts\openclaw_fallback_smoke.py`
+  - Check logs for `tts_empty_output` and confirm text fallback is returned.
+- Command handler exception:
+  - `.\.venv\Scripts\python.exe scripts\ux_cli.py command --user-id 123 --text "/diag"`
+  - `.\.venv\Scripts\python.exe scripts\openclaw_e2e_smoke.py`
+- Bridge import error:
+  - `.\.venv\Scripts\python.exe scripts\openclaw_prod_diag.py`
+  - `.\.venv\Scripts\python.exe -m compileall src\d_brain\integrations\openclaw_bridge.py vault\.claude\skills\openclaw-main\adapter.py`
+
+### OpenClaw Stopped Responding
+Expected result:
+- Port `18789` listens again and `ux_cli.py diag` reports `mode: openclaw`.
+
+Commands (PowerShell, from repo root):
+- `powershell -ExecutionPolicy Bypass -File .\ops\status-openclaw.ps1`
+- `powershell -ExecutionPolicy Bypass -File .\ops\restart-openclaw.ps1`
+- `powershell -ExecutionPolicy Bypass -File .\ops\status-openclaw.ps1`
+
+### Telegram 409 Conflict
+Expected result:
+- Duplicate poller processes stopped; only OpenClaw gateway remains.
+
+Commands:
+- `powershell -ExecutionPolicy Bypass -File .\ops\kill-telegram-conflicts.ps1 -StopAllOpenClawGateways`
+- `powershell -ExecutionPolicy Bypass -File .\ops\restart-openclaw.ps1`
+- `.\.venv\Scripts\python.exe scripts\ux_cli.py diag`
+
+Quick recovery (manual, PowerShell):
+- `Get-Process -Name openclaw, python -ErrorAction SilentlyContinue`
+- `Stop-Process -Name python -Force`
+- `Stop-Process -Name openclaw -Force`
+- `powershell -ExecutionPolicy Bypass -File .\ops\restart-openclaw.ps1`
+
+### openclaw Command Not Found
+Expected result:
+- `openclaw` resolves in current terminal session, or you get a clear install/PATH hint.
+
+Commands:
+- `powershell -ExecutionPolicy Bypass -File .\ops\fix-path-node-openclaw.ps1`
+- `Get-Command openclaw -ErrorAction SilentlyContinue`
+- `powershell -ExecutionPolicy Bypass -File .\ops\status-openclaw.ps1`
+
+### node/npm Not Found In New Terminal
+Expected result:
+- `node` and `npm` are available in current shell; permanent PATH command is shown.
+
+Commands:
+- `powershell -ExecutionPolicy Bypass -File .\ops\fix-path-node-openclaw.ps1`
+- `Get-Command node -ErrorAction SilentlyContinue`
+- `Get-Command npm -ErrorAction SilentlyContinue`
+
+### TTS Empty-File Fallback
+Expected result:
+- Fallback smoke passes and voice path returns text fallback instead of crashing.
+
+Commands:
+- `.\.venv\Scripts\python.exe scripts\openclaw_fallback_smoke.py`
+- `.\.venv\Scripts\python.exe scripts\openclaw_e2e_smoke.py`
+- `.\.venv\Scripts\python.exe scripts\ux_cli.py diag`
+
+Behavior note:
+- If generated audio is missing/empty, the adapter returns text fallback only (no repeated media send attempts).
+- Audio payload checks log `audio_intent`, `audio_path`, file existence/size, and `fallback_reason`.
+- Common `fallback_reason` values include:
+  - `tts_empty_output`
+  - `tts_tts_failed` / `tts_tts_timeout` (provider generation failure/timeout)
+  - `audio_path_missing_or_empty`
+  - `audio_path_unreadable`
+
+### Transcript-Only Warning (Voice/Text)
+Expected result:
+- Transcript-looking text without real media returns a short warning and does not override real voice media.
+
+Quick check:
+- `.\.venv\Scripts\python.exe scripts\openclaw_voice_dispatch_smoke.py`
+
+### Duplicate Messages / Replayed Updates
+Expected result:
+- Replayed command/voice updates in a short window are skipped once and do not create duplicate side effects.
+
+Quick check:
+- `.\.venv\Scripts\python.exe scripts\openclaw_duplicate_guard_smoke.py`
+
+- OpenClaw Recovery (PowerShell, quick actions):
+  - Stop likely duplicate pollers:
+    - `Get-Process -Name openclaw, python -ErrorAction SilentlyContinue`
+    - `Stop-Process -Name python -Force`
+    - `Stop-Process -Name openclaw -Force`
+  - Start OpenClaw stack again:
+    - `powershell -ExecutionPolicy Bypass -File scripts/start_openclaw_stack.ps1`
+  - Stop OpenClaw stack:
+    - `powershell -ExecutionPolicy Bypass -File scripts/stop_openclaw_stack.ps1`
+- `409 Conflict` (`getUpdates`) / duplicate poller:
+  - Cause: two Telegram pollers are running (OpenClaw + local aiogram).
+  - Fix: keep OpenClaw as the only Telegram transport; ensure `D_BRAIN_TELEGRAM_DISABLED=1`.
+  - Recovery commands:
+    - `Stop-Process -Name python -Force`
+    - `Stop-Process -Name openclaw -Force`
+    - `powershell -ExecutionPolicy Bypass -File scripts/start_openclaw_stack.ps1`
+- `openclaw` not in PATH:
+  - Check: `Get-Command openclaw -ErrorAction SilentlyContinue`
+  - Use the local bootstrap script (it prepares PATH for the shell):
+    - `powershell -ExecutionPolicy Bypass -File scripts/start_openclaw_stack.ps1`
+- Empty TTS file / missing voice payload:
+  - Verify fallback behavior:
+    - `python scripts/openclaw_fallback_smoke.py`
+  - Voice replies should fall back to text; if not, check `tts_empty_output` diagnostics in logs.
+- Gateway already running / port busy (`18789`):
+  - Check port owner:
+    - `Get-NetTCPConnection -LocalPort 18789 -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,State,OwningProcess`
+  - Check process:
+    - `Get-Process -Id <PID>`
+  - Stop and restart:
+    - `Stop-Process -Id <PID> -Force`
+    - `powershell -ExecutionPolicy Bypass -File scripts/start_openclaw_stack.ps1`
+
 - OpenClaw Dashboard shows "pairing required" or "Disconnected from gateway" behind a dev tunnel:
   - Gateway logs show "Proxy headers detected from untrusted address".
   - Fix: set `gateway.trustedProxies` to `["127.0.0.1", "::1"]` in `C:\Users\User\.openclaw\openclaw.json`.
@@ -424,6 +884,8 @@ Troubleshooting note:
       `PYTHONPATH=src python scripts/tts_smoke.py`
    2. Empty output check (PowerShell):
       `$env:PYTHONPATH="src"; python scripts/tts_empty_file_check.py`
+   Behavior:
+   - If the TTS output file is empty or missing, Telegram reply falls back to plain text.
    3. Media preference check (PowerShell):
       `$env:PYTHONPATH="src"; python scripts/voice_media_preference_check.py`
 
@@ -580,3 +1042,142 @@ Troubleshooting note:
 
 ## Debugging
 TODO: logs, tracing, and common failure modes.
+
+## Final Prod Architecture (Short)
+- OpenClaw handles Telegram transport and polling in production.
+- `d_brain` provides bridge dispatch, business logic, sidecar actions, and services.
+- OpenAI remains the main reasoning provider; local providers remain utility/search/cron providers.
+- aiogram polling is dev-only and must not be enabled in production OpenClaw-first runs.
+
+## Safe Restart + Quick Verify (Windows PowerShell)
+Safe restart:
+- `powershell -ExecutionPolicy Bypass -File .\ops\restart-openclaw.ps1`
+
+Quick verify (2-3 commands):
+- `.\.venv\Scripts\python.exe scripts\prod_readiness_check.py`
+- `.\.venv\Scripts\python.exe scripts\openclaw_command_dispatch_smoke.py --user-id 123 --chat-id 123 --plan-title "Smoke plan"`
+- `.\.venv\Scripts\python.exe scripts\openclaw_voice_dispatch_smoke.py`
+
+## Production Start (OpenClaw Only)
+Run from repo root (`D:\openclaw_bot\agent-second-brain`):
+- `powershell -ExecutionPolicy Bypass -File .\ops\start-openclaw.ps1`
+- Verify OpenClaw-only transport mode:
+  - `.\.venv\Scripts\python.exe scripts\prod_readiness_check.py`
+  - `.\.venv\Scripts\python.exe scripts\no_polling_when_disabled_check.py`
+- Run RC smoke suite (no Telegram polling):
+  - `.\.venv\Scripts\python.exe scripts\openclaw_rc_smoke.py`
+
+## v1.0 Cutover Execution (Production Sign-off)
+Use `docs/cutover-checklist.md` as the canonical checklist for final cutover execution and sign-off evidence.
+
+Minimum local verification set (before manual Telegram checks):
+- `.\.venv\Scripts\python.exe scripts\prod_readiness_check.py`
+- `.\.venv\Scripts\python.exe scripts\openclaw_prod_diag.py`
+- `.\.venv\Scripts\python.exe scripts\openclaw_rc_smoke.py`
+- `.\.venv\Scripts\python.exe scripts\openclaw_diag_smoke.py`
+- `.\.venv\Scripts\python.exe scripts\openclaw_voice_dispatch_smoke.py`
+- `.\.venv\Scripts\python.exe scripts\openclaw_fallback_smoke.py`
+
+Manual Telegram acceptance (OpenClaw transport path) is still required for final production sign-off:
+- Commands: `/help`, `/status`, `/plan list`, `/plan add ...`, `/diag`, `/ping`, `/version`
+- Voice: RU voice note, transcript-only warning, valid TTS media send, empty/invalid TTS fallback
+- Use `docs/live-telegram-acceptance-template.md` for operator step-by-step marking.
+- Capture gateway/channel/log evidence before manual checks:
+  - `powershell -ExecutionPolicy Bypass -File .\ops\capture-live-signoff.ps1`
+
+Windows CLI note (verification only):
+- If CLI command output fails with `UnicodeEncodeError` in `cp1251`, run:
+  - `chcp 65001`
+  - `$env:PYTHONIOENCODING='utf-8'`
+
+Final GO gating rule:
+- `GO` is allowed only when all three are verified on the live OpenClaw Telegram transport path:
+  - live Telegram channel status via OpenClaw gateway
+  - manual command acceptance
+  - manual voice acceptance
+- Otherwise return `GO WITH KNOWN LIMITATIONS` or `NO-GO`.
+
+## Recovery After Conflict / Timeout
+- `409 getUpdates` conflict or duplicate pollers:
+  - `powershell -ExecutionPolicy Bypass -File .\ops\restart-openclaw.ps1`
+  - `.\.venv\Scripts\python.exe scripts\openclaw_prod_diag.py`
+- Bridge/sidecar timeout degradation observed in `/diag`:
+  - `.\.venv\Scripts\python.exe scripts\openclaw_diag_smoke.py`
+  - `.\.venv\Scripts\python.exe scripts\openclaw_fallback_smoke.py`
+  - `.\.venv\Scripts\python.exe scripts\openclaw_rc_smoke.py`
+ - For full cutover recovery/rollback sequence, use `docs/cutover-checklist.md`.
+
+## Quick Health Checklist (RC)
+- `/diag` returns transport/prefs/sidecar/uptime summary.
+- `/diag full` shows commit hash, timeout values, error counters, and recent sanitized errors (no secrets).
+- `scripts/prod_readiness_check.py` returns `PASS` or `WARN` only (no `FAIL`).
+- `scripts/openclaw_rc_smoke.py` returns summary `PASS`.
+
+## Known Degraded Modes (Expected Safe Fallbacks)
+- TTS provider unavailable / timeout / empty output:
+  - Voice reply falls back to text, bridge stays responsive.
+- STT timeout or provider error:
+  - Short RU error is returned; process does not crash.
+- Sidecar timeout/error for bridge plan handlers:
+  - Short RU degraded response is returned; structured degraded log is emitted.
+- Runtime sender unavailable:
+  - Unified outbound may return `deferred` instead of `sent` until runtime sender is registered.
+
+## Troubleshooting: Telegram TTS Empty Media (`file must be non-empty`)
+- Symptom:
+  - `telegram sendAudio/sendVoice failed ... 400 Bad Request: file must be non-empty`
+- Cause:
+  - Empty TTS output (empty bytes or zero-size file path) reached the transport media send path.
+- Current behavior (guarded):
+  - The OpenClaw adapter applies an early media payload guard, clears `audio_intent`, logs `reason=empty_tts_output`, and returns text fallback instead of attempting media send.
+- If it repeats, check in order:
+  1. Confirm `tool=tts` (or bridge TTS diagnostics) appears in logs for the message.
+  2. Check audio payload/file size (`audio_bytes` length or `audio_path` file size).
+  3. Confirm media send was skipped and text fallback was returned (no `sendAudio/sendVoice` attempt for that response).
+  4. Check for regression in the adapter/channel path if a media send is still attempted with empty payload.
+
+## Troubleshooting: Telegram Voice Note Falls Back to Auto-Transcript Too Early
+- Symptom:
+  - Short/medium Telegram voice notes (`message.voice`) often produce poor transcript text, `EMPTY_TRANSCRIPT`, or a fallback path that ignores the real voice file.
+- Expected behavior (current bridge):
+  - Source priority is `voice` -> `audio` -> audio `document` -> transcript/text fallback.
+  - If `message.voice.file_id` exists, the bridge should attempt file download/STT before treating transcript text as primary.
+  - Voice-note failures should return a retry message (no ".ogg/.m4a file" request for normal voice notes).
+- Check logs (structured, no secrets):
+  - `event=telegram_stt_source_select`
+  - `event=telegram_voice_ingest`
+  - Key fields: `requestId`, `userIdHash`, `messageKind`, `telegramFileIdPresent`, `telegramFileUniqueIdPresent`, `downloaderName`, `downloaderPath`, `mediaBytesPresent`, `mediaBytesLen`, `mediaPathPresent`, `mediaPathExists`, `mediaPathSize`, `transcriptLen`, `transcriptLooksAuto`, `finalInputSource`, `downloadAttempted`, `downloadOk`, `sttAttempted`, `sttOk`, `finalOutcome`, `fallbackReason`, `responseMode`
+- Common interpretations:
+  - `downloadAttempted=false` + `telegramFileIdPresent=true`: no downloader was available in the message path (`voice_download_not_attempted`).
+  - `downloadAttempted=true` + `downloadOk=false`: voice file download failed (`voice_download_failed`).
+  - `downloadOk=true` + `sttAttempted=true` + `sttOk=false`: STT failed on the downloaded voice (`stt_error`) or returned empty text (`stt_empty` / `empty_transcript_voice_note`).
+  - `sttAttempted=true` + `sttResultLen=0`: empty transcript from voice STT (`empty_transcript_voice_note`).
+  - `finalInputSource=transcript` + `finalOutcome=fallback_transcript`: bridge intentionally used transcript fallback instead of media STT (inspect `fallbackReason` and downloader/media fields).
+- Stable fallback reason taxonomy (bridge diagnostics / structured logs):
+  - `voice_download_not_attempted`
+  - `voice_download_failed`
+  - `media_declared_without_bytes`
+  - `stt_error`
+  - `stt_empty`
+  - `empty_transcript_voice_note`
+  - `transcript_only_auto`
+  - `transcript_only_no_media`
+  - `no_voice_content`
+  - `unsupported_media_shape`
+- Smoke check:
+  - `.\.venv\Scripts\python.exe scripts\openclaw_voice_source_select_smoke.py`
+- Live debug summary examples:
+  - `.\.venv\Scripts\python.exe scripts\openclaw_voice_log_summary.py --file .\openclaw.log --lines 300`
+  - `.\.venv\Scripts\python.exe scripts\openclaw_voice_log_summary.py --lines 300 --jsonl` (uses `openclaw logs --tail`)
+
+## Safe Restart (Prod)
+Use this sequence when the gateway is stuck or `409 getUpdates` conflicts are suspected:
+- `Get-Process -Name openclaw, python -ErrorAction SilentlyContinue`
+- `Stop-Process -Name python -Force`
+- `Stop-Process -Name openclaw -Force`
+- `powershell -ExecutionPolicy Bypass -File .\ops\restart-openclaw.ps1`
+- `powershell -ExecutionPolicy Bypass -File .\ops\status-openclaw.ps1`
+
+Optional live debugging:
+- `openclaw logs --follow`
+

@@ -7,6 +7,7 @@ from typing import Any
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramConflictError
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Update
 
@@ -94,14 +95,31 @@ def create_auth_middleware(settings: Settings) -> MiddlewareType:
 
 async def run_bot(settings: Settings) -> None:
     """Run the bot with polling."""
+    if settings.telegram_disabled:
+        logger.warning(
+            "Telegram polling is disabled via D_BRAIN_TELEGRAM_DISABLED=1; "
+            "use the OpenClaw gateway or enable polling in d_brain."
+        )
+        return
+
     bot = create_bot(settings)
     dp = create_dispatcher()
 
     # Always add auth middleware for security (it handles allow_all_users internally)
     dp.update.middleware(create_auth_middleware(settings))
 
+    logger.warning(
+        "Run only ONE Telegram polling process at a time. "
+        "Stop OpenClaw gateway or stop this d_brain instance to avoid conflicts."
+    )
     logger.info("Starting bot polling...")
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    except TelegramConflictError:
+        logger.error(
+            "Telegram polling conflict (getUpdates). "
+            "Another process is polling. "
+            "Останови OpenClaw gateway или d_brain и запусти только один процесс."
+        )
     finally:
         await bot.session.close()

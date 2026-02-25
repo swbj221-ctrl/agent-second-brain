@@ -1,0 +1,4 @@
+{"ts": "2026-02-24T21:33:53.699691+03:00", "type": "voice", "text": "привет", "source_ref": "e2e:ru"}
+{"ts": "2026-02-25T00:35:41.484743+03:00", "type": "voice", "text": "привет", "source_ref": "e2e:ru"}
+{"ts": "2026-02-25T00:35:41.494716+03:00", "type": "memory_ingest", "source_type": "voice", "channel": "openclaw", "source_ref": "e2e:en", "language": "en", "importance": "normal", "text": "hello", "tags": ["bridge", "voice"], "metadata": {}, "record_id": "3143d9ba249244a5b1e4ede0d81f30ee"}
+{"ts": "2026-02-25T00:35:41.879686+03:00", "type": "memory_ingest", "source_type": "voice", "channel": "openclaw", "source_ref": "e2e:empty-tts", "language": "en", "importance": "normal", "text": "hello", "tags": ["bridge", "voice"], "metadata": {}, "record_id": "001da0d981214a3580038f7f38728c50"}

@@ -4,11 +4,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import json
+import logging
+from pathlib import Path
+import time
 from typing import Any
 from uuid import uuid4
 
 from d_brain.bot.formatters import format_calendar_view, format_news_briefing
-from d_brain.bot.ux import format_user_error
+from d_brain.bot.text_utils import fix_mojibake
+from d_brain.integrations.openclaw_bridge import (
+    dispatch_command_response as dispatch_bridge_command_response,
+    dispatch_voice_from_message,
+    normalize_bridge_response,
+)
 from d_brain.services.english_tutor import EnglishTutorService, get_active_tutor_session
 from d_brain.services.reflection_voice import ReflectionVoiceService
 from d_brain.services.sidecar_client import SidecarResult, call_sidecar_action
@@ -47,6 +56,112 @@ USAGE_REFLECT = "Использование: /reflect start | /reflect add <sess
 USAGE_REFLECT_CLOSE = "Использование: /reflect close <session_id> [summary]"
 USAGE_REMINDER = "Использование: /reminder list | /reminder deliver"
 
+logger = logging.getLogger(__name__)
+
+
+def _log_adapter_event(
+    *,
+    route: str,
+    user_id: str | int,
+    source_ref: str,
+    handler: str,
+    ok: bool,
+    latency_ms: int,
+    fallback_used: bool,
+    error_code: str | None = None,
+    request_id: str | None = None,
+) -> None:
+    logger.info(
+        "%s",
+        json.dumps(
+            {
+                "event": "openclaw_adapter",
+                "route": route,
+                "user_id": str(user_id),
+                "source_ref": source_ref,
+                "handler": handler,
+                "request_id": request_id or "",
+                "ok": bool(ok),
+                "latency_ms": int(latency_ms),
+                "fallback_used": bool(fallback_used),
+                "error_code": error_code or "",
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
+
+
+def _log_audio_payload_check(
+    *,
+    route: str,
+    source_ref: str,
+    request_id: str | None,
+    audio_intent: str | None,
+    audio_path: str | None,
+    exists: bool | None,
+    size: int | None,
+    tts_provider: str | None,
+    fallback_reason: str | None,
+) -> None:
+    logger.info(
+        "%s",
+        json.dumps(
+            {
+                "event": "openclaw_adapter_audio_payload",
+                "route": route,
+                "source_ref": source_ref,
+                "request_id": request_id or "",
+                "audio_intent": audio_intent or "",
+                "audio_path": audio_path or "",
+                "output_path": audio_path or "",
+                "telegram_method": audio_intent or "",
+                "exists": exists if exists is not None else None,
+                "size": int(size or 0) if size is not None else None,
+                "tts_provider": tts_provider or "",
+                "fallback_reason": fallback_reason or "",
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
+
+
+def _log_empty_tts_output_guard(
+    *,
+    route: str,
+    source_ref: str,
+    request_id: str | None,
+    audio_intent: str | None,
+    audio_bytes: bytes | None,
+    audio_path: str | None,
+    file_exists: bool | None,
+    file_size: int | None,
+) -> None:
+    logger.warning(
+        "%s",
+        json.dumps(
+            {
+                "event": "openclaw_adapter_media_guard",
+                "subsystem": "telegram",
+                "component": "voice",
+                "layer": "adapter",
+                "route": route,
+                "source_ref": source_ref,
+                "request_id": request_id or "",
+                "reason": "empty_tts_output",
+                "audioIntent": audio_intent or "",
+                "hasBytes": isinstance(audio_bytes, bytes),
+                "bytesLen": len(audio_bytes) if isinstance(audio_bytes, bytes) else 0,
+                "hasPath": bool(audio_path),
+                "fileExists": file_exists if file_exists is not None else None,
+                "fileSize": int(file_size or 0) if file_size is not None else None,
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
+
 
 @dataclass(frozen=True, slots=True)
 class ParsedCommand:
@@ -60,6 +175,30 @@ class AdapterError:
     kind: str
     message: str | None = None
     code: str | None = None
+
+
+def _safe_user_error(reason: str | None = None) -> str:
+    base = "Не удалось выполнить команду."
+    if reason:
+        base = f"{base}\nПричина: {reason}."
+    return fix_mojibake(f"{base}\nПопробуй еще раз через минуту.")
+
+
+def _message_has_media_hint(message: dict[str, Any]) -> bool:
+    return bool(
+        message.get("voice")
+        or message.get("audio")
+        or message.get("document")
+        or message.get("audio_bytes")
+        or message.get("media_bytes")
+        or message.get("file_bytes")
+        or message.get("audio_path")
+        or message.get("media_path")
+        or message.get("file_path")
+        or message.get("has_media")
+        or message.get("media_present")
+        or message.get("media_type")
+    )
 
 
 def _source_ref_from_message(message: dict[str, Any]) -> str:
@@ -112,9 +251,9 @@ def _handle_session_command(cmd: ParsedCommand, message: dict[str, Any], user_id
         summary = cmd.args[1] if len(cmd.args) > 1 else None
         error = service.close_session_by_id(int(user_id), session_id, summary)
         if error:
-            return format_user_error(error)
+            return _safe_user_error(error)
         return f"Сессия рефлексии закрыта. id={session_id}"
-    return format_user_error()
+    return _safe_user_error()
 
 
 def _normalize(text: str) -> str:
@@ -583,7 +722,7 @@ def format_response(cmd: ParsedCommand, result: SidecarResult) -> str:
             ),
         )
 
-    return format_user_error()
+    return _safe_user_error()
 
 
 def format_error(error: AdapterError) -> str:
@@ -613,7 +752,7 @@ def format_error(error: AdapterError) -> str:
         if error.message == "word_args":
             return USAGE_WORD
         if error.message == "word_too_long":
-            return format_user_error(TOO_LONG_REASON)
+            return _safe_user_error(TOO_LONG_REASON)
         if error.message == "word_list_args":
             return USAGE_WORD_ALL
         if error.message == "topic_add_args":
@@ -645,38 +784,289 @@ def format_error(error: AdapterError) -> str:
         if error.message == "task_args":
             return USAGE_TASK_ALL
         if error.message == "usage_args":
-            return format_user_error(INVALID_INPUT_REASON)
-        return format_user_error(INVALID_INPUT_REASON)
+            return _safe_user_error(INVALID_INPUT_REASON)
+        return _safe_user_error(INVALID_INPUT_REASON)
 
     if error.kind == "sidecar_error":
         code = error.code
         if code == "not_found":
             return NO_RECORDS_TEXT
         if code == "invalid_payload":
-            return format_user_error(INVALID_INPUT_REASON)
+            return _safe_user_error(INVALID_INPUT_REASON)
         if code == "payload_too_large":
-            return format_user_error(TOO_LONG_REASON)
+            return _safe_user_error(TOO_LONG_REASON)
         if code in {"storage_error", "summary_error", "internal_error"}:
-            return format_user_error()
-        return format_user_error()
+            return _safe_user_error()
+        return _safe_user_error()
 
-    return format_user_error()
+    return _safe_user_error()
 
 
-def main_handler(message: dict[str, Any]) -> str:
+def _build_adapter_response(
+    *,
+    text: str,
+    handled: bool = True,
+    route: str,
+    bridge_handled: bool,
+    status: str = "ok",
+    user_id: str | int,
+    chat_id: int | None,
+    media_detected: bool,
+    audio_intent: str | None = None,
+    audio_path: str | None = None,
+    audio_bytes: bytes | None = None,
+    mime_type: str | None = None,
+    fallback_reason: str | None = None,
+    diagnostics: dict[str, Any] | None = None,
+    source_ref: str | None = None,
+    handler: str | None = None,
+    latency_ms: int | None = None,
+    error_code: str | None = None,
+    request_id: str | None = None,
+) -> dict[str, Any]:
+    diagnostics = dict(diagnostics or {})
+    file_exists: bool | None = None
+    file_size: int | None = None
+    requested_audio_intent = audio_intent
+    requested_audio_path = audio_path
+    requested_audio_bytes = audio_bytes
+    if audio_intent:
+        valid_audio = False
+        if isinstance(audio_bytes, bytes) and len(audio_bytes) > 0:
+            valid_audio = True
+            file_exists = True
+            file_size = len(audio_bytes)
+        elif audio_path:
+            try:
+                p = Path(audio_path)
+                file_exists = p.exists() and p.is_file()
+                if file_exists:
+                    file_size = p.stat().st_size
+                if file_exists and file_size and file_size > 0:
+                    valid_audio = True
+                else:
+                    fallback_reason = fallback_reason or "audio_path_missing_or_empty"
+            except OSError:
+                file_exists = False
+                file_size = None
+                fallback_reason = fallback_reason or "audio_path_unreadable"
+        else:
+            fallback_reason = fallback_reason or "audio_missing_or_empty"
+        if not valid_audio:
+            if fallback_reason in {"audio_path_missing_or_empty", "audio_missing_or_empty"}:
+                fallback_reason = "empty_tts_output"
+            if fallback_reason == "empty_tts_output":
+                diagnostics["tts_empty_output"] = True
+                _log_empty_tts_output_guard(
+                    route=route,
+                    source_ref=source_ref or "",
+                    request_id=request_id,
+                    audio_intent=requested_audio_intent,
+                    audio_bytes=requested_audio_bytes if isinstance(requested_audio_bytes, bytes) else None,
+                    audio_path=requested_audio_path,
+                    file_exists=file_exists,
+                    file_size=file_size,
+                )
+            audio_intent = None
+            audio_path = None
+            audio_bytes = None
+            mime_type = None
+    payload = {
+        "handled": handled,
+        "status": status,
+        "ok": bool(handled) and status == "ok",
+        "route": route,
+        "text": text,
+        "audio_intent": audio_intent,
+        "audio_path": audio_path,
+        "audio_bytes": audio_bytes,
+        "mime_type": mime_type,
+        "meta": {
+            "bridge_handled": bridge_handled,
+            "fallback_reason": fallback_reason or "",
+            "user_id": str(user_id),
+            "chat_id": chat_id,
+            "media_detected": media_detected,
+        },
+        "diagnostics": diagnostics,
+    }
+    _log_adapter_event(
+        route=route,
+        user_id=user_id,
+        source_ref=source_ref or "",
+        handler=handler or ("bridge" if bridge_handled else "adapter"),
+        ok=bool(handled) and status == "ok",
+        latency_ms=int(latency_ms or 0),
+        fallback_used=bool(fallback_reason),
+        error_code=error_code or (status if status != "ok" else ""),
+        request_id=request_id,
+    )
+    if audio_intent or fallback_reason:
+        _log_audio_payload_check(
+            route=route,
+            source_ref=source_ref or "",
+            request_id=request_id,
+            audio_intent=audio_intent,
+            audio_path=audio_path,
+            exists=file_exists,
+            size=file_size,
+            tts_provider=str(diagnostics.get("tts_provider") or ""),
+            fallback_reason=fallback_reason,
+        )
+    return payload
+
+
+def _normalize_bridge_payload(value: str | None | dict[str, Any]) -> dict[str, Any]:
+    normalized = normalize_bridge_response(value)
+    return {
+        "ok": bool(normalized.get("ok", False)),
+        "text": normalized.get("text"),
+        "audio_intent": normalized.get("audio_intent"),
+        "audio_path": normalized.get("audio_path"),
+        "audio_bytes": normalized.get("audio_bytes"),
+        "mime_type": normalized.get("mime_type"),
+        "handled": bool(normalized.get("handled", True)),
+        "status": str(normalized.get("status") or ("ok" if normalized.get("ok") else "error")),
+        "error_code": normalized.get("error_code"),
+        "meta": dict(normalized.get("meta") or {}),
+        "diagnostics": dict(normalized.get("diagnostics") or {}),
+    }
+
+
+def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
+    started = time.perf_counter()
     text = str(message.get("text") or message.get("content") or "")
     user_id = message.get("user_id") or message.get("from_user_id") or "0"
     request_id = message.get("request_id") or uuid4().hex
+    source_ref = _source_ref_from_message(message)
+    chat_id_raw = message.get("chat_id")
+    chat_id = int(chat_id_raw) if isinstance(chat_id_raw, int) else None
+    media_detected = _message_has_media_hint(message)
+    logger.info(
+        "%s",
+        json.dumps(
+            {
+                "event": "openclaw_adapter",
+                "phase": "start",
+                "request_id": str(request_id),
+                "route_hint": "voice_or_command",
+                "user_id": str(user_id),
+                "source_ref": source_ref,
+                "media_detected": bool(media_detected),
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
+    try:
+        bridge_user_id = int(user_id)
+    except (TypeError, ValueError):
+        bridge_user_id = 0
+
+    def respond(*, handler: str | None = None, error_code: str | None = None, **kwargs: Any) -> dict[str, Any]:
+        fallback_reason = str(kwargs.get("fallback_reason") or "")
+        diagnostics = kwargs.get("diagnostics") or {}
+        if not error_code:
+            if kwargs.get("status") == "error":
+                error_code = str(diagnostics.get("stt_error_code") or diagnostics.get("tts_error_code") or "error")
+            elif fallback_reason:
+                error_code = fallback_reason
+        return _build_adapter_response(
+            source_ref=source_ref,
+            handler=handler,
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            error_code=error_code,
+            request_id=str(request_id),
+            **kwargs,
+        )
+
+    if media_detected or (text and not text.strip().startswith("/")):
+        voice_response = _normalize_bridge_payload(main_voice_handler(message, request_id=str(request_id)))
+        if voice_response.get("handled"):
+            diagnostics = voice_response.get("diagnostics") or {}
+            fallback_reason = None
+            if voice_response.get("audio_intent") and not voice_response.get("audio_bytes"):
+                fallback_reason = "voice_audio_missing_or_empty"
+            elif diagnostics.get("tts_empty_output"):
+                fallback_reason = "tts_empty_output"
+            elif diagnostics.get("tts_error_code"):
+                fallback_reason = f"tts_{str(diagnostics.get('tts_error_code'))}"
+            elif voice_response.get("status") == "error":
+                fallback_reason = str(voice_response.get("error_code") or "voice_error")
+            return respond(
+                text=str(voice_response.get("text") or ""),
+                handled=True,
+                status=str(voice_response.get("status") or "ok"),
+                route="voice" if media_detected else "text",
+                bridge_handled=True,
+                user_id=user_id,
+                chat_id=chat_id,
+                media_detected=media_detected,
+                audio_intent=voice_response.get("audio_intent"),
+                audio_path=str(voice_response.get("audio_path") or "") or None,
+                audio_bytes=voice_response.get("audio_bytes")
+                if isinstance(voice_response.get("audio_bytes"), bytes)
+                else None,
+                mime_type=str(voice_response.get("mime_type") or "") or None,
+                fallback_reason=fallback_reason,
+                diagnostics=diagnostics,
+            )
+
+    bridge_response = _normalize_bridge_payload(
+        dispatch_bridge_command_response(
+        text,
+        user_id=bridge_user_id,
+        source_ref=source_ref,
+        request_id=str(request_id),
+        )
+    )
+    if bridge_response.get("text") is not None:
+        return respond(
+            text=str(bridge_response.get("text") or ""),
+            route="command",
+            bridge_handled=True,
+            user_id=user_id,
+            chat_id=chat_id,
+            media_detected=media_detected,
+            audio_intent=str(bridge_response.get("audio_intent") or "") or None,
+            audio_path=str(bridge_response.get("audio_path") or "") or None,
+            diagnostics=bridge_response.get("diagnostics") or {},
+            error_code=str(bridge_response.get("error_code") or "") or None,
+            status=str(bridge_response.get("status") or ("ok" if bridge_response.get("ok") else "error")),
+        )
 
     cmd, err = parse_command(text)
     if err:
-        return format_error(err)
+        return respond(
+            text=format_error(err),
+            route="command",
+            bridge_handled=False,
+            user_id=user_id,
+            chat_id=chat_id,
+            media_detected=media_detected,
+            fallback_reason="invalid_syntax",
+        )
 
     if cmd is None:
-        return format_user_error(INVALID_INPUT_REASON)
+        return respond(
+            text=_safe_user_error(INVALID_INPUT_REASON),
+            route="command",
+            bridge_handled=False,
+            user_id=user_id,
+            chat_id=chat_id,
+            media_detected=media_detected,
+            fallback_reason="missing_command",
+        )
 
     if cmd.name in {"tutor_start", "tutor_stop", "tutor_status", "reflect_start", "reflect_close"}:
-        return _handle_session_command(cmd, message, user_id)
+        return respond(
+            text=_handle_session_command(cmd, message, user_id),
+            route="command",
+            bridge_handled=False,
+            user_id=user_id,
+            chat_id=chat_id,
+            media_detected=media_detected,
+        )
 
     action, payload = dispatch_command(cmd)
     if cmd.name in {"health_add", "task_add", "note_add", "inbox_add", "reminder_deliver"}:
@@ -685,22 +1075,52 @@ def main_handler(message: dict[str, Any]) -> str:
         if chat_id is not None and message_id is not None:
             payload["source_ref"] = f"{chat_id}:{message_id}"
     if cmd.name == "reminder_deliver":
-        chat_id = message.get("chat_id")
         if chat_id is None:
-            return "Не удалось определить chat_id для доставки."
+            return respond(
+                text="Не удалось определить chat_id для доставки.",
+                route="command",
+                bridge_handled=False,
+                user_id=user_id,
+                chat_id=chat_id,
+                media_detected=media_detected,
+                fallback_reason="chat_id_missing",
+            )
         payload["chat_id"] = int(chat_id)
     request = build_request(action, payload, user_id, request_id=request_id)
     result, transport_error = send_to_sidecar(request)
     if transport_error:
-        return format_error(transport_error)
+        return respond(
+            text=format_error(transport_error),
+            route="command",
+            bridge_handled=False,
+            user_id=user_id,
+            chat_id=chat_id,
+            media_detected=media_detected,
+            fallback_reason="transport_error",
+        )
     if result is None:
-        return format_user_error()
+        return respond(
+            text=_safe_user_error(),
+            route="command",
+            bridge_handled=False,
+            user_id=user_id,
+            chat_id=chat_id,
+            media_detected=media_detected,
+            fallback_reason="result_missing",
+        )
     if result.status != "ok":
-        return format_error(AdapterError("sidecar_error", code=result.error_code))
+        return respond(
+            text=format_error(AdapterError("sidecar_error", code=result.error_code)),
+            route="command",
+            bridge_handled=False,
+            user_id=user_id,
+            chat_id=chat_id,
+            media_detected=media_detected,
+            fallback_reason=str(result.error_code or "sidecar_error"),
+        )
     if cmd.name == "news_deliver":
         formatted = format_response(cmd, result)
         briefing = result.data or {}
-        chat_id = message.get("chat_id")
         try:
             call_sidecar_action(
                 "heartbeat_tick",
@@ -719,5 +1139,45 @@ def main_handler(message: dict[str, Any]) -> str:
             )
         except Exception:
             pass
-        return formatted
-    return format_response(cmd, result)
+        return respond(
+            text=formatted,
+            route="command",
+            bridge_handled=False,
+            user_id=user_id,
+            chat_id=chat_id,
+            media_detected=media_detected,
+        )
+    return respond(
+        text=format_response(cmd, result),
+        route="command",
+        bridge_handled=False,
+        user_id=user_id,
+        chat_id=chat_id,
+        media_detected=media_detected,
+    )
+
+
+def main_handler(message: dict[str, Any]) -> str:
+    response = main_handler_response(message)
+    return str(response.get("text") or "")
+
+
+def main_voice_handler(message: dict[str, Any], request_id: str | None = None) -> dict[str, Any]:
+    """OpenClaw voice/text routing entrypoint with normalized payload."""
+    user_id = message.get("user_id") or message.get("from_user_id") or "0"
+    chat_id = message.get("chat_id")
+    media_detected = _message_has_media_hint(message)
+    try:
+        bridge_user_id = int(user_id)
+    except (TypeError, ValueError):
+        bridge_user_id = 0
+    response = dispatch_voice_from_message(message, user_id=bridge_user_id, request_id=request_id)
+    logger.info(
+        "OpenClaw adapter voice-dispatch user_id=%s chat_id=%s media_detected=%s bridge_handled=%s status=%s",
+        str(user_id),
+        chat_id,
+        media_detected,
+        bool(response.get("handled")),
+        str(response.get("status") or "ok"),
+    )
+    return response

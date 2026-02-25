@@ -23,6 +23,25 @@
 
 ## Stages
 
+### Transport Migration: OpenClaw-Only Telegram (Phase 1) (P0)
+Goals
+- Make OpenClaw the only Telegram polling process.
+- Keep d_brain as reusable business logic and helpers.
+- Provide a small CLI bridge for OpenClaw command integration.
+
+Tasks
+- Disable d_brain polling by default in normal operation (env flag).
+- Extract reusable UX helpers (status/help/plan placeholders) from Telegram handlers.
+- Add CLI entry points to call the helpers from OpenClaw.
+- Document the OpenClaw-only runtime model in the runbook.
+
+Acceptance Criteria
+- No 409 getUpdates conflicts when OpenClaw is the only poller.
+- d_brain can be used without running aiogram polling.
+- OpenClaw can invoke the helper CLI successfully.
+Status
+- In progress: OpenClaw-only polling and bridge handlers are in place; transport-agnostic command/voice routing is centralized in `d_brain.integrations.openclaw_bridge`; production command MVP plus v1.1 UX polish (`/ping`, `/version`, `/voice on|off|status`), duplicate-update guard, TTS fallback observability, no-network E2E/health/fallback/ops smokes, and Windows ops recovery wrappers are available. v1.2 bridge preferences + reliability finish is implemented (`/prefs`, per-user `language_mode`/`voice_reply`/`brevity`, prefs-aware bridge voice behavior, sidecar timeout/degrade guard, prefs smokes). v1.3 bridge observability/admin controls are implemented (`/diag`, `/diag full`, runtime error counters/recent failures, normalized structured bridge/handler logs, diagnostics smokes). v1.4 RC hardening pass completed for timeout/log sanitization, command safety guards, unified no-polling RC smoke suite, and Telegram voice-note STT observability hardening (stable fallback taxonomy, expanded structured evidence fields, operator log-summary helper, edge smokes). Remaining work is MSI end-to-end OpenClaw runtime verification plus OpenClaw cron/system hook wiring to `d_brain.integrations.openclaw_jobs.run_job(...)` and runtime sender registration on startup.
+
 ### Stage 1: Foundation (P0)
 Goals
 - Scaffold core repo structure and docs discipline.
@@ -398,3 +417,12 @@ Acceptance Criteria
 - Runbook includes Stage 18 verification steps.
 Status
 - Implemented first pass; MSI validated.
+
+### Next Slice: OpenClaw Cron/System Hook Wiring for Jobs Runner (P1)
+Goal
+- Wire OpenClaw cron/system hooks to `d_brain.integrations.openclaw_jobs.run_job(...)` with normalized context and runtime sender registration.
+
+Acceptance Criteria
+- OpenClaw cron hook can invoke `run_job("heartbeat_summary" | "daily_digest" | "plan_reminder_dispatch", ...)` without aiogram objects.
+- Runtime sender registration is applied at OpenClaw startup and delivery states move from `deferred` to `sent` when target mapping exists.
+- Hook path logs include `job_type`, `duration_ms`, and `outbound_state` and preserve non-fatal fallback behavior.

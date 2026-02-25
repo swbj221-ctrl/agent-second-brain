@@ -19,7 +19,7 @@ Reason: Cyrillic rendering is unreliable in the current environment.
 ## Pending
 - Persistence store selection
 - Interface contract between skill and sidecar
-- Stage 16 manual Telegram verification on MSI
+- Complete remaining OpenClaw-only Telegram UX migration beyond the centralized command and voice bridge paths
 
 ## Updates
 - 2026-02-23 | Migration workflow using `scripts/migrate.py` + SQL files | Accepted | Simple, local SQLite-friendly baseline for Stage 1.
@@ -34,6 +34,21 @@ Reason: Cyrillic rendering is unreliable in the current environment.
 - 2026-02-24 | OpenClaw gateway trusted proxies include loopback for dev tunnel | Accepted | Restores local client detection behind proxy without changing bind or auth.
 - 2026-02-24 | OpenClaw workspace bootstrap/heartbeat files use lowercase filenames | Accepted | Ensures bootstrap/heartbeat detection on Windows.
 - 2026-02-24 | Summarize CLI must be available on PATH for OpenClaw voice transcription | Accepted | Avoids CLI launch failures; use a PATH shim when needed.
+- 2026-02-24 | OpenClaw is the only Telegram polling process (Variant 2) | Accepted | Prevents 409 conflicts and centralizes transport in OpenClaw.
+- 2026-02-24 | OpenClaw command parsing for help/status/plan routes is centralized in `openclaw_bridge.dispatch_command` | Accepted | Keeps transport wrappers thin and avoids duplicated bridge logic across OpenClaw adapter and CLI.
+- 2026-02-24 | OpenClaw voice/text mode routing is centralized in `openclaw_bridge.dispatch_voice` with RU default STT and EN tutor-only STT | Accepted | Keeps transport wrappers thin, preserves d_brain transport agnosticism, and prevents duplicated STT/TTS mode logic.
+- 2026-02-24 | Strict model routing policy is centralized in `d_brain.services.model_routing` | Accepted | Enforces OpenAI-first reasoning, local utility-only defaults, explicit fallback flags, and routing diagnostics across bridge + periodic sidecar paths.
+- 2026-02-24 | Unified OpenClaw-first outbound delivery is centralized in `d_brain.integrations.openclaw_outbound` | Accepted | Provides one transport-agnostic send API with structured safe results while preserving compatibility via a legacy adapter shim.
+- 2026-02-24 | Unified memory ingestion is centralized in `d_brain.memory.ingestion` and keeps indexing best-effort | Accepted | Normalizes text/voice/command/job events into one contract, writes to existing vault/session stores, and degrades to deferred index queue instead of failing runtime flows.
+- 2026-02-24 | Transport-agnostic local health snapshot is centralized in `d_brain.integrations.health` | Accepted | Reuses one no-network health contract for bridge `/health`/`/diag`, CLI diagnostics, and smokes while keeping transport wrappers thin.
+- 2026-02-24 | Windows OpenClaw operations use reuse-first wrappers under `ops/` | Accepted | Keeps recovery/startup UX stable and idempotent by wrapping existing `scripts/*` implementations instead of duplicating runtime logic.
+- 2026-02-24 | Single-poller conflict detection is warning-only (health/diag) | Accepted | Preserves non-disruptive diagnostics and recovery hints in production without killing processes automatically from runtime code.
+- 2026-02-24 | OpenClaw bridge duplicate-update protection uses a short process-local TTL cache | Accepted | Reuse-first hardening that suppresses short-window replays without schema changes or cross-process coordination complexity.
+- 2026-02-24 | Voice reply enable/disable is a per-user bridge preference stored in the existing session store | Accepted | Adds explicit user control for TTS without introducing a new settings table or changing transport adapters.
+- 2026-02-24 | Bridge-level user preferences use session JSONL `user_pref` entries (`language_mode`, `voice_reply`, `brevity`) | Accepted | Reuse existing session store, avoid schema changes, keep transport-agnostic behavior in the bridge layer.
+- 2026-02-24 | Bridge runtime observability uses an in-memory error tracker and `/diag full` (no DB persistence) | Accepted | Lightweight operator diagnostics with safe reset-on-restart semantics and no schema/transport coupling.
+- 2026-02-24 | Bridge degraded/error logs sanitize exception text and keep timeout-safe short RU fallbacks | Accepted | RC hardening to reduce secret leakage risk while preserving operator diagnostics and non-fatal behavior.
+- 2026-02-24 | Telegram voice-note STT diagnostics use a stable fallback reason taxonomy + structured evidence fields | Accepted | Speeds operator triage for `message.voice` failures without logging secrets/raw transcripts; reuses existing in-memory observability counters.
 
 # Architectural Decisions
 
@@ -82,3 +97,4 @@ Documentation Language Contract:
 All docs and generated documentation must be in English only (no Cyrillic).
 This includes markdown files, comments in documentation templates, progress notes, context packs, runbooks, and architecture notes.
 Reason: Cyrillic rendering is unreliable in the current environment.
+- 2026-02-24 | Scheduled digest delivery uses per-user OpenClaw target mapping with unified outbound contract and safe deferred fallback | Accepted | Keeps OpenClaw-only transport while allowing runtime sender integration without changing bridge API.

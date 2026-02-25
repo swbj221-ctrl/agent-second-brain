@@ -7,6 +7,63 @@
 - One sidecar backend for storage, workers, schedulers, collectors, and utility services.
 - Local LLM is a utility layer; Codex handles reasoning/dialog/final synthesis.
 - Anti-context-bloat: structured retrieval first, summaries over raw transcripts, top-k context.
+- Production transport is OpenClaw-first only; aiogram polling is dev-only.
+
+## Documentation Contract (Workflow Rule)
+- Any code/logic/routing/behavior change implemented via Codex/OpenClaw must update docs in the same session.
+- Must-update files:
+  - `docs/progress.md`
+  - `docs/runbook.md`
+  - `docs/openclaw-integration.md`
+  - `.openclaw/workspace/BOOTSTRAP.md` (workspace file currently `.openclaw/workspace/bootstrap.md`)
+  - `.openclaw/workspace/HEARTBEAT.md` (workspace file currently `.openclaw/workspace/heartbeat.md`)
+- Conditional updates (if impacted):
+  - `docs/cutover-checklist.md`
+  - `docs/release-notes-v1.0-draft.md`
+  - skill docs under `vault/.claude/skills/...` or `docs/skills/...`
+  - smoke checks in `scripts/*`
+
+## Session Continuity (OpenClaw-first Workflow)
+- Session close must record:
+  - current status
+  - next step
+  - exact continuation command
+- Session open must read:
+  - workspace bootstrap + heartbeat
+  - `docs/progress.md`
+  - latest `docs/learnings.md` entries
+- Purpose: preserve continuity across sessions while keeping context minimal and explicit.
+- Keep the next exact operator command in workspace heartbeat for live cutover/sign-off continuation.
+
+## Skills in Workflow (Internal)
+- `skill-creator`: use when creating/updating skills; follow `docs/skill-contract.md`.
+- `self-improving-agent`: if available in the active skill registry, use it for learning capture workflow; otherwise use `docs/learnings.md` fallback and document the same outcome.
+
+## v1.0 Production Sign-off Gating (Live Telegram Path)
+- Final verdict can be `GO` only if all are verified on the live OpenClaw Telegram transport path:
+  - Telegram channel status verified via OpenClaw gateway
+  - manual command acceptance verified
+  - manual voice acceptance verified
+- If any item is missing or unverified, verdict must be `GO WITH KNOWN LIMITATIONS` or `NO-GO`.
+- Use `docs/cutover-checklist.md`, `docs/live-telegram-acceptance-template.md`, and `ops/capture-live-signoff.ps1`.
+
+## Model Routing Policy (Strict)
+- Single source of truth: `d_brain.services.model_routing.resolve_route(...)`.
+- Task type defaults:
+  - `MAIN_REASONING` -> `openai`
+  - `VOICE_REPLY_REASONING` -> `openai`
+  - `HEARTBEAT` -> `local`
+  - `CRON_SUMMARY` -> `local`
+  - `LIGHT_CLASSIFICATION` -> `local`
+  - `COMMAND_STATUS` -> `deterministic`
+- Command and voice routing paths apply policy in `d_brain.integrations.openclaw_bridge`.
+- Sidecar heartbeat/cron paths apply policy in:
+  - `d_brain.sidecar.dispatcher` (`heartbeat_tick`, `digest_generate`)
+  - `d_brain.sidecar.jobs` (news/reminder delivery logging and daily briefing generation)
+- Fallback rules:
+  - Local unavailable -> optional fallback to OpenAI for utility tasks only (`MODEL_ROUTE_ALLOW_LOCAL_TO_OPENAI_FALLBACK`).
+  - OpenAI unavailable -> main reasoning fails gracefully by default.
+  - OpenAI -> local fallback is disabled unless explicitly enabled (`MODEL_ROUTE_ALLOW_OPENAI_TO_LOCAL_FALLBACK`).
 
 ## Skill Registry (OpenClaw Main)
 - Main skill location: `vault/.claude/skills/openclaw-main`.
@@ -45,6 +102,105 @@
   - `/reflect start`
   - `/reflect close <session_id> [summary]`
   - `/reminder deliver`
+- OpenClaw bridge dispatch (transport-safe shared path):
+  - `/help`, `/status`, `/plan list`, and `/plan add <title>` route through
+    `d_brain.integrations.openclaw_bridge.dispatch_command`.
+  - This keeps command behavior centralized in the d_brain bridge and avoids duplicate logic in the skill adapter.
+  - Voice/text mode routing now also uses a shared bridge path:
+    `d_brain.integrations.openclaw_bridge.dispatch_voice`.
+  - STT language policy is centralized: default `ru`; `en` only for explicit tutor mode.
+  - Transcript-only text does not override real media input when media is present.
+
+## Production Command Contract (MVP, OpenClaw-first)
+- Production Telegram transport remains OpenClaw-only (no aiogram polling in production mode).
+- Bridge-owned command set (stable MVP):
+  - `/help`
+  - `/diag`
+  - `/diag full`
+  - `/ping`
+  - `/version`
+  - `/status`
+  - `/mode`
+  - `/prefs`
+  - `/prefs brevity short|normal`
+  - `/prefs lang ru|en_tutor`
+  - `/prefs voice on|off`
+  - `/voice on|off|status` (alias-compatible voice preference control)
+  - `/plan add <title>`
+  - `/plan list`
+  - `/plan done <id>`
+  - `/plan delete <id>` (soft-delete via `event_update_status status=canceled` to reuse existing plan lifecycle)
+- Parsing rules:
+  - Extra spaces are normalized.
+  - Empty or malformed plan commands return short Russian usage errors.
+  - Non-numeric IDs return a short Russian error (`ID must be a number` in RU UX).
+
+### Per-User Bridge Preferences (v1.2)
+- Storage: existing session JSONL store (`SessionStore`) via `user_pref` entries (no secrets, no Telegram SDK coupling).
+- Keys:
+  - `language_mode`: `ru` (default) | `en_tutor`
+  - `voice_reply`: `on` (default) | `off`
+  - `brevity`: `short` (default) | `normal`
+- Applied behavior in bridge dispatch:
+  - `language_mode=en_tutor` makes default bridge voice/text routing prefer tutor mode and English STT.
+  - `voice_reply=off` skips TTS attempts and returns text replies with safe fallback behavior.
+  - `brevity=short` returns shorter help/fallback/warning texts.
+
+### Reliability Guard (Bridge -> Sidecar)
+- Plan bridge handlers use a small timeout/exception guard around sidecar calls.
+- On timeout/error the bridge returns a short safe fallback response and logs a structured degraded event (`degraded=true`) with handler/error type.
+- Process should not crash due to sidecar/tool errors in bridge command handling.
+
+### Observability and Admin Quick Controls (v1.3)
+- `/diag` returns a short operator-friendly summary (transport mode, prefs summary, STT/TTS flags, sidecar probe, uptime, error counter summary).
+- `/diag full` adds commit hash fallback, process start time, top error counters, and recent sanitized failures (no secrets, no API keys, no sensitive paths).
+- `/ping` is a lightweight bridge response with route info and a small timing value.
+- `/version` returns `d_brain` version + build + commit hash (fallback `unknown`).
+- Runtime error tracker is in-memory only (resets on process restart) and is used for `/diag` plus structured logs.
+- Bridge and key handler logs are normalized structured JSON entries with fields including `handler`, `source`, `action`, `status`, `error_type`, and `duration_ms`.
+
+### RC Hardening Notes (v1.4)
+- Bridge timeout handling is unified and timeout-safe for sidecar calls, STT, and TTS; `/diag full` reports effective timeout values for operator visibility.
+- Degraded/error logs sanitize exception text to avoid leaking tokens/keys while preserving short diagnostic context.
+- Command safety guards reject oversized command inputs and unsupported extra arguments for strict commands (`/help`, `/status`, `/ping`, `/version`, `/diag`) with short RU usage responses.
+- OpenClaw adapter applies an early media payload guard before Telegram media send handoff: empty TTS bytes/zero-size files are downgraded to text fallback with structured warning `reason=empty_tts_output` (no media send attempt).
+- OpenClaw bridge Telegram voice source selection now enforces explicit priority (`message.voice` -> `message.audio` -> audio `message.document` -> transcript/text fallback), attempts voice-note file download/STT before trusting auto-transcript text, and returns voice-note-safe retry text on download/STT/empty-transcript failures (no ".ogg/.m4a file" request for normal voice notes).
+- Bridge emits structured diagnostics logs for voice source selection and ingest (`telegram_stt_source_select`, `telegram_voice_ingest`) with media flags, download outcome, STT source/outcome, and fallback reason fields.
+- Voice-note diagnostics schema is now hardened for operator triage (no secrets): `requestId`, `userIdHash`, `messageKind`, Telegram file-id presence flags, downloader callback name/path, media bytes/path evidence, transcript shape hints (`transcriptLen`, `transcriptLooksAuto`), `finalInputSource`, `finalOutcome`, `fallbackReason` (stable enum), and `responseMode` when available.
+- Bridge normalizes voice-note fallback reasons to a small stable taxonomy for logs/diagnostics (`voice_download_not_attempted`, `voice_download_failed`, `media_declared_without_bytes`, `stt_error`, `stt_empty`, `empty_transcript_voice_note`, `transcript_only_auto`, `transcript_only_no_media`, `no_voice_content`, `unsupported_media_shape`).
+- Existing in-memory observability counters are reused for lightweight voice diagnostics counters (for example `telegram_voice_source.voice_file`, `telegram_voice_source.transcript`, `telegram_voice_fallback.voice_download_failed`, `telegram_voice_fallback.empty_transcript_voice_note`, `telegram_voice_fallback.transcript_only_auto`).
+- Bridge API remains backward-compatible (normalized response contract + legacy keys preserved).
+
+### Unified OpenClaw Bridge Response Contract
+- Bridge responses are normalized to a shared contract (command + voice), while keeping legacy keys for compatibility:
+  - `text` (`str | null`)
+  - `audio_intent` (`sendVoice | sendAudio | null`)
+  - `audio_path` (`str | null`) (optional path-based media handoff; may be null when legacy `audio_bytes` is used)
+  - `meta` (`object`)
+  - `ok` (`bool`)
+  - `error_code` (`string`, optional)
+- Legacy compatibility keys retained for current adapter/tests:
+  - `handled`, `status`, `audio_bytes`, `mime_type`, `diagnostics`
+
+### RU UX Examples (MVP)
+- `/plan done 12` -> `Готово: #12 отмечен выполненным.`
+- `/plan delete 12` -> `Удалено: #12.`
+- `/plan done abc` -> short invalid ID error in RU
+- `/mode` -> current mode + TTS on/off summary
+- `/diag` is available as a transport-agnostic diagnostics command (MVP+ / operational, not required for the command MVP contract)
+
+## Final Production Runtime Split
+- OpenClaw owns Telegram transport (gateway/polling/channel integration).
+- `d_brain` owns transport-agnostic bridge dispatch, business logic, sidecar actions, and service adapters.
+- Model routing remains split:
+  - OpenAI for main reasoning and voice reasoning replies
+  - local providers for utility/search/cron tasks (with explicit fallback flags)
+
+## E2E Stability Notes (OpenClaw-first)
+- Non-command plain text in default mode is safe and non-fatal (bridge may ignore if no active tutor/reflection mode).
+- Transcript-only warning remains short and does not override real media when media is present.
+- Empty/missing TTS media falls back to text only; handler should not crash or loop on media retries.
+- Single-poller guard remains active: `d_brain` should not start aiogram polling when `telegram_disabled=True`.
 
 ## What Stays Outside OpenClaw Core
 - Domain logic and orchestration policies.
@@ -77,6 +233,73 @@ Summarize (CLI):
 - Skill -> Sidecar: HTTP/RPC with explicit schemas and payload limits.
 - Sidecar -> Skill: deterministic responses and error contracts.
 - Logging/metrics: structured logs and trace IDs.
+
+## Outbound Delivery Path (OpenClaw-first)
+- Unified outbound module: `d_brain.integrations.openclaw_outbound`.
+- Primary API:
+  - `send_text(...)`
+  - `send_tts(...)` (safe text fallback when TTS output is empty or media transport is unavailable)
+  - `send_digest(...)`
+  - `deliver(...)`
+- Runtime sender registration:
+  - `register_runtime_sender(...)` sets the process-local send callable used by bridge/scheduler paths.
+  - When sender is not registered, outbound returns safe `delivery_state=deferred` (no exceptions).
+- Structured result contract:
+  - `ok`
+  - `delivery_state` (`sent`, `deferred`, `no_target`, `failed`)
+  - `channel`
+  - `target`
+  - `message_id`
+  - `error`
+  - `fallback_used` / `fallback_reason`
+- Legacy shim remains at `d_brain.integrations.openclaw_outbound_adapter` for compatibility; production paths should use the unified outbound module.
+
+## Job Runner Path (OpenClaw-first)
+- Transport-agnostic jobs module: `d_brain.integrations.openclaw_jobs`.
+- Integration entrypoint:
+  - `run_job(job_type, context=..., runtime_sender=...)`
+- Normalized job context fields:
+  - `user_id`
+  - `channel`
+  - `target`
+  - `source_ref`
+  - `dry_run`
+  - `trigger`
+- Current job types:
+  - `heartbeat_summary`
+  - `daily_digest`
+  - `plan_reminder_dispatch`
+- Job result contract:
+  - `ok`
+  - `job_type`
+  - `executed`
+  - `skipped_reason`
+  - `outbound_result`
+  - `metrics` (`items_count`, `duration_ms`)
+  - `error`
+  - `payload`
+- Fail-safe policy:
+  - Typical delivery/runtime errors return structured safe results.
+  - Exceptions are captured into `error` and do not crash caller paths.
+
+## Memory Ingestion Path (OpenClaw-first)
+- Unified ingestion module: `d_brain.memory.ingestion`.
+- Entry points:
+  - `ingest_record(...)`
+  - `ingest_message_event(...)`
+  - `ingest_job_result(...)`
+- Normalized ingestion fields:
+  - `source_type` (`text`, `voice`, `command`, `job`, `system`)
+  - `user_id`, `channel`, `source_ref`
+  - `text`, `language`, `tags`
+  - `created_at`, `importance`, `needs_indexing`
+- Storage reuse:
+  - `VaultStorage.append_to_daily(...)`
+  - `SessionStore.append(...)` when `user_id` is numeric
+- Indexing behavior:
+  - Optional indexer callable for lightweight immediate indexing.
+  - If unavailable/fails, ingestion writes a deferred marker to `vault/.index_queue.jsonl`.
+  - Ingestion/indexing failures are non-fatal and return structured safe results.
 
 ## Minimal Skill <-> Sidecar Contract (Draft)
 Scope: Stage 1 only. Keep the surface small and avoid over-design.
@@ -882,6 +1105,7 @@ Scope: text-only Telegram commands wired to existing sidecar actions with a thin
 - No hardcoding in skills or sidecar.
 - Migrations are explicit and versioned.
 - Context payloads are validated and size-limited.
+- Documentation updates are mandatory for behavior/routing changes (see Documentation Contract above).
 
 ## Stage 12: Voice English Tutor MVP (First Pass)
 Scope: message-based voice English tutor loop in Telegram using existing English session storage.

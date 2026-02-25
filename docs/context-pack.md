@@ -22,7 +22,8 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
-- OpenClaw-first transfer: OpenClaw adapter batches implemented; ops fixes for gateway trusted proxies and workspace bootstrap/heartbeat detection.
+- Deliver v1.3 operator readiness for the OpenClaw-first production path: bridge-level user preferences (`/prefs`), reliability guardrails (timeout-safe sidecar degrade), and transport-agnostic diagnostics/admin quick controls (`/diag`, `/diag full`, `/ping`, `/version`) without changing the transport architecture.
+- v1.4 RC hardening pass: unify/sanitize bridge timeout/fallback behavior, tighten command safety, finalize offline voice/command/diag no-polling smoke coverage, and add a single RC smoke suite command.
 
 ## Known Blockers
 - MSI network TLS inspection blocks `summarize` URL fetches until corporate root CA is installed and provided to Node via `NODE_EXTRA_CA_CERTS`.
@@ -58,6 +59,30 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - MSI venv standardized on `.venv`; gitignore tightened for venv variants.
 - OpenClaw main adapter Phase 3 Batches A-D bridged (read-only, low-risk writes, medium workflows, and command-only voice/delivery).
 - OpenClaw gateway trusted proxies set for dev tunnel; workspace bootstrap/heartbeat filenames normalized to lowercase.
+- Variant 2 migration started: d_brain polling can be disabled via env flag; OpenClaw should be the only Telegram poller.
+- Reusable UX helpers and a small CLI entry were added to prepare OpenClaw integration.
+- Transport-agnostic command dispatcher is now centralized in `d_brain.integrations.openclaw_bridge.dispatch_command` with OpenClaw adapter + CLI smoke coverage.
+- Transport-agnostic voice/text dispatcher is now centralized in `d_brain.integrations.openclaw_bridge.dispatch_voice` and wired to the OpenClaw main adapter entrypoint.
+- Voice smoke checks (`openclaw_voice_dispatch_smoke.py`, `voice_media_preference_check.py`) passed locally via `.venv`.
+- Unified outbound delivery module is now available at `d_brain.integrations.openclaw_outbound` with compatibility shim support for legacy adapter imports.
+- Digest outbound smoke now covers `no_target`, `text_only`, and `tts_requested_but_empty` cases without aiogram polling.
+- Transport-agnostic memory ingestion is now available at `d_brain.memory.ingestion` with unified contracts (`ingest_record`, `ingest_message_event`, `ingest_job_result`) and safe index deferral to `vault/.index_queue.jsonl`.
+- OpenClaw bridge command/voice paths and OpenClaw job runner now call ingestion entrypoints with non-fatal behavior.
+- Memory ingestion smoke coverage (`scripts/memory_ingestion_smoke.py`) validates text, voice transcript, job summary, empty-content skip, and indexer-unavailable fallback.
+- Unified no-network E2E smoke coverage is available via `scripts/openclaw_e2e_smoke.py` for command/voice/job routing plus ingestion/indexer non-fatal fallback cases.
+- Production diagnostics and fallback reliability smokes are available via `scripts/openclaw_prod_diag.py` and `scripts/openclaw_fallback_smoke.py`.
+- Transport-agnostic health snapshot (`d_brain.integrations.health.get_health_snapshot`) now powers bridge `/health`/`/diag` and CLI `health`/`diag`, including single-poller conflict risk hints for OpenClaw-first production mode.
+- Windows `ops/` scripts now provide one-command OpenClaw start/stop/restart/status, PATH session repair, duplicate poller cleanup, and ACL quick-fix wrappers.
+- OpenClaw bridge command MVP is now polished with `/ping`, `/version`, and `/voice on|off|status` in addition to `/help`, `/status`, `/mode`, and `/plan *`.
+- Bridge entrypoints now use a short TTL duplicate-update guard (`duplicate_skipped=true` in structured logs/meta) to suppress repeated processing of the same command/voice payload within one process.
+- Per-user voice reply preference is stored via the existing session store (reuse-first, no schema changes); voice requests can be force-disabled (`/voice off`) while keeping text responses available.
+- TTS send path observability is hardened with structured logging for provider/output file/send method/size and explicit text fallback reasons.
+- Bridge-level per-user preferences are available via session-store-backed `/prefs` (`language_mode`, `voice_reply`, `brevity`) with `/voice on|off|status` alias compatibility; bridge voice dispatch applies these preferences.
+- Bridge diagnostics/admin quick controls are available via `/diag` and `/diag full` (OpenClaw mode, prefs summary, STT/TTS flags, sidecar probe, uptime, runtime error counters/recent failures, commit hash fallback), plus improved `/ping` timing and `/version` commit hash fallback.
+- Bridge runtime observability now includes lightweight in-memory error counters + recent failure ring buffer and normalized structured bridge/handler logs (`handler`, `source`, `action`, `status`, `error_type`, `duration_ms`).
+- Bridge RC hardening adds sanitized degraded/exception logging for sidecar/STT/TTS paths, `/diag full` timeout visibility, and command safety guards for oversized input + invalid extra args on strict commands.
+- Unified no-polling RC smoke suite is available via `scripts/openclaw_rc_smoke.py` (no-polling, readiness, command/prefs/diag/voice/media-priority checks).
+- Telegram voice-note STT hardening/observability follow-up is implemented in the OpenClaw bridge: stable fallback taxonomy, expanded structured evidence fields (`telegram_stt_source_select` / `telegram_voice_ingest`), lightweight voice source/fallback counters, and operator helper `scripts/openclaw_voice_log_summary.py`.
 
 ## Key Paths
 - `docs/` operational documentation

@@ -10,6 +10,11 @@ from typing import Any
 from pydantic import ValidationError
 
 from d_brain.config import Settings, get_settings
+from d_brain.services.model_routing import (
+    TASK_CRON_SUMMARY,
+    TASK_HEARTBEAT,
+    resolve_route,
+)
 
 from .errors import (
     INTERNAL_ERROR_CODE,
@@ -420,11 +425,29 @@ def handle_request(
             )
         elif request.action == "heartbeat_tick":
             payload = HeartbeatTickPayload.model_validate(request.payload or {})
+            route = resolve_route(TASK_HEARTBEAT, active_settings)
+            logger.info(
+                "Model routing: channel=sidecar action=heartbeat_tick task_type=%s provider=%s model=%s fallback_used=%s allowed=%s reason=%s",
+                route.task_type,
+                route.selected_provider,
+                route.selected_model,
+                route.fallback_used,
+                route.allowed,
+                route.reason or "",
+            )
+            if not route.allowed:
+                raise SidecarError(
+                    INTERNAL_ERROR_CODE,
+                    "Heartbeat routing policy disallows execution.",
+                )
+            event_details = dict(payload.event_details or {})
+            event_details["model_routing"] = route.to_diagnostics()
             data = store.create_heartbeat_log(
                 event_type=payload.event_type,
                 event_source=payload.event_source,
-                event_details=payload.event_details,
+                event_details=event_details,
             )
+            data["model_routing"] = route.to_diagnostics()
         elif request.action == "digest_generate":
             payload = DigestGeneratePayload.model_validate(request.payload or {})
             if payload.digest_type != "system_state":
@@ -432,7 +455,23 @@ def handle_request(
                     "invalid_payload",
                     f"Unsupported digest_type: {payload.digest_type}",
                 )
+            route = resolve_route(TASK_CRON_SUMMARY, active_settings)
+            logger.info(
+                "Model routing: channel=sidecar action=digest_generate task_type=%s provider=%s model=%s fallback_used=%s allowed=%s reason=%s",
+                route.task_type,
+                route.selected_provider,
+                route.selected_model,
+                route.fallback_used,
+                route.allowed,
+                route.reason or "",
+            )
+            if not route.allowed:
+                raise SidecarError(
+                    INTERNAL_ERROR_CODE,
+                    "Cron summary routing policy disallows execution.",
+                )
             data = store.generate_system_state_digest()
+            data["model_routing"] = route.to_diagnostics()
         elif request.action == "digest_get_latest":
             DigestGetLatestPayload.model_validate(request.payload or {})
             data = store.get_latest_digest()
