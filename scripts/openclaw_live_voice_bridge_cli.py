@@ -63,10 +63,16 @@ def _canonical_request_id(value: Any = None, *, payload: dict[str, Any] | None =
 def _emit_marker_visible(marker: dict[str, Any] | None) -> None:
     if not isinstance(marker, dict):
         return
+    line = ""
     try:
-        print(json.dumps(marker, ensure_ascii=True, separators=(",", ":")), file=sys.stderr, flush=True)
+        line = json.dumps(marker, ensure_ascii=True, separators=(",", ":"))
     except Exception:
-        pass
+        return
+    for stream in (sys.stderr, sys.stdout):
+        try:
+            print(line, file=stream, flush=True)
+        except Exception:
+            pass
 
 
 def _configure_utf8_stdio() -> None:

@@ -1460,6 +1460,6 @@ Optional live debugging:
     - `LIVE_PATH_CONFIRMED_BRIDGE` is only valid when the selected `full_chain_request_id` is discoverable in the provided `--log-capture` raw lines (grep-equivalent guard against session-tail/synthetic contamination).
     - `session_deepgram_direct=true` is scoped to the current run evidence: Deepgram in `--log-capture`, or session Deepgram evidence with a requestId also seen in the provided log capture.
   - Marker sink alignment note (live discoverability hardening):
-    - Redirect shim and wrapper CLI mirror path markers (`openclaw_voice_dispatch_path_select|error`, `openclaw_voice_dispatch_wrapper_trace`) as standalone JSON lines to `stderr` and include both `requestId` and `request_id`.
-    - Redirect shim forwards wrapper `stderr` marker lines so the wrapper/redirect stages are more likely to appear in `openclaw logs --follow --json --plain` captures.
+    - Redirect shim and wrapper CLI mirror path markers (`openclaw_voice_dispatch_path_select|error`, `openclaw_voice_dispatch_wrapper_trace`) as standalone JSON lines to both `stdout` and `stderr`, and include both `requestId` and `request_id`.
+    - Redirect shim forwards wrapper marker lines so the wrapper/redirect stages are more likely to appear in `openclaw logs --follow --json --plain` captures even when one stream is dropped.
     - Adapter pre/post bridge markers also include both `requestId` and `request_id`.
