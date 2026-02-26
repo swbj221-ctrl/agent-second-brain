@@ -44,6 +44,7 @@
 - Safe diagnostics were extended with `rawTextLen/hash/preview`, `rawContentLen/hash/preview`, `embeddedPromptSuppressed*`, and embedded-media inference evidence (`inferredMediaFromEmbeddedPrompt`, `embeddedMediaPath*`, `embeddedMediaMimeType`, `embeddedMediaExt`) across source-select/ingest pipeline logs.
 - Media-backed requests enforce STT source precedence (`stt_source` forced to media path when audio bytes are available).
 - Wrapper-first routing, anti-bypass behavior, and strict same-`requestId` proof chain remain unchanged.
+- Top-level adapter outgoing boundary now emits strict `chat_response_source` (`bridge_stt|provider_transcript_blocked|fallback_error`) plus `media_or_inferred` for Telegram live triage (`openclaw logs --follow --json --plain`).
 
 ## Skills in Workflow (Internal)
 - `skill-creator`: use when creating/updating skills; follow `docs/skill-contract.md`.
