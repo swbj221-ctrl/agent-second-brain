@@ -197,10 +197,34 @@ def _resolve_response_text_source(diagnostics: dict[str, Any], *, status: str, t
     if source_used == "provider_transcript":
         return "provider_transcript"
     if status == "error" or str(diagnostics.get("fallback_reason") or "").strip():
-        return "fallback"
+        return "fallback_error"
     if text.strip():
-        return "fallback"
-    return "fallback"
+        return "fallback_error"
+    return "fallback_error"
+
+
+def _enforce_voice_reply_guard(
+    *,
+    status: str,
+    text: str,
+    diagnostics: dict[str, Any],
+    media_or_inferred: bool,
+) -> tuple[str, str, str]:
+    source = _resolve_response_text_source(diagnostics, status=status, text=text)
+    if media_or_inferred and source == "provider_transcript":
+        diagnostics["final_transcript_source_block_reason"] = "media_present_or_inferred_bridge_stt_required"
+        return (
+            "Voice processing is temporarily unavailable. Please try again in a minute.",
+            "error",
+            "provider_transcript_blocked",
+        )
+    if media_or_inferred and source != "bridge_stt":
+        return (
+            "Voice processing is temporarily unavailable. Please try again in a minute.",
+            "error",
+            "fallback_error",
+        )
+    return (text, status, source)
 
 
 def _log_voice_dispatch_path_result(
@@ -233,7 +257,9 @@ def _log_voice_dispatch_path_result(
                 "request_id": request_id,
                 "mediaDetected": bool(media_detected),
                 "media_or_inferred_at_decision": media_or_inferred_at_decision,
+                "media_or_inferred": media_or_inferred_at_decision,
                 "response_text_source": response_text_source,
+                "reply_text_source": response_text_source,
                 "bridgeHandled": bool(voice_response.get("handled")),
                 "status": status,
                 "errorCode": str(voice_response.get("error_code") or ""),
@@ -1169,12 +1195,7 @@ def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
             diagnostics = voice_response.get("diagnostics") or {}
             response_status = str(voice_response.get("status") or "ok")
             response_text = str(voice_response.get("text") or "")
-            diagnostics["response_text_source"] = _resolve_response_text_source(
-                diagnostics,
-                status=response_status,
-                text=response_text,
-            )
-            diagnostics["media_or_inferred_at_decision"] = bool(
+            media_or_inferred = bool(
                 media_detected
                 or diagnostics.get("hasVoice")
                 or diagnostics.get("hasAudio")
@@ -1184,8 +1205,22 @@ def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
                 or diagnostics.get("embeddedMediaPathPresent")
                 or diagnostics.get("inferredMediaFromEmbeddedPrompt")
             )
+            response_text, response_status, reply_text_source = _enforce_voice_reply_guard(
+                status=response_status,
+                text=response_text,
+                diagnostics=diagnostics,
+                media_or_inferred=media_or_inferred,
+            )
+            diagnostics["response_text_source"] = reply_text_source
+            diagnostics["reply_text_source"] = reply_text_source
+            diagnostics["media_or_inferred_at_decision"] = media_or_inferred
+            diagnostics["media_or_inferred"] = media_or_inferred
             fallback_reason = None
-            if voice_response.get("audio_intent") and not voice_response.get("audio_bytes"):
+            if reply_text_source == "provider_transcript_blocked":
+                fallback_reason = "provider_transcript_blocked"
+            elif reply_text_source == "fallback_error" and media_or_inferred:
+                fallback_reason = str(diagnostics.get("fallback_reason") or "voice_error")
+            elif voice_response.get("audio_intent") and not voice_response.get("audio_bytes"):
                 fallback_reason = "voice_audio_missing_or_empty"
             elif diagnostics.get("tts_empty_output"):
                 fallback_reason = "tts_empty_output"
@@ -1194,9 +1229,9 @@ def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
             elif voice_response.get("status") == "error":
                 fallback_reason = str(voice_response.get("error_code") or "voice_error")
             return respond(
-                text=str(voice_response.get("text") or ""),
+                text=response_text,
                 handled=True,
-                status=str(voice_response.get("status") or "ok"),
+                status=response_status,
                 route="voice" if media_detected else "text",
                 bridge_handled=True,
                 user_id=user_id,
