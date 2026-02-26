@@ -169,14 +169,79 @@ def _log_voice_dispatch_path_select(
         json.dumps(
             {
                 "event": "openclaw_voice_dispatch_path_select",
+                "traceStage": "adapter.pre_bridge",
                 "selectedPath": selected_path,
                 "branchReason": branch_reason,
+                "requestId": request_id,
                 "request_id": request_id,
                 "hasVoice": isinstance(message.get("voice"), dict),
                 "hasAudio": isinstance(message.get("audio"), dict),
                 "hasDocument": isinstance(message.get("document"), dict),
+                "hasText": bool(str(message.get("text") or message.get("content") or "").strip()),
+                "textLooksTranscript": bool(str(message.get("text") or "").strip().lower().startswith("transcript:")),
+                "audioPathPresent": bool(str(message.get("audio_path") or message.get("media_path") or "")),
                 "mimeType": mime_type,
                 "ext": Path(file_name).suffix.lower() if file_name else "",
+                "sourceModule": __file__,
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
+
+
+def _resolve_response_text_source(diagnostics: dict[str, Any], *, status: str, text: str) -> str:
+    source_used = str(diagnostics.get("final_transcript_source_used") or "").strip().lower()
+    if source_used == "bridge_stt":
+        return "bridge_stt"
+    if source_used == "provider_transcript":
+        return "provider_transcript"
+    if status == "error" or str(diagnostics.get("fallback_reason") or "").strip():
+        return "fallback"
+    if text.strip():
+        return "fallback"
+    return "fallback"
+
+
+def _log_voice_dispatch_path_result(
+    *,
+    request_id: str,
+    media_detected: bool,
+    voice_response: dict[str, Any],
+) -> None:
+    diagnostics = voice_response.get("diagnostics") or {}
+    status = str(voice_response.get("status") or "")
+    text = str(voice_response.get("text") or "")
+    response_text_source = _resolve_response_text_source(diagnostics, status=status, text=text)
+    media_or_inferred_at_decision = bool(
+        media_detected
+        or diagnostics.get("hasVoice")
+        or diagnostics.get("hasAudio")
+        or diagnostics.get("hasDocument")
+        or diagnostics.get("mediaPathPresent")
+        or diagnostics.get("mediaBytesPresent")
+        or diagnostics.get("embeddedMediaPathPresent")
+        or diagnostics.get("inferredMediaFromEmbeddedPrompt")
+    )
+    logger.info(
+        "%s",
+        json.dumps(
+            {
+                "event": "openclaw_voice_dispatch_path_result",
+                "traceStage": "adapter.post_bridge",
+                "requestId": request_id,
+                "request_id": request_id,
+                "mediaDetected": bool(media_detected),
+                "media_or_inferred_at_decision": media_or_inferred_at_decision,
+                "response_text_source": response_text_source,
+                "bridgeHandled": bool(voice_response.get("handled")),
+                "status": status,
+                "errorCode": str(voice_response.get("error_code") or ""),
+                "sttSource": str(diagnostics.get("stt_source") or ""),
+                "fallbackReason": str(diagnostics.get("fallback_reason") or ""),
+                "transcriptOnlyWarning": bool(diagnostics.get("transcript_only_warning")),
+                "sttLanguage": str(diagnostics.get("stt_language") or ""),
+                "sttMultipass": bool(diagnostics.get("stt_multipass")),
                 "sourceModule": __file__,
             },
             ensure_ascii=True,
@@ -1028,11 +1093,23 @@ def _normalize_bridge_payload(value: str | None | dict[str, Any]) -> dict[str, A
     }
 
 
+def _canonical_request_id(value: Any = None, *, payload: dict[str, Any] | None = None) -> str:
+    direct = str(value or "").strip()
+    if direct:
+        return direct
+    if isinstance(payload, dict):
+        for key in ("request_id", "requestId"):
+            candidate = str(payload.get(key) or "").strip()
+            if candidate:
+                return candidate
+    return ""
+
+
 def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
     started = time.perf_counter()
     text = str(message.get("text") or message.get("content") or "")
     user_id = message.get("user_id") or message.get("from_user_id") or "0"
-    request_id = message.get("request_id") or uuid4().hex
+    request_id = _canonical_request_id(payload=message) or uuid4().hex
     source_ref = _source_ref_from_message(message)
     chat_id_raw = message.get("chat_id")
     chat_id = int(chat_id_raw) if isinstance(chat_id_raw, int) else None
@@ -1083,8 +1160,30 @@ def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
             message=message,
         )
         voice_response = _normalize_bridge_payload(main_voice_handler(message, request_id=str(request_id)))
+        _log_voice_dispatch_path_result(
+            request_id=str(request_id),
+            media_detected=bool(media_detected),
+            voice_response=voice_response,
+        )
         if voice_response.get("handled"):
             diagnostics = voice_response.get("diagnostics") or {}
+            response_status = str(voice_response.get("status") or "ok")
+            response_text = str(voice_response.get("text") or "")
+            diagnostics["response_text_source"] = _resolve_response_text_source(
+                diagnostics,
+                status=response_status,
+                text=response_text,
+            )
+            diagnostics["media_or_inferred_at_decision"] = bool(
+                media_detected
+                or diagnostics.get("hasVoice")
+                or diagnostics.get("hasAudio")
+                or diagnostics.get("hasDocument")
+                or diagnostics.get("mediaPathPresent")
+                or diagnostics.get("mediaBytesPresent")
+                or diagnostics.get("embeddedMediaPathPresent")
+                or diagnostics.get("inferredMediaFromEmbeddedPrompt")
+            )
             fallback_reason = None
             if voice_response.get("audio_intent") and not voice_response.get("audio_bytes"):
                 fallback_reason = "voice_audio_missing_or_empty"
@@ -1265,10 +1364,39 @@ def main_handler(message: dict[str, Any]) -> str:
 
 def main_voice_handler(message: dict[str, Any], request_id: str | None = None) -> dict[str, Any]:
     """OpenClaw voice/text routing entrypoint with normalized payload."""
+    request_id = _canonical_request_id(request_id, payload=message) or None
     _log_bridge_runtime_path_once()
     user_id = message.get("user_id") or message.get("from_user_id") or "0"
     chat_id = message.get("chat_id")
     media_detected = _message_has_media_hint(message)
+    if media_detected and not str(request_id or "").strip():
+        logger.error(
+            "%s",
+            json.dumps(
+                {
+                    "event": "openclaw_voice_dispatch_path_error",
+                    "traceStage": "adapter.path_error",
+                    "requestId": "",
+                    "request_id": "",
+                    "selectedPath": "none",
+                    "intendedPath": "d_brain_openclaw_bridge",
+                    "errorCode": "request_id_missing_in_chain",
+                    "branchReason": "adapter_missing_request_id",
+                    "stage": "adapter.pre_bridge",
+                    "sourceModule": __file__,
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            ),
+        )
+        return {
+            "status": "error",
+            "route": "voice",
+            "handled": False,
+            "error_code": "request_id_missing_in_chain",
+            "text": "Voice processing is temporarily unavailable. Please try again in a minute.",
+            "diagnostics": {"request_id": "", "pipeline_error_code": "request_id_missing_in_chain"},
+        }
     logger.info(
         "%s",
         json.dumps(

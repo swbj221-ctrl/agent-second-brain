@@ -4103,6 +4103,13 @@ async def dispatch_voice(
             if diagnostics.get("telegram_voice_note"):
                 _log_telegram_voice_ingest_from_diagnostics(diagnostics)
             return _build_voice_response(handled=False, diagnostics=diagnostics)
+        if media_present_or_inferred:
+            diagnostics["final_transcript_source_used"] = "none"
+            diagnostics["final_transcript_source_block_reason"] = provider_transcript_block_reason or "media_present_or_inferred_bridge_stt_required"
+            diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(
+                diagnostics.get("fallback_reason") or "media_declared_without_bytes"
+            )
+            return _voice_stt_fail_response(diagnostics=diagnostics, error_code="media_unavailable")
         diagnostics["final_transcript_source"] = "provider_transcript"
         diagnostics["final_transcript_source_used"] = "provider_transcript"
         diagnostics["final_transcript_source_block_reason"] = ""
