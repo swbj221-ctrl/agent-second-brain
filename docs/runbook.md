@@ -41,6 +41,8 @@ Conditional updates (if impacted):
 - Candidate selection now prefers a Cyrillic-leading candidate when another candidate has the same tail but only a latin leading token.
 - Embedded audio wrapper now defaults to media-first STT and suppresses embedded transcript forwarding (`embeddedTranscriptDecision=suppress_embedded_transcript`, reason `media_first_stt`); enable forwarding only for diagnostics with `OPENCLAW_EMBEDDED_TRANSCRIPT_FORWARD=1`.
 - Bridge logs `telegram_voice_pipeline` stage `stt_pre_multipass_source` to confirm request source before multipass (`sttSource`, transcript/media presence).
+- Inbound diagnostics now include safe raw text/content evidence (`rawTextLen/hash/preview`, `rawContentLen/hash/preview`, `embeddedPromptSuppressed*`) to detect embedded-prompt leakage without exposing secrets.
+- Normal voice/audio paths now force media-derived STT source precedence when audio bytes are present (`stt_source` cannot remain `transcript` in media-backed requests).
 - Wrapper-first routing, anti-bypass policy, and strict same-`requestId` proof-chain requirements remain unchanged.
 
 ### Self-Improvement Log (Required Workflow)

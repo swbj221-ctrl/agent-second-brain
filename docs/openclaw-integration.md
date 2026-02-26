@@ -40,6 +40,9 @@
 - Purpose: prevent short RU lead-token collapse in live transcripts (`priya/riviere how are you` style drift).
 - Embedded audio wrapper now enforces media-first STT by default and suppresses embedded transcript forwarding on audio-media path (`embeddedTranscriptDecision=suppress_embedded_transcript`, reason `media_first_stt`); transcript forwarding is diagnostic-only via `OPENCLAW_EMBEDDED_TRANSCRIPT_FORWARD=1|true|yes|on`.
 - Bridge emits `telegram_voice_pipeline` stage `stt_pre_multipass_source` before multipass to confirm transcript-only vs media-backed source for each request.
+- Inbound normalization now suppresses embedded prompt-shaped `text/content` when media is present and no explicit transcript field exists (prevents EN-tail leakage from embedded payload text).
+- Safe diagnostics were extended with `rawTextLen/hash/preview`, `rawContentLen/hash/preview`, and `embeddedPromptSuppressed*` across source-select/ingest pipeline logs.
+- Media-backed requests enforce STT source precedence (`stt_source` forced to media path when audio bytes are available).
 - Wrapper-first routing, anti-bypass behavior, and strict same-`requestId` proof chain remain unchanged.
 
 ## Skills in Workflow (Internal)

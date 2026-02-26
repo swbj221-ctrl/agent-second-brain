@@ -301,6 +301,15 @@ def _log_telegram_voice_pipeline(stage: str, payload: dict[str, Any]) -> None:
                 "selectionReason": _sanitize_text_for_logs(payload.get("selectionReason") or "", max_len=200),
                 "skipReason": _sanitize_text_for_logs(payload.get("skipReason") or "", max_len=120),
                 "fallbackReason": _normalize_voice_fallback_reason(payload.get("fallbackReason") or payload.get("fallback_reason")),
+                "rawTextLen": int(payload.get("rawTextLen") or payload.get("raw_text_len") or 0),
+                "rawTextHash": str(payload.get("rawTextHash") or payload.get("raw_text_hash") or ""),
+                "rawTextPreview": _trim_text_preview(_sanitize_text_for_logs(payload.get("rawTextPreview") or payload.get("raw_text_preview") or ""), max_len=96),
+                "rawContentLen": int(payload.get("rawContentLen") or payload.get("raw_content_len") or 0),
+                "rawContentHash": str(payload.get("rawContentHash") or payload.get("raw_content_hash") or ""),
+                "rawContentPreview": _trim_text_preview(_sanitize_text_for_logs(payload.get("rawContentPreview") or payload.get("raw_content_preview") or ""), max_len=96),
+                "embeddedPromptLike": bool(payload.get("embeddedPromptLike") or payload.get("embedded_prompt_like")),
+                "embeddedPromptSuppressed": bool(payload.get("embeddedPromptSuppressed") or payload.get("embedded_prompt_suppressed")),
+                "embeddedPromptSuppressedReason": _sanitize_text_for_logs(payload.get("embeddedPromptSuppressedReason") or payload.get("embedded_prompt_suppressed_reason") or "", max_len=80),
                 "pipelineErrorCode": str(payload.get("pipelineErrorCode") or payload.get("pipeline_error_code") or ""),
                 "pipelineErrorMessage": _sanitize_text_for_logs(payload.get("pipelineErrorMessage") or payload.get("pipeline_error_message") or "", max_len=200),
             },
@@ -2704,12 +2713,21 @@ def _log_telegram_voice_path(event: str, payload: dict[str, Any]) -> None:
     )
 
 
+def _hash_text_for_logs(value: Any) -> str:
+    text = str(value or "")
+    if not text:
+        return ""
+    return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()[:16]
+
+
 def _normalize_voice_payload(
     message: dict[str, Any],
 ) -> dict[str, Any]:
     canonical_request_id = _canonical_request_id(fallback_payload=message)
     transcript_text = str(message.get("transcript") or message.get("auto_transcript") or "")
-    text = str(message.get("text") or message.get("content") or transcript_text or "")
+    raw_text_field = str(message.get("text") or "")
+    raw_content_field = str(message.get("content") or "")
+    text = str(raw_text_field or raw_content_field or transcript_text or "")
     voice_obj = message.get("voice") if isinstance(message.get("voice"), dict) else None
     audio_obj = message.get("audio") if isinstance(message.get("audio"), dict) else None
     document_obj = message.get("document") if isinstance(message.get("document"), dict) else None
@@ -2724,6 +2742,15 @@ def _normalize_voice_payload(
         or message.get("media_present")
         or message.get("media_type")
     )
+    embedded_prompt_like = bool(re.search(r"<media:(?:audio|file)>|\[audio\]\s+user\s+text:", text, re.IGNORECASE))
+    embedded_prompt_suppressed = False
+    embedded_prompt_suppressed_reason = ""
+    # Guard against upstream embedded payload text leaking into transcript-only branch.
+    # For normal media messages we must prefer media-derived STT.
+    if media_hints and embedded_prompt_like and not transcript_text.strip():
+        text = ""
+        embedded_prompt_suppressed = True
+        embedded_prompt_suppressed_reason = "embedded_prompt_text_with_media"
 
     top_audio_bytes = _coerce_audio_bytes(message.get("audio_bytes") or message.get("media_bytes") or message.get("file_bytes"))
     top_audio_path = _coerce_audio_path(message.get("audio_path") or message.get("media_path") or message.get("file_path"))
@@ -2876,6 +2903,15 @@ def _normalize_voice_payload(
         "hasTranscript": bool(transcript_text.strip()),
         "transcriptLen": len(text.strip()),
         "transcriptLooksAuto": looks_like_auto_transcript(text),
+        "rawTextLen": len(raw_text_field.strip()),
+        "rawTextHash": _hash_text_for_logs(raw_text_field),
+        "rawTextPreview": _trim_text_preview(_sanitize_text_for_logs(raw_text_field), max_len=96),
+        "rawContentLen": len(raw_content_field.strip()),
+        "rawContentHash": _hash_text_for_logs(raw_content_field),
+        "rawContentPreview": _trim_text_preview(_sanitize_text_for_logs(raw_content_field), max_len=96),
+        "embeddedPromptLike": embedded_prompt_like,
+        "embeddedPromptSuppressed": embedded_prompt_suppressed,
+        "embeddedPromptSuppressedReason": embedded_prompt_suppressed_reason,
         "voiceDuration": voice_duration,
         "mimeType": mime_type,
         "fileIdPresent": bool(file_id),
@@ -3105,6 +3141,15 @@ def _log_telegram_voice_ingest_from_diagnostics(diagnostics: dict[str, Any]) -> 
             "sttSource": diagnostics.get("stt_source"),
             "sttResultLen": diagnostics.get("sttResultLen") or diagnostics.get("transcript_len"),
             "finalInputSource": diagnostics.get("stt_source"),
+            "rawTextLen": diagnostics.get("rawTextLen"),
+            "rawTextHash": diagnostics.get("rawTextHash"),
+            "rawTextPreview": diagnostics.get("rawTextPreview"),
+            "rawContentLen": diagnostics.get("rawContentLen"),
+            "rawContentHash": diagnostics.get("rawContentHash"),
+            "rawContentPreview": diagnostics.get("rawContentPreview"),
+            "embeddedPromptLike": diagnostics.get("embeddedPromptLike"),
+            "embeddedPromptSuppressed": diagnostics.get("embeddedPromptSuppressed"),
+            "embeddedPromptSuppressedReason": diagnostics.get("embeddedPromptSuppressedReason"),
             "finalOutcome": diagnostics.get("final_outcome"),
             "fallbackReason": diagnostics.get("fallback_reason"),
             "responseMode": diagnostics.get("response_mode"),
@@ -3268,6 +3313,15 @@ async def dispatch_voice(
                 "mediaPathSize": input_context.get("mediaPathSize"),
                 "mediaPathBase": str(input_context.get("mediaPathBase") or ""),
                 "stt_source": str(input_context.get("sttSource") or ""),
+                "rawTextLen": int(input_context.get("rawTextLen") or 0),
+                "rawTextHash": str(input_context.get("rawTextHash") or ""),
+                "rawTextPreview": str(input_context.get("rawTextPreview") or ""),
+                "rawContentLen": int(input_context.get("rawContentLen") or 0),
+                "rawContentHash": str(input_context.get("rawContentHash") or ""),
+                "rawContentPreview": str(input_context.get("rawContentPreview") or ""),
+                "embeddedPromptLike": bool(input_context.get("embeddedPromptLike")),
+                "embeddedPromptSuppressed": bool(input_context.get("embeddedPromptSuppressed")),
+                "embeddedPromptSuppressedReason": str(input_context.get("embeddedPromptSuppressedReason") or ""),
                 "telegram_voice_note": bool(
                     input_context.get("telegramVoiceNote")
                     or input_context.get("hasVoice")
@@ -3324,6 +3378,10 @@ async def dispatch_voice(
                 return _voice_stt_fail_response(diagnostics=diagnostics, error_code="media_unavailable")
 
         if audio_bytes is not None:
+            if str(diagnostics.get("stt_source") or "").strip() == "transcript":
+                media_source = "voice_file" if diagnostics.get("hasVoice") else ("audio_file" if diagnostics.get("hasAudio") else ("document_file" if diagnostics.get("hasDocument") else "audio_file"))
+                diagnostics["stt_source"] = media_source
+                diagnostics["media_stt_precedence_forced"] = True
             processed_bytes, processed_path, preprocess_error = _preprocess_audio_for_stt(
                 audio_bytes=audio_bytes,
                 audio_path=audio_path,

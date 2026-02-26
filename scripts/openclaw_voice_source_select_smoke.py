@@ -166,7 +166,47 @@ def main() -> int:
             if not ok:
                 failures += 1
 
-            # 2) voice_note_download_fail_no_file_request
+            # 2) embedded_prompt_in_content_is_suppressed_for_voice_media
+            log_handler.messages.clear()
+            patches.set(bridge, "build_stt_adapter", lambda settings=None: FakeSTT("привет how are you"))  # noqa: ARG005
+            response = bridge.dispatch_voice_from_message(
+                {
+                    "user_id": 311,
+                    "chat_id": 311,
+                    "message_id": 11,
+                    "text": "",
+                    "content": "[Audio] User text: <media:audio> Transcript: how are you",
+                    "voice": {
+                        "file_id": "voice-file-11",
+                        "mime_type": "audio/ogg",
+                        "duration": 2,
+                    },
+                    "telegram_media_downloader": lambda *args, **kwargs: b"voice-note-bytes-embedded",  # noqa: ARG005
+                },
+                user_id=311,
+                request_id="smoke-v1b",
+            )
+            diag = response.get("diagnostics") or {}
+            source_log = _find_json_event(log_handler.messages, "telegram_stt_source_select") or {}
+            ok = (
+                response.get("status") == "ok"
+                and diag.get("stt_source") == "voice_file"
+                and bool(diag.get("embeddedPromptSuppressed"))
+                and source_log.get("embeddedPromptSuppressed") is True
+                and int(source_log.get("rawContentLen") or 0) > 0
+                and int(diag.get("transcript_len") or 0) > 0
+            )
+            emit(
+                "embedded_prompt_in_content_is_suppressed_for_voice_media",
+                ok,
+                stt_source=diag.get("stt_source"),
+                embedded_prompt_suppressed=diag.get("embeddedPromptSuppressed"),
+                raw_content_len=source_log.get("rawContentLen"),
+            )
+            if not ok:
+                failures += 1
+
+            # 3) voice_note_download_fail_no_file_request
             log_handler.messages.clear()
 
             def _fail_downloader(*args: Any, **kwargs: Any) -> bytes:  # pragma: no cover - smoke helper
@@ -301,6 +341,45 @@ def main() -> int:
             if not ok:
                 failures += 1
 
+            # 7) malformed Telegram voice payload must not fall back to transcript-only when media is declared
+            log_handler.messages.clear()
+            response = bridge.dispatch_voice_from_message(
+                {
+                    "user_id": 307,
+                    "chat_id": 307,
+                    "message_id": 7,
+                    "request_id": "smoke-v7",
+                    "text": "Transcript: Привет, how are you, ты меня понимаешь?",
+                    "voice": {
+                        # malformed: Telegram voice object exists but no file_id/bytes/path
+                        "mime_type": "audio/ogg",
+                    },
+                },
+                user_id=307,
+                request_id="smoke-v7",
+            )
+            diag = response.get("diagnostics") or {}
+            source_log = _find_json_event(log_handler.messages, "telegram_stt_source_select") or {}
+            ok = (
+                response.get("status") == "error"
+                and diag.get("stt_source") == "voice_file"
+                and diag.get("final_outcome") != "fallback_transcript"
+                and diag.get("transcript_only_warning") is not True
+                and source_log.get("finalInputSource") == "voice_file"
+                and source_log.get("fallbackReason") == "unsupported_media_shape"
+                and not _contains_file_request(str(response.get("text") or ""))
+            )
+            emit(
+                "malformed_voice_media_does_not_drop_to_transcript_only",
+                ok,
+                status=response.get("status"),
+                stt_source=diag.get("stt_source"),
+                final_outcome=diag.get("final_outcome"),
+                source_log_fallback_reason=source_log.get("fallbackReason"),
+            )
+            if not ok:
+                failures += 1
+
             # 6) nested voice bytes present + transcript present -> bytes win
             log_handler.messages.clear()
             patches.set(bridge, "build_stt_adapter", lambda settings=None: FakeSTT("nested voice bytes"))  # noqa: ARG005
@@ -333,7 +412,7 @@ def main() -> int:
             if not ok:
                 failures += 1
 
-            # 7) malformed voice object + transcript present -> safe transcript fallback
+            # 7b) malformed voice object + transcript present -> strict media priority keeps error path (no transcript-only fallback)
             log_handler.messages.clear()
             response = bridge.dispatch_voice_from_message(
                 {
@@ -352,13 +431,19 @@ def main() -> int:
             diag = response.get("diagnostics") or {}
             ingest_log = _find_json_event(log_handler.messages, "telegram_voice_ingest") or {}
             ok = (
-                response.get("status") == "ok"
-                and bool(diag.get("transcript_only_warning"))
+                response.get("status") == "error"
+                and not bool(diag.get("transcript_only_warning"))
                 and not _contains_file_request(str(response.get("text") or ""))
-                and ingest_log.get("fallbackReason") in {"transcript_only_auto", "unsupported_media_shape", "transcript_only_no_media"}
-                and ingest_log.get("finalOutcome") == "fallback_transcript"
+                and diag.get("fallback_reason") in {"unsupported_media_shape", "media_declared_without_bytes"}
+                and diag.get("final_outcome") == "fallback_no_media"
+                and (not ingest_log or ingest_log.get("finalOutcome") in {"fallback_no_media", "stt_error", ""})
             )
-            emit("voice_malformed_shape_safe_transcript_fallback", ok, fallback_reason=ingest_log.get("fallbackReason"))
+            emit(
+                "voice_malformed_shape_strict_media_priority_no_transcript_fallback",
+                ok,
+                fallback_reason=diag.get("fallback_reason"),
+                final_outcome=diag.get("final_outcome"),
+            )
             if not ok:
                 failures += 1
 

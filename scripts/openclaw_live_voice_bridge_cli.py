@@ -39,6 +39,15 @@ def _safe_preview(text: str, max_len: int = 180) -> str:
     return value if len(value) <= max_len else value[:max_len] + "...<trimmed>"
 
 
+def _text_hash16(text: str) -> str:
+    value = str(text or "")
+    if not value:
+        return ""
+    import hashlib
+
+    return hashlib.sha256(value.encode("utf-8", errors="replace")).hexdigest()[:16]
+
+
 def _canonical_request_id(value: Any = None, *, payload: dict[str, Any] | None = None) -> str:
     direct = str(value or "").strip()
     if direct:
@@ -221,6 +230,8 @@ def parse_openclaw_embedded_media_prompt(raw_text: str) -> dict[str, Any]:
         "transcript_decode_mode": transcript_decode_mode,
         "transcript_base64_decoded": transcript_base64_decoded,
         "transcript_mojibake_suspected": transcript_mojibake_suspected,
+        "raw_len": len(text.strip()),
+        "raw_hash": _text_hash16(text),
         "raw_preview": _safe_preview(text),
         "user_id": user_id,
         "chat_id": chat_id,
@@ -387,6 +398,9 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
             "requestId": request_id or "",
             "request_id": request_id or "",
             "mediaPresent": True,
+            "rawInboundLen": int(parsed.get("raw_len") or 0),
+            "rawInboundHash": str(parsed.get("raw_hash") or ""),
+            "rawInboundPreview": _safe_preview(str(raw_text or ""), max_len=120),
             "mediaPathPresent": bool(audio_path),
             "mediaPathBase": Path(audio_path).name,
             "embeddedTranscriptPresent": bool(str(parsed.get("transcript") or "").strip()),
