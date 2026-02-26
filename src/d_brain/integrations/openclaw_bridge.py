@@ -494,11 +494,28 @@ def _leading_token_meta(text: str) -> dict[str, Any]:
             "first_has_latin": False,
             "tail_signature": "",
             "tail_latin_tokens": 0,
+            "tail_cyrillic_tokens": 0,
+            "middle_latin_signature": "",
+            "tail_has_cyrillic_after_latin": False,
         }
     first = str(tokens[0])
     tail_tokens = [str(tok).lower() for tok in tokens[1:]]
     tail_signature = " ".join(tail_tokens)
     tail_latin_tokens = sum(1 for tok in tail_tokens if _LATIN_RE.search(tok))
+    tail_cyrillic_tokens = sum(1 for tok in tail_tokens if _CYRILLIC_RE.search(tok))
+    middle_latin_tokens: list[str] = []
+    seen_latin = False
+    tail_has_cyrillic_after_latin = False
+    for tok in tail_tokens:
+        tok_has_lat = bool(_LATIN_RE.search(tok))
+        tok_has_cyr = bool(_CYRILLIC_RE.search(tok))
+        if tok_has_lat and not tok_has_cyr:
+            middle_latin_tokens.append(tok)
+            seen_latin = True
+            continue
+        if seen_latin and tok_has_cyr:
+            tail_has_cyrillic_after_latin = True
+            break
     return {
         "first_token": first,
         "first_len": len(first),
@@ -506,6 +523,9 @@ def _leading_token_meta(text: str) -> dict[str, Any]:
         "first_has_latin": _stt_has_latin(first),
         "tail_signature": tail_signature,
         "tail_latin_tokens": tail_latin_tokens,
+        "tail_cyrillic_tokens": tail_cyrillic_tokens,
+        "middle_latin_signature": " ".join(middle_latin_tokens),
+        "tail_has_cyrillic_after_latin": tail_has_cyrillic_after_latin,
     }
 
 
@@ -527,6 +547,7 @@ def _select_best_stt_candidate(
 
     lead_meta_by_text: dict[str, dict[str, Any]] = {}
     lead_ru_tail_signatures: set[str] = set()
+    mixed_latin_mid_with_ru_tail: set[str] = set()
     for c in valid:
         text = str(c.get("text") or "")
         lead_meta = _leading_token_meta(text)
@@ -537,6 +558,13 @@ def _select_best_stt_candidate(
             and str(lead_meta.get("tail_signature") or "")
         ):
             lead_ru_tail_signatures.add(str(lead_meta.get("tail_signature") or ""))
+        if (
+            bool(lead_meta.get("first_has_cyrillic"))
+            and bool(lead_meta.get("tail_has_cyrillic_after_latin"))
+            and int(lead_meta.get("tail_latin_tokens") or 0) >= 2
+            and str(lead_meta.get("middle_latin_signature") or "")
+        ):
+            mixed_latin_mid_with_ru_tail.add(str(lead_meta.get("middle_latin_signature") or ""))
 
     rescored: list[dict[str, Any]] = []
     for c in valid:
@@ -549,6 +577,7 @@ def _select_best_stt_candidate(
         has_lat = bool(merged.get("has_latin"))
         lead_meta = lead_meta_by_text.get(str(merged.get("text") or "")) or _leading_token_meta(str(merged.get("text") or ""))
         tail_signature = str(lead_meta.get("tail_signature") or "")
+        middle_latin_signature = str(lead_meta.get("middle_latin_signature") or "")
         first_len = int(lead_meta.get("first_len") or 0)
 
         score_adjust = 0
@@ -587,6 +616,20 @@ def _select_best_stt_candidate(
                 score_adjust += 26
             elif bool(lead_meta.get("first_has_latin")) and not has_cyr and first_len <= 10:
                 score_adjust -= 30
+
+        # Preserve full RU+EN+RU mixed sequence when a truncated RU+EN variant shares
+        # the same middle English segment.
+        if (
+            mixed_latin_mid_with_ru_tail
+            and middle_latin_signature
+            and middle_latin_signature in mixed_latin_mid_with_ru_tail
+        ):
+            if bool(lead_meta.get("first_has_cyrillic")) and bool(lead_meta.get("tail_has_cyrillic_after_latin")):
+                score_adjust += 34
+            elif bool(lead_meta.get("first_has_cyrillic")) and not bool(lead_meta.get("tail_has_cyrillic_after_latin")):
+                score_adjust -= 28
+            elif not has_cyr:
+                score_adjust -= 22
 
         merged["score_adjust"] = int(score_adjust)
         merged["score"] = int(merged.get("score") or 0) + int(score_adjust)

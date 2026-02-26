@@ -530,6 +530,54 @@ async def _run() -> int:
     _restore_env("TELEGRAM_STT_MULTIPASS_LANGS", prev_mpl)
     _restore_env("TELEGRAM_STT_LANGUAGE", prev_lang)
 
+    # multipass + heuristic: preserve full RU+EN+RU sequence and avoid truncating
+    # the trailing RU segment when a RU+EN candidate competes with same-mid EN tail.
+    log_handler.messages.clear()
+    prev_mp = os.environ.get("TELEGRAM_STT_MULTIPASS")
+    prev_mph = os.environ.get("TELEGRAM_STT_MIXED_HEURISTIC")
+    prev_mpl = os.environ.get("TELEGRAM_STT_MULTIPASS_LANGS")
+    prev_lang = os.environ.get("TELEGRAM_STT_LANGUAGE")
+    os.environ["TELEGRAM_STT_MULTIPASS"] = "1"
+    os.environ["TELEGRAM_STT_MIXED_HEURISTIC"] = "1"
+    os.environ["TELEGRAM_STT_MULTIPASS_LANGS"] = "auto,ru,en"
+    os.environ.pop("TELEGRAM_STT_LANGUAGE", None)
+    full_mixed_seq_stt = FakeSequenceSTT(
+        {
+            "auto": "privyat how are you",
+            "ru": "Привет how are you ты меня понимаешь",
+            "en": "privet how are you",
+        }
+    )
+    full_mixed_pick = await dispatch_voice(
+        user_id=214,
+        source_ref="smoke:mixed-full-sequence-retention",
+        audio_bytes=b"mixed-full-sequence",
+        media_declared=True,
+        stt=full_mixed_seq_stt,
+    )
+    full_mixed_diag = full_mixed_pick.get("diagnostics") or {}
+    full_mixed_selected_log = _find_json_event(log_handler.messages, "telegram_voice_pipeline", stage="stt_multipass_selected") or {}
+    full_mixed_text = str(full_mixed_pick.get("text") or "")
+    full_mixed_ok = (
+        full_mixed_pick.get("status") == "ok"
+        and full_mixed_diag.get("stt_language") == "ru"
+        and full_mixed_selected_log.get("selectedLang") == "ru"
+        and "Привет" in full_mixed_text
+        and "how are you" in full_mixed_text
+        and "ты меня понимаешь" in full_mixed_text
+    )
+    print("case=stt_multipass_mixed_full_sequence_not_truncated")
+    print(f"ok={full_mixed_ok}")
+    print(f"calls={full_mixed_seq_stt.calls}")
+    print(f"selected_lang={full_mixed_selected_log.get('selectedLang')}")
+    print(f"response_text_preview={full_mixed_text[:120]}")
+    if not full_mixed_ok:
+        failures += 1
+    _restore_env("TELEGRAM_STT_MULTIPASS", prev_mp)
+    _restore_env("TELEGRAM_STT_MIXED_HEURISTIC", prev_mph)
+    _restore_env("TELEGRAM_STT_MULTIPASS_LANGS", prev_mpl)
+    _restore_env("TELEGRAM_STT_LANGUAGE", prev_lang)
+
     # multipass fallback to auto/default when ru is empty/worse
     log_handler.messages.clear()
     prev_mp = os.environ.get("TELEGRAM_STT_MULTIPASS")
