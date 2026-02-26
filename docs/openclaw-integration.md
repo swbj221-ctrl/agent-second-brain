@@ -38,7 +38,9 @@
 ## Mixed RU+EN Voice Candidate Selection (Live Path)
 - Multipass mixed-language selection keeps a Cyrillic-leading candidate when competing latin-only candidates share the same English tail.
 - Purpose: prevent short RU lead-token collapse in live transcripts (`priya/riviere how are you` style drift).
-- Scope is limited to STT candidate scoring/selection in the bridge; wrapper-first routing, anti-bypass behavior, and strict same-`requestId` proof chain are unchanged.
+- Embedded audio wrapper now enforces media-first STT by default and suppresses embedded transcript forwarding on audio-media path (`embeddedTranscriptDecision=suppress_embedded_transcript`, reason `media_first_stt`); transcript forwarding is diagnostic-only via `OPENCLAW_EMBEDDED_TRANSCRIPT_FORWARD=1|true|yes|on`.
+- Bridge emits `telegram_voice_pipeline` stage `stt_pre_multipass_source` before multipass to confirm transcript-only vs media-backed source for each request.
+- Wrapper-first routing, anti-bypass behavior, and strict same-`requestId` proof chain remain unchanged.
 
 ## Skills in Workflow (Internal)
 - `skill-creator`: use when creating/updating skills; follow `docs/skill-contract.md`.

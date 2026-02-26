@@ -39,6 +39,27 @@ def _safe_preview(text: str, max_len: int = 180) -> str:
     return value if len(value) <= max_len else value[:max_len] + "...<trimmed>"
 
 
+def _canonical_request_id(value: Any = None, *, payload: dict[str, Any] | None = None) -> str:
+    direct = str(value or "").strip()
+    if direct:
+        return direct
+    if isinstance(payload, dict):
+        for key in ("requestId", "request_id"):
+            candidate = str(payload.get(key) or "").strip()
+            if candidate:
+                return candidate
+    return ""
+
+
+def _emit_marker_visible(marker: dict[str, Any] | None) -> None:
+    if not isinstance(marker, dict):
+        return
+    try:
+        print(json.dumps(marker, ensure_ascii=True, separators=(",", ":")), file=sys.stderr, flush=True)
+    except Exception:
+        pass
+
+
 def _configure_utf8_stdio() -> None:
     # Keep wrapper JSON output deterministic across Windows shells/exec wrappers.
     for stream_name in ("stdin", "stdout", "stderr"):
@@ -223,11 +244,15 @@ def _load_adapter_module() -> Any:
 
 
 def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | None = None) -> dict[str, Any]:
+    request_id = _canonical_request_id(request_id)
     parsed = parse_openclaw_embedded_media_prompt(raw_text)
     parsed_message_kind = str(parsed.get("media_kind") or "")
     is_audio_document = bool(parsed.get("is_audio_document"))
     proof = {
         "event": "openclaw_voice_dispatch_path_select",
+        "traceStage": "wrapper.path_select",
+        "requestId": request_id or "",
+        "request_id": request_id or "",
         "selectedPath": parsed["selected_path"],
         "branchReason": parsed["branch_reason"],
         "messageKind": parsed_message_kind,
@@ -237,13 +262,53 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
         "sourceFormat": parsed.get("source_format") or "",
         "sourceModule": __file__,
     }
+    _emit_marker_visible(proof)
     if parsed["selected_path"] != "d_brain_openclaw_bridge":
+        trace_payload = {
+            "event": "openclaw_voice_dispatch_wrapper_trace",
+            "traceStage": "wrapper.path_skip",
+            "requestId": request_id or "",
+            "request_id": request_id or "",
+            "mediaPresent": bool(parsed.get("is_audio_payload")),
+            "embeddedTranscriptPresent": bool(str(parsed.get("transcript") or "").strip()),
+            "embeddedTranscriptForwarded": False,
+            "embeddedTranscriptDecision": "skip_non_audio_media",
+        }
+        _emit_marker_visible(trace_payload)
         return {
             "ok": False,
             "proof": proof,
+            "trace": trace_payload,
             "error_code": "non_audio_media",
             "path_fallback_reason": "non_audio_media_not_routed_to_voice_bridge",
             "user_safe_text": "",
+            "adapter_response": None,
+            "parsed": parsed,
+        }
+
+    if not str(request_id or "").strip():
+        error_marker = {
+            "event": "openclaw_voice_dispatch_path_error",
+            "traceStage": "wrapper.path_error",
+            "requestId": "",
+            "request_id": "",
+            "errorCode": "request_id_missing_in_chain",
+            "selectedPath": "none",
+            "intendedPath": "d_brain_openclaw_bridge",
+            "branchReason": "wrapper_missing_request_id",
+            "stage": "wrapper.path_select",
+            "messageKind": parsed_message_kind,
+            "isAudioDocument": is_audio_document,
+            "sourceModule": __file__,
+        }
+        _emit_marker_visible(error_marker)
+        return {
+            "ok": False,
+            "proof": proof,
+            "error_marker": error_marker,
+            "error_code": "request_id_missing_in_chain",
+            "path_fallback_reason": "wrapper_missing_request_id",
+            "user_safe_text": "Voice processing is temporarily unavailable. Please try again in a minute.",
             "adapter_response": None,
             "parsed": parsed,
         }
@@ -252,6 +317,9 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
     if not audio_path:
         error_marker = {
             "event": "openclaw_voice_dispatch_path_error",
+            "traceStage": "wrapper.path_error",
+            "requestId": request_id or "",
+            "request_id": request_id or "",
             "errorCode": "bridge_dispatch_unavailable",
             "selectedPath": "none",
             "intendedPath": "d_brain_openclaw_bridge",
@@ -260,6 +328,7 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
             "isAudioDocument": is_audio_document,
             "sourceModule": __file__,
         }
+        _emit_marker_visible(error_marker)
         return {
             "ok": False,
             "proof": proof,
@@ -279,8 +348,18 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
         adapter = _load_adapter_module()
         embedded_transcript_text = str(parsed.get("transcript") or "")
         embedded_transcript_mojibake = bool(parsed.get("transcript_mojibake_suspected"))
-        # If shell/path encoding mangled the embedded transcript, prefer media STT only.
+        transcript_decision = "suppress_embedded_transcript"
+        transcript_suppressed_reason = "media_first_stt"
+        # Embedded Telegram audio may contain auto transcript tails (e.g. EN-only fragment).
+        # Keep strict media-first STT for normal voice flow and do not inject transcript text.
+        # Allow opt-in forwarding only for diagnostics.
+        allow_embedded_transcript = os.getenv("OPENCLAW_EMBEDDED_TRANSCRIPT_FORWARD", "").strip().lower() in {"1", "true", "yes", "on"}
         if embedded_transcript_mojibake:
+            embedded_transcript_text = ""
+            transcript_suppressed_reason = "mojibake_suspected"
+        elif allow_embedded_transcript:
+            transcript_decision = "forward_embedded_transcript"
+        else:
             embedded_transcript_text = ""
         msg: dict[str, Any] = {
             "text": embedded_transcript_text,
@@ -302,9 +381,26 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
         else:
             msg["audio"] = {"mime_type": mime_type or "audio/ogg"}
         response = adapter.main_handler_response(msg)
+        trace_payload = {
+            "event": "openclaw_voice_dispatch_wrapper_trace",
+            "traceStage": "wrapper.adapter_dispatch",
+            "requestId": request_id or "",
+            "request_id": request_id or "",
+            "mediaPresent": True,
+            "mediaPathPresent": bool(audio_path),
+            "mediaPathBase": Path(audio_path).name,
+            "embeddedTranscriptPresent": bool(str(parsed.get("transcript") or "").strip()),
+            "embeddedTranscriptForwarded": bool(embedded_transcript_text.strip()),
+            "embeddedTranscriptDecision": transcript_decision,
+            "embeddedTranscriptSuppressedReason": transcript_suppressed_reason,
+            "embeddedTranscriptStatus": str(parsed.get("transcript_status") or ""),
+            "embeddedTranscriptDecodeMode": str(parsed.get("transcript_decode_mode") or ""),
+        }
+        _emit_marker_visible(trace_payload)
         return {
             "ok": True,
             "proof": proof,
+            "trace": trace_payload,
             "error_code": "",
             "path_fallback_reason": "",
             "user_safe_text": str(response.get("text") or ""),
@@ -319,6 +415,9 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
                     "stt_error_code": str((response.get("diagnostics") or {}).get("stt_error_code") or ""),
                     "pipeline_error_code": str((response.get("diagnostics") or {}).get("pipeline_error_code") or ""),
                     "stt_language": str((response.get("diagnostics") or {}).get("stt_language") or ""),
+                    "stt_source": str((response.get("diagnostics") or {}).get("stt_source") or ""),
+                    "fallback_reason": str((response.get("diagnostics") or {}).get("fallback_reason") or ""),
+                    "transcript_only_warning": bool((response.get("diagnostics") or {}).get("transcript_only_warning")),
                     "stt_multipass": bool((response.get("diagnostics") or {}).get("stt_multipass")),
                     "embedded_transcript_status": str(parsed.get("transcript_status") or ""),
                     "embedded_transcript_decode_mode": str(parsed.get("transcript_decode_mode") or ""),
@@ -342,6 +441,9 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
     except Exception as exc:
         error_marker = {
             "event": "openclaw_voice_dispatch_path_error",
+            "traceStage": "wrapper.path_error",
+            "requestId": request_id or "",
+            "request_id": request_id or "",
             "errorCode": "bridge_dispatch_unavailable",
             "selectedPath": "none",
             "intendedPath": "d_brain_openclaw_bridge",
@@ -350,6 +452,7 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
             "isAudioDocument": is_audio_document,
             "sourceModule": __file__,
         }
+        _emit_marker_visible(error_marker)
         return {
             "ok": False,
             "proof": proof,
@@ -386,7 +489,7 @@ def main() -> int:
         print(json.dumps({"ok": True, "parsed": parsed}, ensure_ascii=True, separators=(",", ":")))
         return 0
 
-    result = route_embedded_media_prompt_via_bridge(raw_text, request_id=(args.request_id or ""))
+    result = route_embedded_media_prompt_via_bridge(raw_text, request_id=_canonical_request_id(args.request_id))
     print(json.dumps(result, ensure_ascii=True, separators=(",", ":")))
     return 0 if result.get("ok") else 1
 

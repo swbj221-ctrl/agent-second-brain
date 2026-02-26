@@ -39,7 +39,9 @@ Conditional updates (if impacted):
 ### Voice Multipass Heuristic Note (Mixed RU+EN)
 - In mixed phrases with an English tail, short RU leading words must not be collapsed into latin-only lookalikes (`priya/riviere ...`).
 - Candidate selection now prefers a Cyrillic-leading candidate when another candidate has the same tail but only a latin leading token.
-- This is scoring-only behavior: no changes to wrapper-first routing, anti-bypass policy, or strict same-`requestId` proof-chain requirements.
+- Embedded audio wrapper now defaults to media-first STT and suppresses embedded transcript forwarding (`embeddedTranscriptDecision=suppress_embedded_transcript`, reason `media_first_stt`); enable forwarding only for diagnostics with `OPENCLAW_EMBEDDED_TRANSCRIPT_FORWARD=1`.
+- Bridge logs `telegram_voice_pipeline` stage `stt_pre_multipass_source` to confirm request source before multipass (`sttSource`, transcript/media presence).
+- Wrapper-first routing, anti-bypass policy, and strict same-`requestId` proof-chain requirements remain unchanged.
 
 ### Self-Improvement Log (Required Workflow)
 - Use `docs/learnings.md` as the lightweight self-improvement log.

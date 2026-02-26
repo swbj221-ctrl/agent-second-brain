@@ -3345,6 +3345,20 @@ async def dispatch_voice(
             diagnostics["mediaBytesPresent"] = True
             diagnostics["mediaBytesLen"] = len(audio_bytes)
             provider_name = getattr(stt_adapter, "__class__", type("X", (), {})).__name__
+            _log_telegram_voice_pipeline(
+                "stt_pre_multipass_source",
+                {
+                    **diagnostics,
+                    "sttSource": str(diagnostics.get("stt_source") or ""),
+                    "hasTranscript": bool(diagnostics.get("hasTranscript")),
+                    "transcriptLen": int(diagnostics.get("transcript_len") or 0),
+                    "mediaBytesPresent": bool(diagnostics.get("mediaBytesPresent")),
+                    "mediaBytesLen": int(diagnostics.get("mediaBytesLen") or 0),
+                    "mediaPathPresent": bool(diagnostics.get("mediaPathPresent")),
+                    "mediaPathExists": diagnostics.get("mediaPathExists"),
+                    "sttMultipass": bool(multipass_enabled),
+                },
+            )
 
             async def _run_stt_attempt(pass_lang: str, *, pass_index: int, pass_count: int, pass_token: str) -> tuple[str, Any | None]:
                 _log_telegram_voice_pipeline(
