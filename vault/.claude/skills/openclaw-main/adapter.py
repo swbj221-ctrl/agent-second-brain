@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import sys
 import time
@@ -205,6 +206,57 @@ def _resolve_response_text_source(diagnostics: dict[str, Any], *, status: str, t
 
 
 VOICE_FAIL_CLOSED_TEXT = "Voice processing is temporarily unavailable. Please try again in a minute."
+
+
+_LEADING_PRIVET_VARIANTS_RE = re.compile(r"^(privyat|priyat|privet)(?=\b|[\s,.:;!?-])", re.IGNORECASE)
+_LATIN_RE = re.compile(r"[A-Za-z]")
+_CYRILLIC_RE = re.compile(r"[\u0400-\u04FF]")
+
+
+def _has_mixed_ru_en_context(text: str) -> bool:
+    value = str(text or "")
+    return bool(_LATIN_RE.search(value) and _CYRILLIC_RE.search(value))
+
+
+def _has_cyrillic_after_latin(text: str) -> bool:
+    seen_latin = False
+    for ch in str(text or ""):
+        if _LATIN_RE.search(ch):
+            seen_latin = True
+            continue
+        if seen_latin and _CYRILLIC_RE.search(ch):
+            return True
+    return False
+
+
+def _normalize_media_turn_reply_text(*, text: str, diagnostics: dict[str, Any], media_or_inferred: bool) -> str:
+    if not media_or_inferred:
+        return text
+    normalized = str(text or "")
+    candidate = str(
+        diagnostics.get("bridge_candidate_text")
+        or diagnostics.get("stt_multipass_selected_transcript")
+        or diagnostics.get("stt_selected_transcript")
+        or ""
+    ).strip()
+
+    # Preserve full RU+EN+RU sequence when bridge selected candidate contains
+    # trailing Cyrillic and top-layer text was truncated to RU+EN tail.
+    if candidate and _has_cyrillic_after_latin(candidate):
+        if normalized.strip() and normalized.strip() != candidate and normalized.strip() in candidate:
+            normalized = normalized.replace(normalized.strip(), candidate, 1)
+        elif not normalized.strip() or (len(normalized.strip()) < len(candidate) and not _has_cyrillic_after_latin(normalized)):
+            normalized = candidate
+
+    # Conservative de-translit for common greeting at phrase start.
+    # Apply only in mixed RU/EN context and only when no better Cyrillic-starting
+    # bridge candidate exists.
+    better_cyrillic_start = bool(candidate and _CYRILLIC_RE.search(candidate[:1]))
+    mixed_context = _has_mixed_ru_en_context(normalized) or _has_mixed_ru_en_context(candidate)
+    if mixed_context and not better_cyrillic_start:
+        normalized = _LEADING_PRIVET_VARIANTS_RE.sub("Привет", normalized, count=1)
+
+    return normalized
 
 
 def _enforce_voice_reply_guard(
@@ -1261,6 +1313,11 @@ def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
                 or diagnostics.get("mediaBytesPresent")
                 or diagnostics.get("embeddedMediaPathPresent")
                 or diagnostics.get("inferredMediaFromEmbeddedPrompt")
+            )
+            response_text = _normalize_media_turn_reply_text(
+                text=response_text,
+                diagnostics=diagnostics,
+                media_or_inferred=media_or_inferred,
             )
             response_text, response_status, chat_response_source = _enforce_voice_reply_guard(
                 status=response_status,

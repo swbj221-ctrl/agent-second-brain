@@ -22,7 +22,13 @@ sys.modules["openclaw_adapter_smoke"] = adapter
 spec.loader.exec_module(adapter)
 
 
-def _run_case(name: str, fake_response: dict, expected_source: str, expect_fail_closed: bool) -> int:
+def _run_case(
+    name: str,
+    fake_response: dict,
+    expected_source: str,
+    expect_fail_closed: bool,
+    expected_text_contains: str | None = None,
+) -> int:
     original = adapter.dispatch_voice_from_message
     try:
         adapter.dispatch_voice_from_message = lambda message, user_id, request_id=None: fake_response
@@ -39,8 +45,10 @@ def _run_case(name: str, fake_response: dict, expected_source: str, expect_fail_
         )
         diagnostics = result.get("diagnostics") or {}
         source = str(diagnostics.get("chat_response_source") or "")
-        fail_closed = "Voice processing is temporarily unavailable" in str(result.get("text") or "")
-        ok = source == expected_source and (fail_closed == expect_fail_closed)
+        out_text = str(result.get("text") or "")
+        fail_closed = "Voice processing is temporarily unavailable" in out_text
+        text_ok = True if expected_text_contains is None else (expected_text_contains in out_text)
+        ok = source == expected_source and (fail_closed == expect_fail_closed) and text_ok
         print(f"case={name}")
         print(f"ok={ok}")
         print(f"chat_response_source={source}")
@@ -87,6 +95,35 @@ def main() -> int:
         },
         expected_source="fallback_error",
         expect_fail_closed=True,
+    )
+    failures += _run_case(
+        "bridge_full_sequence_retained",
+        {
+            "handled": True,
+            "status": "ok",
+            "text": "privyat how are you",
+            "diagnostics": {
+                "final_transcript_source_used": "bridge_stt",
+                "bridge_candidate_text": "Привет how are you ты меня понимаешь",
+            },
+        },
+        expected_source="bridge_stt",
+        expect_fail_closed=False,
+        expected_text_contains="Привет how are you ты меня понимаешь",
+    )
+    failures += _run_case(
+        "bridge_start_token_detranslit",
+        {
+            "handled": True,
+            "status": "ok",
+            "text": "privyat how are you, ты меня понимаешь",
+            "diagnostics": {
+                "final_transcript_source_used": "bridge_stt",
+            },
+        },
+        expected_source="bridge_stt",
+        expect_fail_closed=False,
+        expected_text_contains="Привет how are you, ты меня понимаешь",
     )
     return 1 if failures else 0
 

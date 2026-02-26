@@ -3748,6 +3748,9 @@ async def dispatch_voice(
                         stt_result = selected_candidate.get("result")
                         transcript = str(selected_candidate.get("text") or "")
                         diagnostics["stt_language"] = str(selected_candidate.get("lang") or stt_language)
+                        diagnostics["stt_multipass_selected_transcript"] = transcript
+                        diagnostics["stt_selected_transcript"] = transcript
+                        diagnostics["bridge_candidate_text"] = transcript
                         _log_telegram_voice_pipeline(
                             "stt_multipass_selected",
                             {
@@ -3800,6 +3803,8 @@ async def dispatch_voice(
                     return _voice_stt_fail_response(diagnostics=diagnostics, error_code="stt_failed")
                 stt_result = attempt_value
                 transcript = (stt_result.text or "").strip() if stt_result is not None else ""
+                diagnostics["stt_selected_transcript"] = transcript
+                diagnostics["bridge_candidate_text"] = transcript
                 _log_telegram_voice_pipeline(
                     "stt_result",
                     {
