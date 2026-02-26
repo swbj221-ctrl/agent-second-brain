@@ -145,6 +145,7 @@ def main() -> int:
             ok = (
                 response.get("status") == "ok"
                 and diag.get("stt_source") == "voice_file"
+                and diag.get("final_transcript_source_used") == "bridge_stt"
                 and diag.get("transcript_only_warning") is not True
                 and not _contains_file_request(str(response.get("text") or ""))
                 and downloader_calls == [("voice-file-1", "voice")]
@@ -162,6 +163,7 @@ def main() -> int:
                 transcript_only_warning=bool(diag.get("transcript_only_warning")),
                 downloader_calls=len(downloader_calls),
                 source_log_stt_source=source_log.get("sttSource", ""),
+                final_transcript_source_used=diag.get("final_transcript_source_used"),
             )
             if not ok:
                 failures += 1
@@ -245,6 +247,35 @@ def main() -> int:
                 embedded_media_path_present=source_log.get("embeddedMediaPathPresent"),
                 media_path_present=source_log.get("mediaPathPresent"),
                 fallback_reason=source_log.get("fallbackReason", ""),
+            )
+            if not ok:
+                failures += 1
+
+            # 2d) inferred embedded media without bytes/path fails closed (no provider transcript fallback)
+            log_handler.messages.clear()
+            response = bridge.dispatch_voice_from_message(
+                {
+                    "user_id": 313,
+                    "chat_id": 313,
+                    "message_id": 13,
+                    "request_id": "smoke-v1d",
+                    "text": "[Audio] User text: <media:audio> Transcript: how are you",
+                },
+                user_id=313,
+                request_id="smoke-v1d",
+            )
+            diag = response.get("diagnostics") or {}
+            ok = (
+                response.get("status") == "error"
+                and diag.get("final_transcript_source_used") == "none"
+                and diag.get("final_transcript_source_block_reason") == "media_present_or_inferred_bridge_stt_required"
+            )
+            emit(
+                "inferred_media_without_media_stt_fails_closed",
+                ok,
+                status=response.get("status"),
+                final_transcript_source_used=diag.get("final_transcript_source_used"),
+                block_reason=diag.get("final_transcript_source_block_reason"),
             )
             if not ok:
                 failures += 1
@@ -373,6 +404,7 @@ def main() -> int:
                 response.get("status") == "ok"
                 and bool(diag.get("transcript_only_warning"))
                 and (diag.get("stt_source") in {"transcript", ""})
+                and diag.get("final_transcript_source_used") == "provider_transcript"
             )
             emit(
                 "transcript_only_fallback_when_no_media",
@@ -410,6 +442,8 @@ def main() -> int:
                 and diag.get("transcript_only_warning") is not True
                 and source_log.get("finalInputSource") == "voice_file"
                 and source_log.get("fallbackReason") == "unsupported_media_shape"
+                and diag.get("final_transcript_source_used") == "none"
+                and diag.get("final_transcript_source_block_reason") == "media_present_or_inferred_bridge_stt_required"
                 and not _contains_file_request(str(response.get("text") or ""))
             )
             emit(

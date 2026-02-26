@@ -3197,6 +3197,8 @@ def _log_telegram_voice_ingest_from_diagnostics(diagnostics: dict[str, Any]) -> 
             "embeddedPromptSuppressedReason": diagnostics.get("embeddedPromptSuppressedReason"),
             "finalOutcome": diagnostics.get("final_outcome"),
             "finalTranscriptSource": diagnostics.get("final_transcript_source"),
+            "finalTranscriptSourceUsed": diagnostics.get("final_transcript_source_used"),
+            "finalTranscriptSourceBlockReason": diagnostics.get("final_transcript_source_block_reason"),
             "fallbackReason": diagnostics.get("fallback_reason"),
             "responseMode": diagnostics.get("response_mode"),
         },
@@ -3206,6 +3208,19 @@ def _log_telegram_voice_ingest_from_diagnostics(diagnostics: dict[str, Any]) -> 
 def _voice_stt_fail_response(*, diagnostics: dict[str, Any], error_code: str) -> dict[str, Any]:
     user_id_raw = diagnostics.get("user_id")
     user_id = int(user_id_raw) if isinstance(user_id_raw, int) else 0
+    diagnostics["final_transcript_source_used"] = diagnostics.get("final_transcript_source_used") or "none"
+    diagnostics["final_transcript_source_block_reason"] = str(diagnostics.get("final_transcript_source_block_reason") or "")
+    if not diagnostics.get("final_transcript_source_block_reason") and bool(
+        diagnostics.get("hasVoice")
+        or diagnostics.get("hasAudio")
+        or diagnostics.get("hasDocument")
+        or diagnostics.get("inferredMediaFromEmbeddedPrompt")
+        or diagnostics.get("embeddedMediaPathPresent")
+        or diagnostics.get("mediaPathPresent")
+        or diagnostics.get("mediaBytesPresent")
+        or diagnostics.get("strictMediaPriority")
+    ):
+        diagnostics["final_transcript_source_block_reason"] = "media_present_or_inferred_bridge_stt_required"
     is_voice_note = bool(diagnostics.get("telegram_voice_note"))
     if not diagnostics.get("fallback_reason"):
         if is_voice_note and error_code == "stt_empty":
@@ -3395,6 +3410,20 @@ async def dispatch_voice(
         diagnostics["final_outcome"] = ""
         diagnostics["response_mode"] = ""
         diagnostics["final_transcript_source"] = ""
+        diagnostics["final_transcript_source_used"] = "none"
+        diagnostics["final_transcript_source_block_reason"] = ""
+        media_present_or_inferred = bool(
+            media_declared
+            or diagnostics.get("hasVoice")
+            or diagnostics.get("hasAudio")
+            or diagnostics.get("hasDocument")
+            or diagnostics.get("inferredMediaFromEmbeddedPrompt")
+            or diagnostics.get("embeddedMediaPathPresent")
+            or diagnostics.get("mediaPathPresent")
+            or diagnostics.get("mediaBytesPresent")
+        )
+        provider_transcript_blocked = media_present_or_inferred
+        provider_transcript_block_reason = "media_present_or_inferred_bridge_stt_required" if provider_transcript_blocked else ""
         if not diagnostics.get("stt_source"):
             diagnostics["stt_source"] = "transcript" if transcript_text else ""
         diagnostics["sttAttempted"] = False
@@ -3783,6 +3812,8 @@ async def dispatch_voice(
                 return _voice_stt_fail_response(diagnostics=diagnostics, error_code="stt_empty")
             diagnostics["final_outcome"] = "stt_ok"
             diagnostics["final_transcript_source"] = "bridge_stt"
+            diagnostics["final_transcript_source_used"] = "bridge_stt"
+            diagnostics["final_transcript_source_block_reason"] = ""
             _log_telegram_voice_ingest_from_diagnostics(diagnostics)
             if mode in {"tutor", "reflection"}:
                 try:
@@ -3942,10 +3973,19 @@ async def dispatch_voice(
                 or diagnostics.get("hasDocument")
             )
             if diagnostics.get("fallback_reason") == "unsupported_media_shape" and transcript_text and not strict_media_priority:
+                if provider_transcript_blocked:
+                    diagnostics["final_transcript_source_used"] = "none"
+                    diagnostics["final_transcript_source_block_reason"] = provider_transcript_block_reason
+                    diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(
+                        diagnostics.get("fallback_reason") or "media_declared_without_bytes"
+                    )
+                    return _voice_stt_fail_response(diagnostics=diagnostics, error_code="media_unavailable")
                 diagnostics["stt_source"] = "transcript"
                 diagnostics["final_outcome"] = "fallback_transcript"
                 diagnostics["response_mode"] = "text"
                 diagnostics["final_transcript_source"] = "provider_transcript"
+                diagnostics["final_transcript_source_used"] = "provider_transcript"
+                diagnostics["final_transcript_source_block_reason"] = ""
                 _log_telegram_voice_pipeline(
                     "transcript_only_fallback",
                     {
@@ -3974,9 +4014,15 @@ async def dispatch_voice(
                 diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(
                     diagnostics.get("fallback_reason") or "transcript_only_no_media"
                 )
+                if provider_transcript_blocked:
+                    diagnostics["final_transcript_source_used"] = "none"
+                    diagnostics["final_transcript_source_block_reason"] = provider_transcript_block_reason
+                    return _voice_stt_fail_response(diagnostics=diagnostics, error_code="media_unavailable")
                 diagnostics["final_outcome"] = "fallback_transcript"
                 diagnostics["response_mode"] = "text"
                 diagnostics["final_transcript_source"] = "provider_transcript"
+                diagnostics["final_transcript_source_used"] = "provider_transcript"
+                diagnostics["final_transcript_source_block_reason"] = ""
                 _log_telegram_voice_pipeline(
                     "transcript_only_clarify",
                     {
@@ -4020,9 +4066,15 @@ async def dispatch_voice(
             diagnostics["transcript_only_warning"] = True
             diagnostics["stt_source"] = diagnostics.get("stt_source") or "transcript"
             diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "transcript_only_auto")
+            if provider_transcript_blocked:
+                diagnostics["final_transcript_source_used"] = "none"
+                diagnostics["final_transcript_source_block_reason"] = provider_transcript_block_reason
+                return _voice_stt_fail_response(diagnostics=diagnostics, error_code="media_unavailable")
             diagnostics["final_outcome"] = "fallback_transcript"
             diagnostics["response_mode"] = "text"
             diagnostics["final_transcript_source"] = "provider_transcript"
+            diagnostics["final_transcript_source_used"] = "provider_transcript"
+            diagnostics["final_transcript_source_block_reason"] = ""
             _log_telegram_voice_pipeline(
                 "transcript_only_fallback",
                 {
@@ -4051,6 +4103,9 @@ async def dispatch_voice(
             if diagnostics.get("telegram_voice_note"):
                 _log_telegram_voice_ingest_from_diagnostics(diagnostics)
             return _build_voice_response(handled=False, diagnostics=diagnostics)
+        diagnostics["final_transcript_source"] = "provider_transcript"
+        diagnostics["final_transcript_source_used"] = "provider_transcript"
+        diagnostics["final_transcript_source_block_reason"] = ""
         if mode in {"tutor", "reflection"}:
             try:
                 ingest_message_event(

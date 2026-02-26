@@ -147,11 +147,17 @@ def main() -> int:
     failures += _print(
         "audio_document_result_includes_observable_proof",
         (result_audio_doc.get("proof") or {}).get("selectedPath") == "d_brain_openclaw_bridge"
+        and (result_audio_doc.get("proof") or {}).get("traceStage") == "wrapper.path_select"
+        and (result_audio_doc.get("proof") or {}).get("requestId") == "smoke-audio-doc"
         and (result_audio_doc.get("proof") or {}).get("messageKind") == "document"
         and (result_audio_doc.get("proof") or {}).get("isAudioDocument") is True
-        and "embedded_transcript_status" in (((result_audio_doc.get("adapter_response") or {}).get("diagnostics")) or {}),
+        and (result_audio_doc.get("trace") or {}).get("traceStage") == "wrapper.adapter_dispatch"
+        and (result_audio_doc.get("trace") or {}).get("requestId") == "smoke-audio-doc"
+        and "embedded_transcript_status" in (((result_audio_doc.get("adapter_response") or {}).get("diagnostics")) or {})
+        and "final_transcript_source_used" in (((result_audio_doc.get("adapter_response") or {}).get("diagnostics")) or {}),
         ok_result=result_audio_doc.get("ok"),
         selected_path=(result_audio_doc.get("proof") or {}).get("selectedPath"),
+        trace_stage=(result_audio_doc.get("trace") or {}).get("traceStage"),
         message_kind=(result_audio_doc.get("proof") or {}).get("messageKind"),
         is_audio_document=(result_audio_doc.get("proof") or {}).get("isAudioDocument"),
         error_code=result_audio_doc.get("error_code"),
@@ -188,11 +194,14 @@ def main() -> int:
         "mojibake_transcript_not_forwarded_as_text",
         bool(result_mojibake_route.get("ok"))
         and captured_msg.get("text") == ""
+        and (result_mojibake_route.get("trace") or {}).get("embeddedTranscriptDecision") == "suppress_embedded_transcript"
+        and (result_mojibake_route.get("trace") or {}).get("embeddedTranscriptSuppressedReason") == "mojibake_suspected"
         and (((result_mojibake_route.get("adapter_response") or {}).get("diagnostics")) or {}).get(
             "embedded_transcript_mojibake_suspected"
         )
         is True,
         forwarded_text=captured_msg.get("text"),
+        trace=result_mojibake_route.get("trace"),
         diagnostics=(result_mojibake_route.get("adapter_response") or {}).get("diagnostics"),
     )
 

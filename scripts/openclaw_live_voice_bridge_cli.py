@@ -435,6 +435,8 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
                     "stt_language": str((response.get("diagnostics") or {}).get("stt_language") or ""),
                     "stt_source": str((response.get("diagnostics") or {}).get("stt_source") or ""),
                     "final_transcript_source": str((response.get("diagnostics") or {}).get("final_transcript_source") or ""),
+                    "final_transcript_source_used": str((response.get("diagnostics") or {}).get("final_transcript_source_used") or ""),
+                    "final_transcript_source_block_reason": str((response.get("diagnostics") or {}).get("final_transcript_source_block_reason") or ""),
                     "fallback_reason": str((response.get("diagnostics") or {}).get("fallback_reason") or ""),
                     "transcript_only_warning": bool((response.get("diagnostics") or {}).get("transcript_only_warning")),
                     "stt_multipass": bool((response.get("diagnostics") or {}).get("stt_multipass")),
