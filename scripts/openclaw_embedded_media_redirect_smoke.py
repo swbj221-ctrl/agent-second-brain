@@ -52,6 +52,7 @@ def main() -> int:
                     },
                     "error_code": "",
                     "adapter_response": {"bridge_handled": True},
+                    "trace": {"traceStage": "wrapper.adapter_dispatch", "requestId": request_id},
                     "user_safe_text": "ok",
                 },
                 "cmd": [sys.executable, "scripts/openclaw_live_voice_bridge_cli.py", "--message-text", "<omitted>"],
@@ -66,10 +67,14 @@ def main() -> int:
         "audio_invokes_wrapper_cli_with_proof_marker",
         bool(result_audio.get("wrapper_invoked"))
         and (result_audio.get("proof_marker") or {}).get("selectedPath") == "wrapper_cli_bridge"
+        and (result_audio.get("proof_marker") or {}).get("traceStage") == "redirect.path_select"
+        and (result_audio.get("proof_marker") or {}).get("requestId") == "smoke-audio"
         and (result_audio.get("wrapper_result") or {}).get("wrapper_proof", {}).get("selectedPath") == "d_brain_openclaw_bridge"
+        and (result_audio.get("wrapper_result") or {}).get("trace", {}).get("traceStage") == "wrapper.adapter_dispatch"
         and len(calls) == 1,
         selected_path=(result_audio.get("proof_marker") or {}).get("selectedPath"),
         wrapper_selected=((result_audio.get("wrapper_result") or {}).get("wrapper_proof") or {}).get("selectedPath"),
+        wrapper_trace=((result_audio.get("wrapper_result") or {}).get("trace") or {}).get("traceStage"),
         calls=len(calls),
     )
 
@@ -80,6 +85,7 @@ def main() -> int:
         (not result_non_audio.get("wrapper_invoked"))
         and result_non_audio.get("error_code") == "non_audio_media"
         and (result_non_audio.get("proof_marker") or {}).get("selectedPath") == "embedded_default_flow"
+        and (result_non_audio.get("proof_marker") or {}).get("traceStage") == "redirect.path_skip"
         and len(calls) == 0,
         error_code=result_non_audio.get("error_code"),
         selected_path=(result_non_audio.get("proof_marker") or {}).get("selectedPath"),
@@ -107,9 +113,42 @@ def main() -> int:
         error_marker=result_missing.get("error_marker"),
     )
 
+    original_invoke = redirect._invoke_wrapper_cli
+    try:
+        def _unexpected_non_bridge(_raw_text: str, request_id: str = "") -> dict[str, object]:
+            return {
+                "returncode": 0,
+                "stdout": "{}",
+                "stderr": "",
+                "json": {
+                    "ok": True,
+                    "proof": {
+                        "event": "openclaw_voice_dispatch_path_select",
+                        "selectedPath": "embedded_direct_stt",
+                        "traceStage": "wrapper.path_select",
+                        "requestId": request_id,
+                    },
+                    "trace": {"traceStage": "wrapper.path_skip", "requestId": request_id},
+                },
+                "cmd": [sys.executable, "scripts/openclaw_live_voice_bridge_cli.py", "--message-text", "<omitted>"],
+            }
+
+        redirect._invoke_wrapper_cli = _unexpected_non_bridge  # type: ignore[assignment]
+        result_unexpected = redirect.redirect_embedded_prompt(audio_doc, request_id="smoke-unexpected")
+    finally:
+        redirect._invoke_wrapper_cli = original_invoke  # type: ignore[assignment]
+
+    failures += _print(
+        "audio_wrapper_non_bridge_path_is_blocked",
+        (not result_unexpected.get("ok"))
+        and result_unexpected.get("error_code") == "wrapper_unexpected_non_bridge_path"
+        and (result_unexpected.get("error_marker") or {}).get("errorCode") == "wrapper_unexpected_non_bridge_path",
+        error_code=result_unexpected.get("error_code"),
+        error_marker=result_unexpected.get("error_marker"),
+    )
+
     return 1 if failures else 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

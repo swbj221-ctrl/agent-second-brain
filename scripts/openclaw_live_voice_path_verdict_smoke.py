@@ -89,6 +89,38 @@ def main() -> int:
         expected_verdict="LIVE_PATH_CONFIRMED_BRIDGE",
     )
 
+    # OpenClaw runtime can wrap marker JSON inside nested `stdout` payloads.
+    # requestIdTag/request_id_tag should keep strict raw-requestId discoverable.
+    wrapped_stage_lines = []
+    for line in nested_lines:
+        line = dict(line)
+        line.setdefault("requestIdTag", f"requestId={rid}")
+        line.setdefault("request_id_tag", f"request_id={rid}")
+        marker_line = json.dumps(line, ensure_ascii=True, separators=(",", ":"))
+        tool_payload = json.dumps(
+            {"exit_code": 0, "stdout": marker_line, "stderr": ""},
+            ensure_ascii=True,
+            separators=(",", ":"),
+        )
+        wrapped_stage_lines.append(
+            json.dumps(
+                {
+                    "type": "log",
+                    "subsystem": "openclaw",
+                    "message": tool_payload,
+                    "raw": json.dumps({"0": tool_payload}, ensure_ascii=True, separators=(",", ":")),
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+        )
+    failures += _run_case(
+        "strict_chain_wrapped_stdout_json_raw_requestid_visible",
+        log_text="\n".join(wrapped_stage_lines),
+        session_text='{"type":"message","message":{"role":"user","content":[{"type":"text","text":"<media:audio>"}]}}',
+        expected_verdict="LIVE_PATH_CONFIRMED_BRIDGE",
+    )
+
     case_focus_missing_stage_lines = [line for line in nested_lines if not (line.get("traceStage") == "adapter.post_bridge")]
     case_focus_missing_stage_log = "\n".join(
         json.dumps(

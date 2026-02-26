@@ -1,0 +1,4 @@
+﻿<media:audio>
+id:123456
+[media attached: D:\openclaw_bot\agent-second-brain\out.wav (audio/wav) | D:\openclaw_bot\agent-second-brain\out.wav]
+[Audio] User text: Transcript: how are you

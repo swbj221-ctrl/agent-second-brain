@@ -44,7 +44,7 @@
 - Safe diagnostics were extended with `rawTextLen/hash/preview`, `rawContentLen/hash/preview`, `embeddedPromptSuppressed*`, and embedded-media inference evidence (`inferredMediaFromEmbeddedPrompt`, `embeddedMediaPath*`, `embeddedMediaMimeType`, `embeddedMediaExt`) across source-select/ingest pipeline logs.
 - Media-backed requests enforce STT source precedence (`stt_source` forced to media path when audio bytes are available).
 - Wrapper-first routing, anti-bypass behavior, and strict same-`requestId` proof chain remain unchanged.
-- Top-level adapter outgoing boundary now emits strict `chat_response_source` (`bridge_stt|provider_transcript_blocked|fallback_error`) plus `media_or_inferred` for Telegram live triage (`openclaw logs --follow --json --plain`).
+- Top-level adapter outgoing boundary now emits strict source markers `chat_response_source` and `outgoing_text_source` (`bridge_stt|provider_transcript_blocked|fallback_error`) plus `media_or_inferred` for Telegram live triage (`openclaw logs --follow --json --plain`).
 
 ## Skills in Workflow (Internal)
 - `skill-creator`: use when creating/updating skills; follow `docs/skill-contract.md`.
@@ -196,18 +196,32 @@
   - `TELEGRAM_STT_NORMALIZE_AUDIO=1` enables ffmpeg normalization to mono 16k PCM WAV before STT for compressed Telegram audio inputs.
   - `TELEGRAM_STT_MULTIPASS=1` enables opt-in non-tutor STT multipass decode attempts (default behavior is unchanged when disabled).
   - `TELEGRAM_STT_MULTIPASS_LANGS=auto,ru,en` controls multipass order (`auto` = current/default bridge STT language path).
-  - `TELEGRAM_STT_MIXED_HEURISTIC=1` enables lightweight candidate scoring (length/tokens/script mix) to prefer mixed RU+EN transcripts when available.
-  - Mixed-language heuristic hardening:
-    - preserves Cyrillic fragments when any candidate shows Cyrillic evidence
-    - penalizes `ru` candidates without Cyrillic and `en` candidates without Latin
-    - penalizes transliterated pseudo-Russian Latin candidates when a better Cyrillic/mixed candidate exists
-    - prefers mixed-script candidates in mixed-context utterances (for example `Привет, how are you, ты меня понимаешь?`)
-  - Compatibility rule (safe default): if `TELEGRAM_STT_LANGUAGE` is explicitly set for non-tutor mode, multipass is skipped and the explicit language override is used.
+  - `TELEGRAM_STT_MIXED_HEURISTIC=1` enables candidate selection that prefers mixed-script transcripts first, then higher detected language probability.
+- Offline-capable Telegram STT backend routing (bridge-level):
+  - `TELEGRAM_STT_BACKEND=faster_whisper` is the only runtime STT path for Telegram voice.
+  - Deepgram STT is disabled in normal Telegram media STT runtime flow.
+  - If faster-whisper is unavailable or fails, bridge returns a fail-closed error path; no silent Deepgram STT fallback is used.
+  - `FASTER_WHISPER_MODEL=medium` is recommended for higher-quality mixed RU+EN transcript fidelity; default remains `small`.
+  - `FASTER_WHISPER_DEVICE=cpu|cuda` and `FASTER_WHISPER_COMPUTE_TYPE=int8|float16` are the primary operator controls (compatibility `int8_float32` remains supported in bridge runtime).
+  - faster-whisper path uses singleton model caching and verbatim mixed RU+EN transcription settings:
+    - `task=transcribe`, `temperature=0.0`, `condition_on_previous_text=false`
+    - prompt keeps English words in Latin and disables translation/paraphrase
+    - VAD enabled by default (`FASTER_WHISPER_VAD_FILTER=1`) with configurable min silence.
+  - Bridge preprocessing forces transparent ffmpeg decode for compressed media in faster-whisper paths even when `TELEGRAM_STT_NORMALIZE_AUDIO` is disabled.
+- Offline-capable Telegram TTS backend routing (bridge-level):
+  - `TELEGRAM_TTS_BACKEND=piper` is the normal runtime path.
+  - Deepgram TTS is disabled in normal Telegram runtime flow.
+  - Optional diagnostic-only override for Deepgram TTS path: `OPENCLAW_ALLOW_DEEPGRAM_TTS_DIAGNOSTIC=1|true|yes|on` (default OFF).
+  - Piper path uses local binary/voices (`PIPER_EXE_PATH`, `PIPER_VOICE_RU_PATH`, `PIPER_VOICE_EN_PATH`) and language-based voice selection (`ru` -> RU voice, `en` -> EN voice, mixed/unknown -> RU voice).
+  - Bridge produces WAV from Piper, then performs internal ffmpeg conversion to OGG/Opus for Telegram voice where possible.
+  - On Piper failure in normal mode, bridge fails closed to text (no silent Deepgram fallback).
 - Transcript-only safety behavior (no media available):
   - valid English text is kept as-is (no forced normalization)
   - obvious translit-like garbage or keyboard-layout typos trigger a short Russian clarification prompt instead of guessing/hallucinating
-  - examples: `ghbdtn` -> confirm `привет?`, `руддщ` -> confirm `hello?`
+  - examples: `ghbdtn` -> confirm `privet?`, `ruddsch` -> confirm `hello?`
 - OpenClaw adapter media hint routing now treats only audio documents as voice candidates; non-audio `message.document` payloads continue to normal document handling.
+- Adapter post-bridge normalization now prefers a stronger bridge-selected Cyrillic candidate even when outgoing text length is equal (prevents latin-start `privyat...` from surviving if bridge selected `Privet...`), while keeping tutor/reflection assistant replies untouched.
+- Focused source smoke is available in `scripts/openclaw_chat_response_source_smoke.py` (`embedded_preflight_tail_bridge_full_sequence`) to verify EN-tail preflight transcript does not override RU+EN+RU bridge candidate and final outgoing source remains `bridge_stt`.
 - Live embedded OpenClaw Telegram audio can still bypass the adapter/bridge if the embedded agent handles `<media:audio>` directly via ad-hoc `exec` STT. This is detectable by:
   - Telegram activity in `openclaw logs` with no `telegram_voice_pipeline` / `stt_multipass_*`
   - session JSONL tool calls showing direct Deepgram/`exec` STT commands
@@ -233,6 +247,7 @@
   - adapter post-bridge result marker: `event=openclaw_voice_dispatch_path_result` with `traceStage=adapter.post_bridge`, `sttSource`, `fallbackReason`, `transcriptOnlyWarning`, `sttLanguage`, `sttMultipass`
   - Discoverability hardening (live log capture):
     - Redirect shim and wrapper CLI mirror path markers to `stderr` as standalone JSON lines and include both `requestId` and `request_id` (same value) to improve extraction across log formatting variants.
+    - Unified marker serializer also emits `requestIdTag=requestId=<id>` and `request_id_tag=request_id=<id>` so strict verdict correlation can recover raw ids from deeply escaped `openclaw logs --json --plain` wrapper lines.
     - Redirect shim forwards wrapper `stderr` marker lines after wrapper execution so redirect + wrapper markers can appear in the same `openclaw logs --follow --json --plain` capture.
     - Adapter pre/post bridge markers now emit both `requestId` and `request_id` as well.
 - Verdict helper robustness (strictness unchanged):

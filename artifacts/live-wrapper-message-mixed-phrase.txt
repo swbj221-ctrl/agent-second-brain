@@ -1,0 +1,4 @@
+﻿<media:audio>
+id:123456
+[media attached: D:\openclaw_bot\agent-second-brain\artifacts\phrase-mixed-ru-en-ru.mp3 (audio/mp3) | D:\openclaw_bot\agent-second-brain\artifacts\phrase-mixed-ru-en-ru.mp3]
+[Audio] User text: Transcript: how are you

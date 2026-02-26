@@ -1,0 +1,293 @@
+﻿{
+  "runId": "07825645-3ce4-4efb-902d-e454edd79bb8",
+  "status": "ok",
+  "summary": "completed",
+  "result": {
+    "payloads": [
+      {
+        "text": "{\"exit_code\":0,\"stdout\":\"=1 : ��� \\\"=1\\\" �� �ᯮ����� ��� ��� ���������, �㭪樨, 䠩�� �業��� ��� �믮��塞�� �ணࠬ��. �஢���� �ࠢ��쭮�\\n�� ����ᠭ�� �����, � ⠪�� ����稥 � �ࠢ��쭮��� ���, ��᫥ 祣� ������ ������.\\n��ப�:1 ����:1\\n+ ='1'; ='auto,ru,en'; ='1'; Remove-Item Env:TELEGRAM_STT_LANGUAGE -Err ...\\n+ ~~~~\\n    + CategoryInfo          : ObjectNotFound: (=1:String) [], CommandNotFoundException\\n    + FullyQualifiedErrorId : CommandNotFoundException\\n \\n=auto,ru,en : ��� \\\"=auto,ru,en\\\" �� �ᯮ����� ��� ��� ���������, �㭪樨, 䠩�� �業��� ��� �믮��塞�� �ணࠬ��. ��\\n������ �ࠢ��쭮��� ����ᠭ�� �����, � ⠪�� ����稥 � �ࠢ��쭮��� ���, ��᫥ 祣� ������ ������.\\n��ப�:1 ����:7\\n+ ='1'; ='auto,ru,en'; ='1'; Remove-Item Env:TELEGRAM_STT_LANGUAGE -Err ...\\n+       ~~~~~~~~~~~~~\\n    + CategoryInfo          : ObjectNotFound: (=auto,ru,en:String) [], CommandNotFoundException\\n    + FullyQualifiedErrorId : CommandNotFoundException\\n \\n=1 : ��� \\\"=1\\\" �� �ᯮ����� ��� ��� ���������, �㭪樨, 䠩�� �業��� ��� �믮��塞�� �ணࠬ��. �஢���� �ࠢ��쭮�\\n�� ����ᠭ�� �����, � ⠪�� ����稥 � �ࠢ��쭮��� ���, ��᫥ 祣� ������ ������.\\n��ப�:1 ����:22\\n+ ='1'; ='auto,ru,en'; ='1'; Remove-Item Env:TELEGRAM_STT_LANGUAGE -Err ...\\n+                      ~~~~\\n    + CategoryInfo          : ObjectNotFound: (=1:String) [], CommandNotFoundException\\n    + FullyQualifiedErrorId : CommandNotFoundException\\n \\n{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"runtime.exec_guard\\\",\\\"selectedPath\\\":\\\"wrapper_cli_bridge\\\",\\\"branchReason\\\":\\\"redirect_runtime_guard_visibility\\\",\\\"messageKind\\\":\\\"document\\\",\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"isAudioDocument\\\":true,\\\"sourceModule\\\":\\\"D:\\\\\\\\openclaw_bot\\\\\\\\agent-second-brain\\\\\\\\scripts\\\\\\\\openclaw_embedded_media_redirect_cli.py\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"redirect.path_select\\\",\\\"selectedPath\\\":\\\"wrapper_cli_bridge\\\",\\\"branchReason\\\":\\\"embedded_audio_media_wrapper_redirect\\\",\\\"messageKind\\\":\\\"document\\\",\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"isAudioDocument\\\":true,\\\"sourceModule\\\":\\\"D:\\\\\\\\openclaw_bot\\\\\\\\agent-second-brain\\\\\\\\scripts\\\\\\\\openclaw_embedded_media_redirect_cli.py\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"wrapper.path_select\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"selectedPath\\\":\\\"d_brain_openclaw_bridge\\\",\\\"branchReason\\\":\\\"audio_media_detected\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isAudioDocument\\\":true,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"ext\\\":\\\".ogg\\\",\\\"sourceFormat\\\":\\\"media_attached\\\",\\\"sourceModule\\\":\\\"D:\\\\\\\\openclaw_bot\\\\\\\\agent-second-brain\\\\\\\\scripts\\\\\\\\openclaw_live_voice_bridge_cli.py\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"adapter.pre_bridge\\\",\\\"selectedPath\\\":\\\"d_brain_openclaw_bridge\\\",\\\"branchReason\\\":\\\"media_detected_or_noncommand_text\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"hasVoice\\\":false,\\\"hasAudio\\\":false,\\\"hasDocument\\\":true,\\\"hasText\\\":false,\\\"textLooksTranscript\\\":false,\\\"audioPathPresent\\\":true,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"ext\\\":\\\".ogg\\\",\\\"sourceModule\\\":\\\"D:\\\\\\\\openclaw_bot\\\\\\\\agent-second-brain\\\\\\\\vault\\\\\\\\.claude\\\\\\\\skills\\\\\\\\openclaw-main\\\\\\\\adapter.py\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_stt_source_select\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"userIdHash\\\":\\\"\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"hasVoice\\\":false,\\\"hasAudio\\\":false,\\\"hasDocument\\\":true,\\\"hasText\\\":false,\\\"hasTranscript\\\":false,\\\"transcriptLen\\\":0,\\\"transcriptLooksAuto\\\":false,\\\"voiceDuration\\\":null,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"telegramFileIdPresent\\\":false,\\\"telegramFileUniqueIdPresent\\\":false,\\\"downloaderName\\\":\\\"\\\",\\\"downloaderPath\\\":\\\"\\\",\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":false,\\\"downloadBytes\\\":0,\\\"downloadError\\\":\\\"\\\",\\\"mediaBytesPresent\\\":false,\\\"mediaBytesLen\\\":0,\\\"mediaPathPresent\\\":true,\\\"mediaPathExists\\\":true,\\\"mediaPathSize\\\":18667,\\\"mediaPathBase\\\":\\\"file_181---7009b271-0953-4ef6-bbcb-d411e4c52c95.ogg\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"inferredMediaFromEmbeddedPrompt\\\":false,\\\"embeddedMediaPathPresent\\\":false,\\\"embeddedMediaPathBase\\\":\\\"\\\",\\\"embeddedMediaMimeType\\\":\\\"\\\",\\\"embeddedMediaExt\\\":\\\"\\\",\\\"sttAttempted\\\":false,\\\"sttOk\\\":false,\\\"sttProvider\\\":\\\"\\\",\\\"sttModel\\\":\\\"\\\",\\\"sttSource\\\":\\\"document_file\\\",\\\"sttResultLen\\\":0,\\\"finalInputSource\\\":\\\"document_file\\\",\\\"finalOutcome\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"responseMode\\\":\\\"\\\",\\\"durationMs\\\":null,\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_preprocess_start\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":18667,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"ogg\\\",\\\"inputFormat\\\":\\\"ogg_opus\\\",\\\"outputFormat\\\":\\\"\\\",\\\"inputPath\\\":\\\"file_181---7009b271-0953-4ef6-bbcb-d411e4c52c95.ogg\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":18667,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"ru\\\",\\\"sttResultLanguage\\\":\\\"\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"ru\\\",\\\"en\\\"],\\\"sttPassIndex\\\":null,\\\"sttPassCount\\\":null,\\\"sttPassToken\\\":\\\"\\\",\\\"candidateLang\\\":\\\"\\\",\\\"candidateScore\\\":null,\\\"candidateTokenCount\\\":null,\\\"candidateLen\\\":null,\\\"candidateHasCyrillic\\\":null,\\\"candidateHasLatin\\\":null,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":0,\\\"candidateEnglishHintHits\\\":0,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"\\\",\\\"selectionReason\\\":\\\"\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_preprocess_skip\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":0,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"ogg\\\",\\\"inputFormat\\\":\\\"ogg_opus\\\",\\\"outputFormat\\\":\\\"ogg_opus\\\",\\\"inputPath\\\":\\\"\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":0,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"ru\\\",\\\"sttResultLanguage\\\":\\\"\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"ru\\\",\\\"en\\\"],\\\"sttPassIndex\\\":null,\\\"sttPassCount\\\":null,\\\"sttPassToken\\\":\\\"\\\",\\\"candidateLang\\\":\\\"\\\",\\\"candidateScore\\\":null,\\\"candidateTokenCount\\\":null,\\\"candidateLen\\\":null,\\\"candidateHasCyrillic\\\":null,\\\"candidateHasLatin\\\":null,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":0,\\\"candidateEnglishHintHits\\\":0,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"\\\",\\\"selectionReason\\\":\\\"\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"audio_preprocess_disabled\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_pre_multipass_source\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":0,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"\\\",\\\"inputFormat\\\":\\\"\\\",\\\"outputFormat\\\":\\\"\\\",\\\"inputPath\\\":\\\"\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":0,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"ru\\\",\\\"sttResultLanguage\\\":\\\"\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"ru\\\",\\\"en\\\"],\\\"sttPassIndex\\\":null,\\\"sttPassCount\\\":null,\\\"sttPassToken\\\":\\\"\\\",\\\"candidateLang\\\":\\\"\\\",\\\"candidateScore\\\":null,\\\"candidateTokenCount\\\":null,\\\"candidateLen\\\":null,\\\"candidateHasCyrillic\\\":null,\\\"candidateHasLatin\\\":null,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":0,\\\"candidateEnglishHintHits\\\":0,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"\\\",\\\"selectionReason\\\":\\\"\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_multipass_start\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":0,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"\\\",\\\"inputFormat\\\":\\\"\\\",\\\"outputFormat\\\":\\\"\\\",\\\"inputPath\\\":\\\"\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":0,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"DeepgramSTTAdapter\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"ru\\\",\\\"sttResultLanguage\\\":\\\"\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"en\\\"],\\\"sttPassIndex\\\":null,\\\"sttPassCount\\\":null,\\\"sttPassToken\\\":\\\"\\\",\\\"candidateLang\\\":\\\"\\\",\\\"candidateScore\\\":null,\\\"candidateTokenCount\\\":null,\\\"candidateLen\\\":null,\\\"candidateHasCyrillic\\\":null,\\\"candidateHasLatin\\\":null,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":0,\\\"candidateEnglishHintHits\\\":0,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"\\\",\\\"selectionReason\\\":\\\"\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_request_start\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":0,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"\\\",\\\"inputFormat\\\":\\\"ogg_opus\\\",\\\"outputFormat\\\":\\\"\\\",\\\"inputPath\\\":\\\"\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":18667,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"DeepgramSTTAdapter\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"ru\\\",\\\"sttResultLanguage\\\":\\\"\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"ru\\\",\\\"en\\\"],\\\"sttPassIndex\\\":1,\\\"sttPassCount\\\":2,\\\"sttPassToken\\\":\\\"auto\\\",\\\"candidateLang\\\":\\\"\\\",\\\"candidateScore\\\":null,\\\"candidateTokenCount\\\":null,\\\"candidateLen\\\":null,\\\"candidateHasCyrillic\\\":null,\\\"candidateHasLatin\\\":null,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":0,\\\"candidateEnglishHintHits\\\":0,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"\\\",\\\"selectionReason\\\":\\\"\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_result\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":0,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"\\\",\\\"inputFormat\\\":\\\"\\\",\\\"outputFormat\\\":\\\"\\\",\\\"inputPath\\\":\\\"\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":0,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"deepgram\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"ru\\\",\\\"sttResultLanguage\\\":\\\"ru\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"Привет. How are you? Ты меня понимаешь?\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"en\\\"],\\\"sttPassIndex\\\":1,\\\"sttPassCount\\\":2,\\\"sttPassToken\\\":\\\"auto\\\",\\\"candidateLang\\\":\\\"\\\",\\\"candidateScore\\\":null,\\\"candidateTokenCount\\\":null,\\\"candidateLen\\\":null,\\\"candidateHasCyrillic\\\":null,\\\"candidateHasLatin\\\":null,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":0,\\\"candidateEnglishHintHits\\\":0,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"\\\",\\\"selectionReason\\\":\\\"\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_multipass_candidate\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":0,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"\\\",\\\"inputFormat\\\":\\\"\\\",\\\"outputFormat\\\":\\\"\\\",\\\"inputPath\\\":\\\"\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":0,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"ru\\\",\\\"sttResultLanguage\\\":\\\"\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"Привет. How are you? Ты меня понимаешь?\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"en\\\"],\\\"sttPassIndex\\\":1,\\\"sttPassCount\\\":2,\\\"sttPassToken\\\":\\\"auto\\\",\\\"candidateLang\\\":\\\"ru\\\",\\\"candidateScore\\\":109,\\\"candidateTokenCount\\\":7,\\\"candidateLen\\\":39,\\\"candidateHasCyrillic\\\":true,\\\"candidateHasLatin\\\":true,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":1,\\\"candidateEnglishHintHits\\\":3,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"\\\",\\\"selectionReason\\\":\\\"\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_request_start\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":0,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"\\\",\\\"inputFormat\\\":\\\"ogg_opus\\\",\\\"outputFormat\\\":\\\"\\\",\\\"inputPath\\\":\\\"\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":18667,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"DeepgramSTTAdapter\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"en\\\",\\\"sttResultLanguage\\\":\\\"\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"ru\\\",\\\"en\\\"],\\\"sttPassIndex\\\":2,\\\"sttPassCount\\\":2,\\\"sttPassToken\\\":\\\"en\\\",\\\"candidateLang\\\":\\\"\\\",\\\"candidateScore\\\":null,\\\"candidateTokenCount\\\":null,\\\"candidateLen\\\":null,\\\"candidateHasCyrillic\\\":null,\\\"candidateHasLatin\\\":null,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":0,\\\"candidateEnglishHintHits\\\":0,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"\\\",\\\"selectionReason\\\":\\\"\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_result\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":0,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"\\\",\\\"inputFormat\\\":\\\"\\\",\\\"outputFormat\\\":\\\"\\\",\\\"inputPath\\\":\\\"\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":0,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"deepgram\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"en\\\",\\\"sttResultLanguage\\\":\\\"en\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"Privyat, how are you?\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"en\\\"],\\\"sttPassIndex\\\":2,\\\"sttPassCount\\\":2,\\\"sttPassToken\\\":\\\"en\\\",\\\"candidateLang\\\":\\\"\\\",\\\"candidateScore\\\":null,\\\"candidateTokenCount\\\":null,\\\"candidateLen\\\":null,\\\"candidateHasCyrillic\\\":null,\\\"candidateHasLatin\\\":null,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":0,\\\"candidateEnglishHintHits\\\":0,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"\\\",\\\"selectionReason\\\":\\\"\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_multipass_candidate\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":0,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"\\\",\\\"inputFormat\\\":\\\"\\\",\\\"outputFormat\\\":\\\"\\\",\\\"inputPath\\\":\\\"\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":0,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"ru\\\",\\\"sttResultLanguage\\\":\\\"\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"Privyat, how are you?\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"en\\\"],\\\"sttPassIndex\\\":2,\\\"sttPassCount\\\":2,\\\"sttPassToken\\\":\\\"en\\\",\\\"candidateLang\\\":\\\"en\\\",\\\"candidateScore\\\":53,\\\"candidateTokenCount\\\":4,\\\"candidateLen\\\":21,\\\"candidateHasCyrillic\\\":false,\\\"candidateHasLatin\\\":true,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":2,\\\"candidateEnglishHintHits\\\":3,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"\\\",\\\"selectionReason\\\":\\\"\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_pipeline\\\",\\\"stage\\\":\\\"stt_multipass_selected\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"fileIdPresent\\\":false,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"fileSize\\\":0,\\\"duration\\\":null,\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadError\\\":\\\"\\\",\\\"normalizeAudioEnabled\\\":false,\\\"ffmpegPathFound\\\":null,\\\"inputMimeType\\\":\\\"audio/ogg\\\",\\\"inputExt\\\":\\\"\\\",\\\"inputFormat\\\":\\\"\\\",\\\"outputFormat\\\":\\\"\\\",\\\"inputPath\\\":\\\"\\\",\\\"outputPath\\\":\\\"\\\",\\\"inputBytes\\\":0,\\\"outputBytes\\\":0,\\\"ffmpegCommand\\\":[],\\\"ffmpegExitCode\\\":null,\\\"ffmpegError\\\":\\\"\\\",\\\"sttProvider\\\":\\\"\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttLanguage\\\":\\\"ru\\\",\\\"sttResultLanguage\\\":\\\"\\\",\\\"sttErrorCode\\\":\\\"\\\",\\\"sttErrorMessage\\\":\\\"\\\",\\\"transcriptPreview\\\":\\\"Привет. How are you? Ты меня понимаешь?\\\",\\\"sttMultipass\\\":true,\\\"sttMultipassHeuristic\\\":true,\\\"sttMultipassLangs\\\":[\\\"auto\\\",\\\"en\\\"],\\\"sttPassIndex\\\":null,\\\"sttPassCount\\\":null,\\\"sttPassToken\\\":\\\"\\\",\\\"candidateLang\\\":\\\"\\\",\\\"candidateScore\\\":231,\\\"candidateTokenCount\\\":7,\\\"candidateLen\\\":39,\\\"candidateHasCyrillic\\\":true,\\\"candidateHasLatin\\\":true,\\\"candidateTranslitLikeLatin\\\":false,\\\"candidateTranslitHintHits\\\":1,\\\"candidateEnglishHintHits\\\":3,\\\"candidateRepeatedLatinRuns\\\":0,\\\"selectedLang\\\":\\\"ru\\\",\\\"selectionReason\\\":\\\"heuristic_best_score\\\",\\\"skipReason\\\":\\\"\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"rawTextLen\\\":0,\\\"rawTextHash\\\":\\\"\\\",\\\"rawTextPreview\\\":\\\"\\\",\\\"rawContentLen\\\":0,\\\"rawContentHash\\\":\\\"\\\",\\\"rawContentPreview\\\":\\\"\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"pipelineErrorCode\\\":\\\"\\\",\\\"pipelineErrorMessage\\\":\\\"\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"telegram_voice_ingest\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"userIdHash\\\":\\\"\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isVoiceNote\\\":false,\\\"hasVoice\\\":false,\\\"hasAudio\\\":false,\\\"hasDocument\\\":true,\\\"hasText\\\":false,\\\"hasTranscript\\\":false,\\\"transcriptLen\\\":39,\\\"transcriptLooksAuto\\\":false,\\\"voiceDuration\\\":null,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"telegramFileIdPresent\\\":false,\\\"telegramFileUniqueIdPresent\\\":false,\\\"downloaderName\\\":\\\"\\\",\\\"downloaderPath\\\":\\\"\\\",\\\"downloadAttempted\\\":false,\\\"downloadOk\\\":true,\\\"downloadBytes\\\":18667,\\\"downloadError\\\":\\\"\\\",\\\"mediaBytesPresent\\\":true,\\\"mediaBytesLen\\\":18667,\\\"mediaPathPresent\\\":true,\\\"mediaPathExists\\\":true,\\\"mediaPathSize\\\":18667,\\\"mediaPathBase\\\":\\\"file_181---7009b271-0953-4ef6-bbcb-d411e4c52c95.ogg\\\",\\\"embeddedPromptLike\\\":false,\\\"embeddedPromptSuppressed\\\":false,\\\"embeddedPromptSuppressedReason\\\":\\\"\\\",\\\"inferredMediaFromEmbeddedPrompt\\\":false,\\\"embeddedMediaPathPresent\\\":false,\\\"embeddedMediaPathBase\\\":\\\"\\\",\\\"embeddedMediaMimeType\\\":\\\"\\\",\\\"embeddedMediaExt\\\":\\\"\\\",\\\"sttAttempted\\\":true,\\\"sttOk\\\":true,\\\"sttProvider\\\":\\\"deepgram\\\",\\\"sttModel\\\":\\\"nova-3\\\",\\\"sttSource\\\":\\\"document_file\\\",\\\"sttResultLen\\\":39,\\\"finalInputSource\\\":\\\"document_file\\\",\\\"finalOutcome\\\":\\\"stt_ok\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"responseMode\\\":\\\"\\\",\\\"durationMs\\\":null,\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"openclaw_voice_dispatch_path_result\\\",\\\"traceStage\\\":\\\"adapter.post_bridge\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"mediaDetected\\\":true,\\\"media_or_inferred_at_decision\\\":true,\\\"media_or_inferred\\\":true,\\\"response_text_source\\\":\\\"bridge_stt\\\",\\\"reply_text_source\\\":\\\"bridge_stt\\\",\\\"outgoing_text_source\\\":\\\"bridge_stt\\\",\\\"bridgeHandled\\\":true,\\\"status\\\":\\\"ok\\\",\\\"errorCode\\\":\\\"\\\",\\\"sttSource\\\":\\\"document_file\\\",\\\"fallbackReason\\\":\\\"\\\",\\\"transcriptOnlyWarning\\\":false,\\\"sttLanguage\\\":\\\"ru\\\",\\\"sttMultipass\\\":true,\\\"sourceModule\\\":\\\"D:\\\\\\\\openclaw_bot\\\\\\\\agent-second-brain\\\\\\\\vault\\\\\\\\.claude\\\\\\\\skills\\\\\\\\openclaw-main\\\\\\\\adapter.py\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"openclaw_adapter_outgoing_boundary\\\",\\\"traceStage\\\":\\\"adapter.respond.final\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"runId\\\":\\\"\\\",\\\"sessionId\\\":\\\"\\\",\\\"route\\\":\\\"voice\\\",\\\"chat_response_source\\\":\\\"bridge_stt\\\",\\\"reply_text_source\\\":\\\"bridge_stt\\\",\\\"outgoing_text_source\\\":\\\"bridge_stt\\\",\\\"media_or_inferred\\\":true,\\\"outgoing_text_preview_hash\\\":\\\"f545c9d2dec5a313\\\",\\\"outgoing_text_preview_len\\\":50,\\\"channel_send_origin_module\\\":\\\"D:\\\\\\\\openclaw_bot\\\\\\\\agent-second-brain\\\\\\\\vault\\\\\\\\.claude\\\\\\\\skills\\\\\\\\openclaw-main\\\\\\\\adapter.py\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"event\\\":\\\"openclaw_voice_dispatch_wrapper_trace\\\",\\\"traceStage\\\":\\\"wrapper.adapter_dispatch\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"mediaPresent\\\":true,\\\"rawInboundLen\\\":267,\\\"rawInboundHash\\\":\\\"d31683643fa7be5d\\\",\\\"rawInboundPreview\\\":\\\"[media attached: C:\\\\\\\\Users\\\\\\\\User\\\\\\\\.openclaw\\\\\\\\media\\\\\\\\inbound\\\\\\\\file_181---7009b271-0953-4ef6-bbcb-d411e4c52c95.ogg (audio/ogg; c...<trimmed>\\\",\\\"mediaPathPresent\\\":true,\\\"mediaPathBase\\\":\\\"file_181---7009b271-0953-4ef6-bbcb-d411e4c52c95.ogg\\\",\\\"embeddedTranscriptPresent\\\":true,\\\"embeddedTranscriptForwarded\\\":false,\\\"embeddedTranscriptDecision\\\":\\\"suppress_embedded_transcript\\\",\\\"embeddedTranscriptSuppressedReason\\\":\\\"media_first_stt\\\",\\\"embeddedTranscriptStatus\\\":\\\"OK\\\",\\\"embeddedTranscriptDecodeMode\\\":\\\"raw_utf8\\\",\\\"requestIdTag\\\":\\\"requestId=strict-final-20260226-155433\\\",\\\"request_id_tag\\\":\\\"request_id=strict-final-20260226-155433\\\"}\\n{\\\"ok\\\":true,\\\"handled\\\":true,\\\"proof_marker\\\":{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"redirect.path_select\\\",\\\"selectedPath\\\":\\\"wrapper_cli_bridge\\\",\\\"branchReason\\\":\\\"embedded_audio_media_wrapper_redirect\\\",\\\"messageKind\\\":\\\"document\\\",\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"isAudioDocument\\\":true,\\\"sourceModule\\\":\\\"D:\\\\\\\\openclaw_bot\\\\\\\\agent-second-brain\\\\\\\\scripts\\\\\\\\openclaw_embedded_media_redirect_cli.py\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\"},\\\"error_code\\\":\\\"\\\",\\\"user_safe_text\\\":\\\"Сохранено: Привет. How are you? Ты меня понимаешь?\\\",\\\"wrapper_invoked\\\":true,\\\"wrapper_result\\\":{\\\"returncode\\\":0,\\\"wrapper_proof\\\":{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"wrapper.path_select\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"selectedPath\\\":\\\"d_brain_openclaw_bridge\\\",\\\"branchReason\\\":\\\"audio_media_detected\\\",\\\"messageKind\\\":\\\"document\\\",\\\"isAudioDocument\\\":true,\\\"mimeType\\\":\\\"audio/ogg\\\",\\\"ext\\\":\\\".ogg\\\",\\\"sourceFormat\\\":\\\"media_attached\\\",\\\"sourceModule\\\":\\\"D:\\\\\\\\openclaw_bot\\\\\\\\agent-second-brain\\\\\\\\scripts\\\\\\\\openclaw_live_voice_bridge_cli.py\\\"},\\\"wrapper_error_marker\\\":null,\\\"wrapper_error_code\\\":\\\"\\\",\\\"adapter_response\\\":{\\\"status\\\":\\\"ok\\\",\\\"route\\\":\\\"voice\\\",\\\"bridge_handled\\\":false,\\\"audio_intent\\\":\\\"\\\",\\\"error_code\\\":\\\"\\\",\\\"text_preview\\\":\\\"Сохранено: Привет. How are you? Ты меня понимаешь?\\\",\\\"diagnostics\\\":{\\\"stt_error_code\\\":\\\"\\\",\\\"pipeline_error_code\\\":\\\"\\\",\\\"stt_language\\\":\\\"ru\\\",\\\"stt_source\\\":\\\"document_file\\\",\\\"final_transcript_source\\\":\\\"bridge_stt\\\",\\\"final_transcript_source_used\\\":\\\"bridge_stt\\\",\\\"final_transcript_source_block_reason\\\":\\\"\\\",\\\"fallback_reason\\\":\\\"\\\",\\\"transcript_only_warning\\\":false,\\\"stt_multipass\\\":true,\\\"embedded_transcript_status\\\":\\\"OK\\\",\\\"embedded_transcript_decode_mode\\\":\\\"raw_utf8\\\",\\\"embedded_transcript_len\\\":11,\\\"embedded_transcript_base64_decoded\\\":false,\\\"embedded_transcript_mojibake_suspected\\\":false}},\\\"trace\\\":{\\\"event\\\":\\\"openclaw_voice_dispatch_wrapper_trace\\\",\\\"traceStage\\\":\\\"wrapper.adapter_dispatch\\\",\\\"requestId\\\":\\\"strict-final-20260226-155433\\\",\\\"request_id\\\":\\\"strict-final-20260226-155433\\\",\\\"mediaPresent\\\":true,\\\"rawInboundLen\\\":267,\\\"rawInboundHash\\\":\\\"d31683643fa7be5d\\\",\\\"rawInboundPreview\\\":\\\"[media attached: C:\\\\\\\\Users\\\\\\\\User\\\\\\\\.openclaw\\\\\\\\media\\\\\\\\inbound\\\\\\\\file_181---7009b271-0953-4ef6-bbcb-d411e4c52c95.ogg (audio/ogg; c...<trimmed>\\\",\\\"mediaPathPresent\\\":true,\\\"mediaPathBase\\\":\\\"file_181---7009b271-0953-4ef6-bbcb-d411e4c52c95.ogg\\\",\\\"embeddedTranscriptPresent\\\":true,\\\"embeddedTranscriptForwarded\\\":false,\\\"embeddedTranscriptDecision\\\":\\\"suppress_embedded_transcript\\\",\\\"embeddedTranscriptSuppressedReason\\\":\\\"media_first_stt\\\",\\\"embeddedTranscriptStatus\\\":\\\"OK\\\",\\\"embeddedTranscriptDecodeMode\\\":\\\"raw_utf8\\\"}}}\",\"stderr\":\"\"}",
+        "mediaUrl": null
+      }
+    ],
+    "meta": {
+      "durationMs": 127151,
+      "agentMeta": {
+        "sessionId": "b1e34400-3798-4865-9093-f1b8850b2913",
+        "provider": "openai-codex",
+        "model": "gpt-5.3-codex",
+        "usage": {
+          "input": 24336,
+          "output": 8402,
+          "cacheRead": 65792,
+          "total": 57407
+        },
+        "lastCallUsage": {
+          "input": 8287,
+          "output": 8160,
+          "cacheRead": 40960,
+          "cacheWrite": 0,
+          "total": 57407
+        },
+        "promptTokens": 49247
+      },
+      "aborted": false,
+      "systemPromptReport": {
+        "source": "run",
+        "generatedAt": 1772110481615,
+        "sessionId": "b1e34400-3798-4865-9093-f1b8850b2913",
+        "sessionKey": "agent:main:main",
+        "provider": "openai-codex",
+        "model": "gpt-5.3-codex",
+        "workspaceDir": "D:\\openclaw_bot\\agent-second-brain\\.openclaw\\workspace",
+        "bootstrapMaxChars": 20000,
+        "bootstrapTotalMaxChars": 150000,
+        "sandbox": {
+          "mode": "off",
+          "sandboxed": false
+        },
+        "systemPrompt": {
+          "chars": 36672,
+          "projectContextChars": 24627,
+          "nonProjectContextChars": 12045
+        },
+        "injectedWorkspaceFiles": [
+          {
+            "name": "AGENTS.md",
+            "path": "D:\\openclaw_bot\\agent-second-brain\\.openclaw\\workspace\\AGENTS.md",
+            "missing": false,
+            "rawChars": 9019,
+            "injectedChars": 9019,
+            "truncated": false
+          },
+          {
+            "name": "SOUL.md",
+            "path": "D:\\openclaw_bot\\agent-second-brain\\.openclaw\\workspace\\SOUL.md",
+            "missing": false,
+            "rawChars": 1664,
+            "injectedChars": 1664,
+            "truncated": false
+          },
+          {
+            "name": "TOOLS.md",
+            "path": "D:\\openclaw_bot\\agent-second-brain\\.openclaw\\workspace\\TOOLS.md",
+            "missing": false,
+            "rawChars": 988,
+            "injectedChars": 988,
+            "truncated": false
+          },
+          {
+            "name": "IDENTITY.md",
+            "path": "D:\\openclaw_bot\\agent-second-brain\\.openclaw\\workspace\\IDENTITY.md",
+            "missing": false,
+            "rawChars": 514,
+            "injectedChars": 514,
+            "truncated": false
+          },
+          {
+            "name": "USER.md",
+            "path": "D:\\openclaw_bot\\agent-second-brain\\.openclaw\\workspace\\USER.md",
+            "missing": false,
+            "rawChars": 798,
+            "injectedChars": 798,
+            "truncated": false
+          },
+          {
+            "name": "HEARTBEAT.md",
+            "path": "D:\\openclaw_bot\\agent-second-brain\\.openclaw\\workspace\\HEARTBEAT.md",
+            "missing": false,
+            "rawChars": 7625,
+            "injectedChars": 7625,
+            "truncated": false
+          },
+          {
+            "name": "BOOTSTRAP.md",
+            "path": "D:\\openclaw_bot\\agent-second-brain\\.openclaw\\workspace\\BOOTSTRAP.md",
+            "missing": false,
+            "rawChars": 3310,
+            "injectedChars": 3310,
+            "truncated": false
+          }
+        ],
+        "skills": {
+          "promptChars": 2359,
+          "entries": [
+            {
+              "name": "healthcheck",
+              "blockChars": 495
+            },
+            {
+              "name": "skill-creator",
+              "blockChars": 300
+            },
+            {
+              "name": "summarize",
+              "blockChars": 300
+            },
+            {
+              "name": "video-frames",
+              "blockChars": 233
+            },
+            {
+              "name": "voice-call",
+              "blockChars": 227
+            },
+            {
+              "name": "weather",
+              "blockChars": 420
+            }
+          ]
+        },
+        "tools": {
+          "listChars": 2211,
+          "schemaChars": 16168,
+          "entries": [
+            {
+              "name": "read",
+              "summaryChars": 298,
+              "schemaChars": 392,
+              "propertiesCount": 4
+            },
+            {
+              "name": "edit",
+              "summaryChars": 129,
+              "schemaChars": 591,
+              "propertiesCount": 6
+            },
+            {
+              "name": "write",
+              "summaryChars": 127,
+              "schemaChars": 313,
+              "propertiesCount": 3
+            },
+            {
+              "name": "exec",
+              "summaryChars": 181,
+              "schemaChars": 1086,
+              "propertiesCount": 12
+            },
+            {
+              "name": "process",
+              "summaryChars": 85,
+              "schemaChars": 961,
+              "propertiesCount": 12
+            },
+            {
+              "name": "browser",
+              "summaryChars": 1251,
+              "schemaChars": 1897,
+              "propertiesCount": 28
+            },
+            {
+              "name": "canvas",
+              "summaryChars": 106,
+              "schemaChars": 661,
+              "propertiesCount": 18
+            },
+            {
+              "name": "nodes",
+              "summaryChars": 101,
+              "schemaChars": 1479,
+              "propertiesCount": 33
+            },
+            {
+              "name": "cron",
+              "summaryChars": 2689,
+              "schemaChars": 662,
+              "propertiesCount": 13
+            },
+            {
+              "name": "message",
+              "summaryChars": 132,
+              "schemaChars": 4220,
+              "propertiesCount": 85
+            },
+            {
+              "name": "tts",
+              "summaryChars": 152,
+              "schemaChars": 223,
+              "propertiesCount": 2
+            },
+            {
+              "name": "gateway",
+              "summaryChars": 354,
+              "schemaChars": 465,
+              "propertiesCount": 11
+            },
+            {
+              "name": "agents_list",
+              "summaryChars": 72,
+              "schemaChars": 33,
+              "propertiesCount": 0
+            },
+            {
+              "name": "sessions_list",
+              "summaryChars": 54,
+              "schemaChars": 212,
+              "propertiesCount": 4
+            },
+            {
+              "name": "sessions_history",
+              "summaryChars": 36,
+              "schemaChars": 161,
+              "propertiesCount": 3
+            },
+            {
+              "name": "sessions_send",
+              "summaryChars": 84,
+              "schemaChars": 273,
+              "propertiesCount": 5
+            },
+            {
+              "name": "sessions_spawn",
+              "summaryChars": 144,
+              "schemaChars": 414,
+              "propertiesCount": 10
+            },
+            {
+              "name": "subagents",
+              "summaryChars": 105,
+              "schemaChars": 191,
+              "propertiesCount": 4
+            },
+            {
+              "name": "session_status",
+              "summaryChars": 207,
+              "schemaChars": 89,
+              "propertiesCount": 2
+            },
+            {
+              "name": "web_search",
+              "summaryChars": 175,
+              "schemaChars": 753,
+              "propertiesCount": 6
+            },
+            {
+              "name": "web_fetch",
+              "summaryChars": 129,
+              "schemaChars": 374,
+              "propertiesCount": 3
+            },
+            {
+              "name": "memory_search",
+              "summaryChars": 334,
+              "schemaChars": 139,
+              "propertiesCount": 3
+            },
+            {
+              "name": "memory_get",
+              "summaryChars": 151,
+              "schemaChars": 128,
+              "propertiesCount": 3
+            },
+            {
+              "name": "voice_call",
+              "summaryChars": 72,
+              "schemaChars": 451,
+              "propertiesCount": 6
+            }
+          ]
+        }
+      }
+    }
+  }
+}

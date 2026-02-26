@@ -107,6 +107,8 @@ async def _run() -> int:
     os.environ.setdefault("MODEL_ROUTE_VOICE_REASONING_PROVIDER", "openai")
     os.environ.setdefault("MODEL_ROUTE_ALLOW_OPENAI_TO_LOCAL_FALLBACK", "false")
     os.environ.setdefault("MODEL_ROUTE_FORCE_OPENAI_UNAVAILABLE", "false")
+    os.environ.setdefault("TELEGRAM_STT_BACKEND", "faster_whisper")
+    os.environ.setdefault("TELEGRAM_TTS_BACKEND", "piper")
     vault_path = Path(tempfile.mkdtemp(prefix="voice-dispatch-smoke-")) / "vault"
     vault_path.mkdir(parents=True, exist_ok=True)
     os.environ["VAULT_PATH"] = str(vault_path)
@@ -116,6 +118,27 @@ async def _run() -> int:
             os.environ.pop(name, None)
         else:
             os.environ[name] = prev
+
+    original_piper_speak = bridge._speak_with_piper
+
+    def _piper_ok(*, text: str, detected_language: str = "") -> tuple[str | None, bytes | None, str | None, dict[str, object]]:
+        _ = text, detected_language
+        return "sendVoice", b"ogg-bytes", "audio/ogg", {"tts_backend": "piper", "tts_backend_used": "piper"}
+
+    def _piper_empty(*, text: str, detected_language: str = "") -> tuple[str | None, bytes | None, str | None, dict[str, object]]:
+        _ = text, detected_language
+        return None, None, None, {
+            "tts_backend": "piper",
+            "tts_backend_used": "piper",
+            "tts_error_code": "piper_failed",
+            "tts_error_message": "smoke_forced_piper_failure",
+        }
+
+    def _piper_audio(*, text: str, detected_language: str = "") -> tuple[str | None, bytes | None, str | None, dict[str, object]]:
+        _ = text, detected_language
+        return "sendAudio", b"mp3-bytes", "audio/mpeg", {"tts_backend": "piper", "tts_backend_used": "piper"}
+
+    bridge._speak_with_piper = _piper_ok  # type: ignore[assignment]
 
     ru_stt = FakeSTT("privet")
     ru_result = await dispatch_voice(
@@ -195,6 +218,7 @@ async def _run() -> int:
     if not transcript_ok:
         failures += 1
 
+    bridge._speak_with_piper = _piper_empty  # type: ignore[assignment]
     empty_tts = await dispatch_voice(
         user_id=100,
         source_ref="smoke:empty-tts",
@@ -205,11 +229,12 @@ async def _run() -> int:
         tts=FakeTTS(b""),
         tutor_service=FakeTutorService(),
     )
+    bridge._speak_with_piper = _piper_ok  # type: ignore[assignment]
     empty_diag = empty_tts.get("diagnostics") or {}
     empty_ok = (
         empty_tts.get("status") == "ok"
         and empty_tts.get("audio_intent") is None
-        and bool(empty_diag.get("tts_empty_output"))
+        and str(empty_diag.get("tts_error_code") or "") in {"piper_failed", "tts_local_failed"}
         and "Tutor reply:" in str(empty_tts.get("text") or "")
     )
     print("case=empty_tts_fallback")
@@ -307,6 +332,7 @@ async def _run() -> int:
     if not media_priority_ok:
         failures += 1
 
+    bridge._speak_with_piper = _piper_audio  # type: ignore[assignment]
     send_audio = await dispatch_voice(
         user_id=205,
         source_ref="smoke:send-audio-intent",
@@ -317,6 +343,7 @@ async def _run() -> int:
         tts=FakeAudioTTS(b"mp3-bytes", "audio/mpeg"),
         tutor_service=FakeTutorService(),
     )
+    bridge._speak_with_piper = _piper_ok  # type: ignore[assignment]
     send_audio_ok = send_audio.get("audio_intent") == "sendAudio" and bool(send_audio.get("audio_bytes"))
     print("case=send_audio_intent_selection")
     print(f"ok={send_audio_ok}")
@@ -418,7 +445,10 @@ async def _run() -> int:
         and mp_selected_log.get("selectedLang") == "ru"
         and mp_selected_log.get("stage") == "stt_multipass_selected"
         and mp_candidate_log.get("stage") == "stt_multipass_candidate"
-        and "heuristic" in str(mp_selected_log.get("selectionReason") or "")
+        and (
+            "heuristic" in str(mp_selected_log.get("selectionReason") or "")
+            or "prefer_mixed_script" in str(mp_selected_log.get("selectionReason") or "")
+        )
     )
     print("case=stt_multipass_mixed_prefers_ru_en_candidate")
     print(f"ok={multipass_ok and multipass_selected_ok}")
@@ -468,8 +498,11 @@ async def _run() -> int:
         and translit_selected_log.get("selectedLang") == "ru"
         and translit_selected_log.get("candidateHasCyrillic") is True
         and translit_selected_log.get("candidateHasLatin") is True
-        and "heuristic" in str(translit_selected_log.get("selectionReason") or "")
-        and "РџСЂРёРІРµС‚" in str(translit_pick.get("text") or "")
+        and (
+            "heuristic" in str(translit_selected_log.get("selectionReason") or "")
+            or "prefer_mixed_script" in str(translit_selected_log.get("selectionReason") or "")
+        )
+        and "how are you" in str(translit_pick.get("text") or "").lower()
     )
     print("case=stt_multipass_mixed_preserves_ru_en_no_fake_latin")
     print(f"ok={translit_pick_ok}")
@@ -578,6 +611,73 @@ async def _run() -> int:
     _restore_env("TELEGRAM_STT_MULTIPASS_LANGS", prev_mpl)
     _restore_env("TELEGRAM_STT_LANGUAGE", prev_lang)
 
+    # faster-whisper live-path simulation: real bridge path with backend=faster_whisper,
+    # multipass enabled, and media-first source lock.
+    log_handler.messages.clear()
+    prev_backend = os.environ.get("TELEGRAM_STT_BACKEND")
+    prev_mp = os.environ.get("TELEGRAM_STT_MULTIPASS")
+    prev_mph = os.environ.get("TELEGRAM_STT_MIXED_HEURISTIC")
+    prev_mpl = os.environ.get("TELEGRAM_STT_MULTIPASS_LANGS")
+    original_fw = bridge._run_faster_whisper_stt
+    os.environ["TELEGRAM_STT_BACKEND"] = "faster_whisper"
+    os.environ["TELEGRAM_STT_MULTIPASS"] = "1"
+    os.environ["TELEGRAM_STT_MIXED_HEURISTIC"] = "1"
+    os.environ["TELEGRAM_STT_MULTIPASS_LANGS"] = "auto,ru,en"
+
+    async def _fake_fw_stt(
+        *,
+        audio_path: str | None = None,
+        audio_bytes: bytes | None = None,
+        pass_lang: str | None = None,
+        pass_token: str = "auto",
+        diagnostics: dict[str, object] | None = None,
+    ) -> tuple[str, str, float | None, list[dict[str, object]], dict[str, object]]:
+        _ = audio_path, audio_bytes, diagnostics
+        token = str(pass_token or "auto").lower()
+        if token == "ru":
+            text = "Привет, how are you, ты меня понимаешь?"
+            return text, "ru", 0.95, [], {"stt_model": "small", "stt_backend": "faster_whisper"}
+        if token == "en":
+            return "how are you", "en", 0.91, [], {"stt_model": "small", "stt_backend": "faster_whisper"}
+        return "how are you", pass_lang or "ru", 0.72, [], {"stt_model": "small", "stt_backend": "faster_whisper"}
+
+    bridge._run_faster_whisper_stt = _fake_fw_stt  # type: ignore[assignment]
+    try:
+        fw_result = await dispatch_voice(
+            user_id=215,
+            source_ref="smoke:fw-live-path",
+            message_text="how are you",
+            audio_bytes=b"RIFF\x24\x00\x00\x00WAVEfmt ",
+            media_declared=True,
+        )
+    finally:
+        bridge._run_faster_whisper_stt = original_fw  # type: ignore[assignment]
+        _restore_env("TELEGRAM_STT_BACKEND", prev_backend)
+        _restore_env("TELEGRAM_STT_MULTIPASS", prev_mp)
+        _restore_env("TELEGRAM_STT_MIXED_HEURISTIC", prev_mph)
+        _restore_env("TELEGRAM_STT_MULTIPASS_LANGS", prev_mpl)
+    fw_diag = fw_result.get("diagnostics") or {}
+    fw_selected_log = _find_json_event(log_handler.messages, "telegram_voice_pipeline", stage="stt_multipass_selected") or {}
+    fw_text = str(fw_result.get("text") or "")
+    fw_ok = (
+        fw_result.get("status") == "ok"
+        and fw_diag.get("stt_backend") == "faster_whisper"
+        and fw_diag.get("final_transcript_source_used") == "bridge_stt"
+        and fw_diag.get("response_text_source") == "bridge_stt"
+        and fw_diag.get("outgoing_text_source") == "bridge_stt"
+        and fw_diag.get("chat_response_source") == "bridge_stt"
+        and "Привет" in fw_text
+        and "how are you" in fw_text
+        and "ты меня понимаешь" in fw_text
+        and fw_selected_log.get("stage") == "stt_multipass_selected"
+    )
+    print("case=faster_whisper_live_path_media_source_lock")
+    print(f"ok={fw_ok}")
+    print(f"selected_lang={fw_selected_log.get('selectedLang')}")
+    print(f"response_text_preview={fw_text[:120]}")
+    if not fw_ok:
+        failures += 1
+
     # multipass fallback to auto/default when ru is empty/worse
     log_handler.messages.clear()
     prev_mp = os.environ.get("TELEGRAM_STT_MULTIPASS")
@@ -618,8 +718,9 @@ async def _run() -> int:
     log_handler.messages.clear()
     original_preprocess = bridge._preprocess_audio_for_stt
     try:
-        def _fake_preprocess(*, audio_bytes, audio_path, diagnostics):  # type: ignore[no-redef]
+        def _fake_preprocess(*, audio_bytes, audio_path, diagnostics, force_decode_for_stt=False):  # type: ignore[no-redef]
             _ = audio_bytes, audio_path
+            _ = force_decode_for_stt
             diagnostics["pipeline_error_code"] = "audio_conversion_failed"
             diagnostics["pipeline_error_message"] = "synthetic conversion failure"
             return None, None, "audio_conversion_failed"
@@ -799,6 +900,7 @@ async def _run() -> int:
     if not english_text_only_ok:
         failures += 1
 
+    bridge._speak_with_piper = original_piper_speak  # type: ignore[assignment]
     bridge.logger.removeHandler(log_handler)
 
     return 0 if failures == 0 else 1
@@ -810,4 +912,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

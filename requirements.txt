@@ -1,5 +1,6 @@
 aiogram>=3.0
 deepgram-sdk
+faster-whisper
 httpx
 pydantic>=2.0
 pydantic-settings

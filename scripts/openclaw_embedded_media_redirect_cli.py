@@ -20,10 +20,14 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = ROOT / "scripts"
+SRC_DIR = ROOT / "src"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 import openclaw_live_voice_bridge_cli as voice_wrapper  # type: ignore
+from d_brain.integrations.marker_visibility import emit_observable_marker
 
 
 def _safe_preview(text: str, max_len: int = 180) -> str:
@@ -56,19 +60,21 @@ def _proof_marker_from_parsed(parsed: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _runtime_guard_marker_from_parsed(parsed: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "event": "openclaw_voice_dispatch_path_select",
+        "traceStage": "runtime.exec_guard",
+        "selectedPath": "wrapper_cli_bridge",
+        "branchReason": "redirect_runtime_guard_visibility",
+        "messageKind": str(parsed.get("media_kind") or ""),
+        "mimeType": str(parsed.get("mime_type") or ""),
+        "isAudioDocument": bool(parsed.get("is_audio_document")),
+        "sourceModule": __file__,
+    }
+
+
 def _emit_marker_visible(marker: dict[str, Any] | None) -> None:
-    if not isinstance(marker, dict):
-        return
-    line = ""
-    try:
-        line = json.dumps(marker, ensure_ascii=True, separators=(",", ":"))
-    except Exception:
-        return
-    for stream in (sys.stderr, sys.stdout):
-        try:
-            print(line, file=stream, flush=True)
-        except Exception:
-            pass
+    emit_observable_marker(marker, logger_obj=None, stream_fallback=True)
 
 
 def _skip_marker_from_parsed(parsed: dict[str, Any]) -> dict[str, Any]:
@@ -155,6 +161,11 @@ def redirect_embedded_prompt(raw_text: str, *, request_id: str = "") -> dict[str
                 "preview": _safe_preview(str(raw_text or "")),
             },
         }
+
+    runtime_marker = _runtime_guard_marker_from_parsed(parsed)
+    runtime_marker["requestId"] = request_id
+    runtime_marker["request_id"] = request_id
+    _emit_marker_visible(runtime_marker)
 
     proof = _proof_marker_from_parsed(parsed)
     proof["requestId"] = request_id

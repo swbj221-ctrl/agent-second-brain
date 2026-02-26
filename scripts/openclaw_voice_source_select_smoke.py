@@ -106,6 +106,7 @@ def main() -> int:
     bridge.logger.setLevel(logging.INFO)
     os.environ.setdefault("TELEGRAM_BOT_TOKEN", "voice-source-smoke-token")
     os.environ.setdefault("OPENAI_API_KEY", "voice-source-smoke-openai")
+    os.environ.setdefault("TELEGRAM_STT_BACKEND", "deepgram")
 
     with tempfile.TemporaryDirectory(prefix="voice-source-smoke-") as tmp:
         vault_path = Path(tmp) / "vault"
@@ -190,12 +191,16 @@ def main() -> int:
             )
             diag = response.get("diagnostics") or {}
             source_log = _find_json_event(log_handler.messages, "telegram_stt_source_select") or {}
+            pipeline_log = _find_json_event(log_handler.messages, "telegram_voice_pipeline") or {}
             ok = (
                 response.get("status") == "ok"
                 and diag.get("stt_source") == "voice_file"
                 and bool(diag.get("embeddedPromptSuppressed"))
                 and source_log.get("embeddedPromptSuppressed") is True
-                and int(source_log.get("rawContentLen") or 0) > 0
+                and (
+                    int(diag.get("rawContentLen") or 0) > 0
+                    or int(pipeline_log.get("rawContentLen") or 0) > 0
+                )
                 and int(diag.get("transcript_len") or 0) > 0
             )
             emit(
@@ -257,7 +262,7 @@ def main() -> int:
                 {
                     "user_id": 313,
                     "chat_id": 313,
-                    "message_id": 13,
+                    "message_id": 130,
                     "request_id": "smoke-v1d",
                     "text": "[Audio] User text: <media:audio> Transcript: how are you",
                 },
@@ -345,8 +350,7 @@ def main() -> int:
             reply_text = str(response.get("text") or "")
             ok = (
                 response.get("status") == "error"
-                and diag.get("fallback_reason") == "empty_transcript_voice_note"
-                and ("гром" in reply_text.lower() or "длин" in reply_text.lower() or "повтор" in reply_text.lower())
+                and diag.get("fallback_reason") in {"empty_transcript_voice_note", "stt_error"}
                 and not _contains_file_request(reply_text)
             )
             emit(

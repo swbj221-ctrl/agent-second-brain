@@ -1,0 +1,110 @@
+﻿{
+  "verdict": "INCONCLUSIVE",
+  "reason": "Bridge markers found, but the candidate chain requestId is not discoverable in the provided log-capture. Missing/log-misaligned stages: runtime_exec_guard,redirect_select,wrapper_select,wrapper_trace.",
+  "findings": {
+    "log_exists": true,
+    "session_exists": true,
+    "runtime_exec_guard_marker": true,
+    "wrapper_select_marker": true,
+    "wrapper_selected_bridge": true,
+    "wrapper_trace_marker": true,
+    "adapter_select_marker": true,
+    "voice_pipeline_marker": true,
+    "multipass_any_marker": true,
+    "multipass_selected_marker": true,
+    "transcript_only_fallback_marker": false,
+    "transcript_only_clarify_marker": false,
+    "bridge_path_error_marker": false,
+    "adapter_post_bridge_marker": true,
+    "selected_lang": "",
+    "selected_candidate_translit_like": false,
+    "selected_candidate_has_cyrillic": false,
+    "selected_candidate_has_latin": false,
+    "selected_transcript_preview": "",
+    "selected_transcript_mixed_scripts": false,
+    "full_chain_same_request_id": false,
+    "full_chain_request_id": "",
+    "stage_request_ids": {
+      "wrapper_select": [
+        "marker-vis-20260226-152043",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433"
+      ],
+      "adapter_pre_bridge": [
+        "marker-vis-20260226-152043",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433"
+      ],
+      "adapter_post_bridge": [
+        "marker-vis-20260226-152043",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433"
+      ],
+      "wrapper_trace": [
+        "marker-vis-20260226-152043",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433"
+      ],
+      "telegram_voice_pipeline": [
+        "marker-vis-20260226-152043",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433"
+      ],
+      "runtime_exec_guard": [
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433"
+      ],
+      "redirect_select": [
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433"
+      ],
+      "stt_multipass_selected": [
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433"
+      ]
+    },
+    "stage_request_ids_log": {},
+    "required_chain_stage_sources": {
+      "runtime_exec_guard": "session_only",
+      "redirect_select": "session_only",
+      "wrapper_select": "session_only",
+      "wrapper_trace": "session_only",
+      "adapter_pre_bridge": "session_only",
+      "adapter_post_bridge": "session_only",
+      "telegram_voice_pipeline": "session_only",
+      "stt_multipass_selected": "session_only"
+    },
+    "required_chain_missing_in_log_capture": [
+      "runtime_exec_guard",
+      "redirect_select",
+      "wrapper_select",
+      "wrapper_trace",
+      "adapter_pre_bridge",
+      "adapter_post_bridge",
+      "telegram_voice_pipeline",
+      "stt_multipass_selected"
+    ],
+    "log_request_ids": [],
+    "log_raw_request_ids": [],
+    "full_chain_request_id_in_log_capture": false,
+    "session_exec_toolcall": true,
+    "session_deepgram_direct": false,
+    "session_media_audio_hint": true,
+    "scoped_deepgram_direct_log": false,
+    "scoped_deepgram_direct_session_same_request": false,
+    "evidence_lines": [
+      "[session-raw] {\"type\":\"message\",\"id\":\"4713abf9\",\"parentId\":\"6f389e61\",\"timestamp\":\"2026-02-26T12:20:22.062Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"\",\"thinkingSignature\":\"{\\\"id\\\":\\\"rs_02d654f9b6a73f3d0169a03a833a688191a1516b278b8e834c\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpoDqE9uKDleV7YPSNbninNR_tmJlsIRn6BRn08COoBTjm-GQijTHbuch5HowSzAYGl12OEFtVbvrROIOtksmoGYMiqJJwv9-MUu3H5o5k3gShBgfcrQN_KRI0HsnH20K2VBNgcEaXZxx9T-qRMYz3m2PdMDy8jg7z1p1ZeWJ5ShilIKyAuD-ryop7k70QQ",
+      "[session-json] {\"type\": \"message\", \"id\": \"4713abf9\", \"parentId\": \"6f389e61\", \"timestamp\": \"2026-02-26T12:20:22.062Z\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"thinking\", \"thinking\": \"\", \"thinkingSignature\": \"{\\\"id\\\":\\\"rs_02d654f9b6a73f3d0169a03a833a688191a1516b278b8e834c\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpoDqE9uKDleV7YPSNbninNR_tmJlsIRn6BRn08COoBTjm-GQijTHbuch5HowSzAYGl12OEFtVbvrROIOtksmoGYMiqJJwv9-MUu3H5o5k3gShBgfcrQN_KRI0HsnH20K2VBNgcEaXZxx9T-qRMYz3m2PdMDy8jg7z1p1ZeWJ5Shil",
+      "[session-raw] {\"type\":\"message\",\"id\":\"e82c5db4\",\"parentId\":\"68a13881\",\"timestamp\":\"2026-02-26T12:20:54.338Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"**Executing single command for JSON**\",\"thinkingSignature\":\"{\\\"id\\\":\\\"rs_02d654f9b6a73f3d0169a03aa3683881919ca810ef26741adf\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpoDqkhHXzQYZ5yQbPm5GUux0o54pLLjrcLs-kq0M8897rl3FCdTW5Cn4io8unYa1QW1XUguXYzAyTkWYTEWZZg4uvlyMaZYNMdC-oPjBG9OEvDpWX04heeKZ6HOazljA_VYi6ZZwF6OFwl3t6alYpe86C",
+      "[session-json] {\"type\": \"message\", \"id\": \"e82c5db4\", \"parentId\": \"68a13881\", \"timestamp\": \"2026-02-26T12:20:54.338Z\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"thinking\", \"thinking\": \"**Executing single command for JSON**\", \"thinkingSignature\": \"{\\\"id\\\":\\\"rs_02d654f9b6a73f3d0169a03aa3683881919ca810ef26741adf\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpoDqkhHXzQYZ5yQbPm5GUux0o54pLLjrcLs-kq0M8897rl3FCdTW5Cn4io8unYa1QW1XUguXYzAyTkWYTEWZZg4uvlyMaZYNMdC-oPjBG9OEvDpWX04heeKZ6HOazljA_VYi6ZZw",
+      "[session-raw] {\"type\":\"message\",\"id\":\"05d876c7\",\"parentId\":\"e82c5db4\",\"timestamp\":\"2026-02-26T12:20:56.540Z\",\"message\":{\"role\":\"toolResult\",\"toolCallId\":\"call_pJllKVxTyJxYQsNUMELhOjCw|fc_02d654f9b6a73f3d0169a03aa406448191b188ae8c6be20566\",\"toolName\":\"exec\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"wrapper.path_select\\\",\\\"requestId\\\":\\\"marker-vis-20260226-152043\\\",\\\"request_id\\\":\\\"marker-vis-20260226-152043\\\",\\\"selectedPath\\\":\\\"d_brain_openclaw_bridge",
+      "[session-raw] {\"type\":\"message\",\"id\":\"05d876c7\",\"parentId\":\"e82c5db4\",\"timestamp\":\"2026-02-26T12:20:56.540Z\",\"message\":{\"role\":\"toolResult\",\"toolCallId\":\"call_pJllKVxTyJxYQsNUMELhOjCw|fc_02d654f9b6a73f3d0169a03aa406448191b188ae8c6be20566\",\"toolName\":\"exec\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"wrapper.path_select\\\",\\\"requestId\\\":\\\"marker-vis-20260226-152043\\\",\\\"request_id\\\":\\\"marker-vis-20260226-152043\\\",\\\"selectedPath\\\":\\\"d_brain_openclaw_bridge",
+      "[session-raw] {\"type\":\"message\",\"id\":\"05d876c7\",\"parentId\":\"e82c5db4\",\"timestamp\":\"2026-02-26T12:20:56.540Z\",\"message\":{\"role\":\"toolResult\",\"toolCallId\":\"call_pJllKVxTyJxYQsNUMELhOjCw|fc_02d654f9b6a73f3d0169a03aa406448191b188ae8c6be20566\",\"toolName\":\"exec\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"wrapper.path_select\\\",\\\"requestId\\\":\\\"marker-vis-20260226-152043\\\",\\\"request_id\\\":\\\"marker-vis-20260226-152043\\\",\\\"selectedPath\\\":\\\"d_brain_openclaw_bridge",
+      "[session-raw] {\"type\":\"message\",\"id\":\"05d876c7\",\"parentId\":\"e82c5db4\",\"timestamp\":\"2026-02-26T12:20:56.540Z\",\"message\":{\"role\":\"toolResult\",\"toolCallId\":\"call_pJllKVxTyJxYQsNUMELhOjCw|fc_02d654f9b6a73f3d0169a03aa406448191b188ae8c6be20566\",\"toolName\":\"exec\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"wrapper.path_select\\\",\\\"requestId\\\":\\\"marker-vis-20260226-152043\\\",\\\"request_id\\\":\\\"marker-vis-20260226-152043\\\",\\\"selectedPath\\\":\\\"d_brain_openclaw_bridge",
+      "[session-json] {\"type\": \"message\", \"id\": \"05d876c7\", \"parentId\": \"e82c5db4\", \"timestamp\": \"2026-02-26T12:20:56.540Z\", \"message\": {\"role\": \"toolResult\", \"toolCallId\": \"call_pJllKVxTyJxYQsNUMELhOjCw|fc_02d654f9b6a73f3d0169a03aa406448191b188ae8c6be20566\", \"toolName\": \"exec\", \"content\": [{\"type\": \"text\", \"text\": \"{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"wrapper.path_select\\\",\\\"requestId\\\":\\\"marker-vis-20260226-152043\\\",\\\"request_id\\\":\\\"marker-vis-20260226-152043\\\",\\\"selectedPath\\\":\\\"d_br",
+      "[session-json] {\"type\": \"message\", \"id\": \"05d876c7\", \"parentId\": \"e82c5db4\", \"timestamp\": \"2026-02-26T12:20:56.540Z\", \"message\": {\"role\": \"toolResult\", \"toolCallId\": \"call_pJllKVxTyJxYQsNUMELhOjCw|fc_02d654f9b6a73f3d0169a03aa406448191b188ae8c6be20566\", \"toolName\": \"exec\", \"content\": [{\"type\": \"text\", \"text\": \"{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"wrapper.path_select\\\",\\\"requestId\\\":\\\"marker-vis-20260226-152043\\\",\\\"request_id\\\":\\\"marker-vis-20260226-152043\\\",\\\"selectedPath\\\":\\\"d_br",
+      "[session-json] {\"type\": \"message\", \"id\": \"05d876c7\", \"parentId\": \"e82c5db4\", \"timestamp\": \"2026-02-26T12:20:56.540Z\", \"message\": {\"role\": \"toolResult\", \"toolCallId\": \"call_pJllKVxTyJxYQsNUMELhOjCw|fc_02d654f9b6a73f3d0169a03aa406448191b188ae8c6be20566\", \"toolName\": \"exec\", \"content\": [{\"type\": \"text\", \"text\": \"{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"wrapper.path_select\\\",\\\"requestId\\\":\\\"marker-vis-20260226-152043\\\",\\\"request_id\\\":\\\"marker-vis-20260226-152043\\\",\\\"selectedPath\\\":\\\"d_br",
+      "[session-json] {\"type\": \"message\", \"id\": \"05d876c7\", \"parentId\": \"e82c5db4\", \"timestamp\": \"2026-02-26T12:20:56.540Z\", \"message\": {\"role\": \"toolResult\", \"toolCallId\": \"call_pJllKVxTyJxYQsNUMELhOjCw|fc_02d654f9b6a73f3d0169a03aa406448191b188ae8c6be20566\", \"toolName\": \"exec\", \"content\": [{\"type\": \"text\", \"text\": \"{\\\"event\\\":\\\"openclaw_voice_dispatch_path_select\\\",\\\"traceStage\\\":\\\"wrapper.path_select\\\",\\\"requestId\\\":\\\"marker-vis-20260226-152043\\\",\\\"request_id\\\":\\\"marker-vis-20260226-152043\\\",\\\"selectedPath\\\":\\\"d_br"
+    ]
+  }
+}

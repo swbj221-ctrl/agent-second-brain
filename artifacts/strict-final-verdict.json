@@ -1,0 +1,120 @@
+﻿{
+  "verdict": "INCONCLUSIVE",
+  "reason": "Bridge markers found, but the candidate chain requestId is not discoverable in the provided log-capture.",
+  "findings": {
+    "log_exists": true,
+    "session_exists": true,
+    "runtime_exec_guard_marker": true,
+    "wrapper_select_marker": true,
+    "wrapper_selected_bridge": true,
+    "wrapper_trace_marker": true,
+    "adapter_select_marker": true,
+    "voice_pipeline_marker": true,
+    "multipass_any_marker": true,
+    "multipass_selected_marker": true,
+    "transcript_only_fallback_marker": false,
+    "transcript_only_clarify_marker": false,
+    "bridge_path_error_marker": false,
+    "adapter_post_bridge_marker": true,
+    "selected_lang": "ru",
+    "selected_candidate_translit_like": false,
+    "selected_candidate_has_cyrillic": true,
+    "selected_candidate_has_latin": true,
+    "selected_transcript_preview": ",\"sttMultipass\":true,\"sttMultipassHeuristic\":true,\"sttMultipassLangs\":[\"auto\",\"ru\",\"en\"],\"sttPassIndex\":null,\"sttPassCount\":null,\"sttPassToken\":\"\",\"candidateLang\":\"\",\"candidateScore\":null,\"candidateTokenCount\":null,\"candidateLen\":null,\"can",
+    "selected_transcript_mixed_scripts": false,
+    "full_chain_same_request_id": false,
+    "full_chain_request_id": "",
+    "stage_request_ids": {
+      "runtime_exec_guard": [
+        "strict-chain-20260226-154542"
+      ],
+      "redirect_select": [
+        "strict-chain-20260226-154542"
+      ],
+      "wrapper_select": [
+        "strict-chain-20260226-154542",
+        "marker-vis-20260226-152043"
+      ],
+      "adapter_pre_bridge": [
+        "strict-chain-20260226-154542",
+        "marker-vis-20260226-152043"
+      ],
+      "adapter_post_bridge": [
+        "strict-chain-20260226-154542",
+        "marker-vis-20260226-152043"
+      ],
+      "wrapper_trace": [
+        "strict-chain-20260226-154542",
+        "marker-vis-20260226-152043"
+      ],
+      "telegram_voice_pipeline": [
+        "strict-chain-20260226-154542",
+        "marker-vis-20260226-152043"
+      ],
+      "stt_multipass_selected": [
+        "strict-chain-20260226-154542"
+      ]
+    },
+    "stage_request_ids_log": {
+      "runtime_exec_guard": [
+        "strict-chain-20260226-154542"
+      ],
+      "redirect_select": [
+        "strict-chain-20260226-154542"
+      ],
+      "wrapper_select": [
+        "strict-chain-20260226-154542"
+      ],
+      "adapter_pre_bridge": [
+        "strict-chain-20260226-154542"
+      ],
+      "adapter_post_bridge": [
+        "strict-chain-20260226-154542"
+      ],
+      "wrapper_trace": [
+        "strict-chain-20260226-154542"
+      ],
+      "telegram_voice_pipeline": [
+        "strict-chain-20260226-154542"
+      ],
+      "stt_multipass_selected": [
+        "strict-chain-20260226-154542"
+      ]
+    },
+    "required_chain_stage_sources": {
+      "runtime_exec_guard": "log_capture",
+      "redirect_select": "log_capture",
+      "wrapper_select": "log_capture",
+      "wrapper_trace": "log_capture",
+      "adapter_pre_bridge": "log_capture",
+      "adapter_post_bridge": "log_capture",
+      "telegram_voice_pipeline": "log_capture",
+      "stt_multipass_selected": "log_capture"
+    },
+    "required_chain_missing_in_log_capture": [],
+    "log_request_ids": [
+      "strict-chain-20260226-154542"
+    ],
+    "log_raw_request_ids": [],
+    "full_chain_request_id_in_log_capture": false,
+    "session_exec_toolcall": true,
+    "session_deepgram_direct": true,
+    "session_media_audio_hint": true,
+    "scoped_deepgram_direct_log": true,
+    "scoped_deepgram_direct_session_same_request": false,
+    "evidence_lines": [
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool start: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338 | agent/embedded | type=log | time=2026-02-26T12:38:38.510Z | level=debug | subsystem=agent/embedded | message={\"subsystem\":\"agent/embedded\"} embedded run tool start: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd707481",
+      "[log-json] {\"0\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"1\":\"embedded run tool start: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338\",\"_meta\":{\"runtime\":\"node\",\"runtimeVersion\":\"22.22.0\",\"hostname\":\"WIN-FGP7TB09S98\",\"name\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"parentNames\":[\"openclaw\"],\"date\":\"2026-02-26T12:38:38.510Z\",\"logLevelId\":2,\"logLevelName\":\"DEBUG\",\"path\":{\"fullFilePath\":\"file:///C:/Users/User/AppData/",
+      "[log-json] 0={\"subsystem\":\"agent/embedded\"} | 1=embedded run tool start: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338 | time=2026-02-26T12:38:38.510Z",
+      "[log-json] {\"0\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"1\": \"embedded run tool start: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338\", \"_meta\": {\"runtime\": \"node\", \"runtimeVersion\": \"22.22.0\", \"hostname\": \"WIN-FGP7TB09S98\", \"name\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"parentNames\": [\"openclaw\"], \"date\": \"2026-02-26T12:38:38.510Z\", \"logLevelId\": 2, \"logLevelName\": \"DEBUG\", \"path\": {\"fullFilePath\": \"file://",
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool start: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338",
+      "[log-json] {\"type\": \"log\", \"time\": \"2026-02-26T12:38:38.510Z\", \"level\": \"debug\", \"subsystem\": \"agent/embedded\", \"message\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"} embedded run tool start: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338\", \"raw\": \"{\\\"0\\\":\\\"{\\\\\\\"subsystem\\\\\\\":\\\\\\\"agent/embedded\\\\\\\"}\\\",\\\"1\\\":\\\"embedded run tool start: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5",
+      "[log-raw] {\"type\":\"log\",\"time\":\"2026-02-26T12:38:38.510Z\",\"level\":\"debug\",\"subsystem\":\"agent/embedded\",\"message\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"} embedded run tool start: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338\",\"raw\":\"{\\\"0\\\":\\\"{\\\\\\\"subsystem\\\\\\\":\\\\\\\"agent/embedded\\\\\\\"}\\\",\\\"1\\\":\\\"embedded run tool start: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL",
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool end: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338 | agent/embedded | type=log | time=2026-02-26T12:38:38.886Z | level=debug | subsystem=agent/embedded | message={\"subsystem\":\"agent/embedded\"} embedded run tool end: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b8",
+      "[log-json] {\"0\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"1\":\"embedded run tool end: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338\",\"_meta\":{\"runtime\":\"node\",\"runtimeVersion\":\"22.22.0\",\"hostname\":\"WIN-FGP7TB09S98\",\"name\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"parentNames\":[\"openclaw\"],\"date\":\"2026-02-26T12:38:38.886Z\",\"logLevelId\":2,\"logLevelName\":\"DEBUG\",\"path\":{\"fullFilePath\":\"file:///C:/Users/User/AppData/Ro",
+      "[log-json] 0={\"subsystem\":\"agent/embedded\"} | 1=embedded run tool end: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338 | time=2026-02-26T12:38:38.886Z",
+      "[log-json] {\"0\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"1\": \"embedded run tool end: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338\", \"_meta\": {\"runtime\": \"node\", \"runtimeVersion\": \"22.22.0\", \"hostname\": \"WIN-FGP7TB09S98\", \"name\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"parentNames\": [\"openclaw\"], \"date\": \"2026-02-26T12:38:38.886Z\", \"logLevelId\": 2, \"logLevelName\": \"DEBUG\", \"path\": {\"fullFilePath\": \"file:///C",
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool end: runId=44105d81-bf45-45f7-9bee-f1c4ed59a58e tool=exec toolCallId=call_M4F5rKpRmLyE5Gjgvm6A4ZtL|fc_02d654f9b6a73f3d0169a03ecd70748191b800e8c1924f7338"
+    ]
+  }
+}

@@ -20,6 +20,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from d_brain.integrations.marker_visibility import emit_observable_marker
+
 
 _MEDIA_ATTACHED_RE = re.compile(
     r"\[media attached:\s*(?P<path>.+?)\s+\((?P<meta>[^)]*)\)\s+\|\s*(?P=path)\]",
@@ -61,18 +68,7 @@ def _canonical_request_id(value: Any = None, *, payload: dict[str, Any] | None =
 
 
 def _emit_marker_visible(marker: dict[str, Any] | None) -> None:
-    if not isinstance(marker, dict):
-        return
-    line = ""
-    try:
-        line = json.dumps(marker, ensure_ascii=True, separators=(",", ":"))
-    except Exception:
-        return
-    for stream in (sys.stderr, sys.stdout):
-        try:
-            print(line, file=stream, flush=True)
-        except Exception:
-            pass
+    emit_observable_marker(marker, logger_obj=None, stream_fallback=True)
 
 
 def _configure_utf8_stdio() -> None:
@@ -251,8 +247,7 @@ def parse_openclaw_embedded_media_prompt(raw_text: str) -> dict[str, Any]:
 
 
 def _load_adapter_module() -> Any:
-    root = Path(__file__).resolve().parents[1]
-    adapter_path = root / "vault" / ".claude" / "skills" / "openclaw-main" / "adapter.py"
+    adapter_path = ROOT / "vault" / ".claude" / "skills" / "openclaw-main" / "adapter.py"
     module_name = "openclaw_main_adapter_live_bridge"
     spec = importlib.util.spec_from_file_location(module_name, adapter_path)
     if spec is None or spec.loader is None:

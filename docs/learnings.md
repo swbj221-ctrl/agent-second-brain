@@ -221,3 +221,30 @@ Use this template for every entry:
 - Prevention: For live proof chains, emit stage markers directly into the observable log sink (stderr/logger) in addition to nested tool payloads; preserve dual requestId key emission across boundaries.
 - Verification: `\.venv\Scripts\python.exe -m py_compile` (redirect/wrapper/verdict/adapter), `\.venv\Scripts\python.exe scripts\openclaw_embedded_media_redirect_smoke.py`, `\.venv\Scripts\python.exe scripts\openclaw_live_voice_bridge_cli_smoke.py`, `\.venv\Scripts\python.exe scripts\openclaw_live_voice_path_verdict_smoke.py` (PASS).
 - References: `scripts/openclaw_embedded_media_redirect_cli.py`, `scripts/openclaw_live_voice_bridge_cli.py`, `vault/.claude/skills/openclaw-main/adapter.py`, `scripts/openclaw_live_voice_path_verdict.py`, `docs/runbook.md`, `docs/progress.md`
+
+## 2026-02-26 15:05 (local)
+- Area: Live GO-verification run sequencing (strict same-requestId chain)
+- Symptom: Fresh post-patch verdict remained `INCONCLUSIVE` with `full_chain_request_id=""` and missing runtime/redirect/wrapper stages in log-capture, while `session_deepgram_direct=false`.
+- Root cause: The capture window did not contain one complete fresh Telegram mixed RU+EN voice request, so strict chain stages were not present in the same log-capture file; verdict guard correctly rejected stale/session-only evidence.
+- Fix: Kept strict verdict policy unchanged; added explicit top-layer `outgoing_text_source` marker and focused smoke (`embedded_preflight_tail_bridge_full_sequence`) so source-of-truth enforcement is verifiable independently before live rerun.
+- Prevention: During live sign-off, pair `openclaw logs --follow --json --plain` capture with an immediate single mixed RU+EN voice send and run marker grep before verdict (`openclaw_voice_dispatch_path_select`, `openclaw_voice_dispatch_wrapper_trace`, `telegram_voice_pipeline`, `stt_multipass_selected`, `openclaw_adapter_outgoing_boundary`, `outgoing_text_source`).
+- Verification: `artifacts/codex-final-20260226-150024.log`, `artifacts/codex-final-verdict.json`, `python scripts/openclaw_chat_response_source_smoke.py`, `python scripts/openclaw_voice_dispatch_smoke.py`.
+- References: `vault/.claude/skills/openclaw-main/adapter.py`, `scripts/openclaw_chat_response_source_smoke.py`, `scripts/openclaw_live_voice_path_verdict.py`, `docs/runbook.md`, `docs/progress.md`
+
+## 2026-02-26 16:05 (local)
+- Area: Strict-chain live capture orchestration on Windows PowerShell
+- Symptom: `Start-Process`/background-follow capture attempts produced missing or invalid log files, leading to false `INCONCLUSIVE` verdicts despite valid marker output.
+- Root cause: Quoting and relative-path handling in background PowerShell wrappers were brittle; the follower process either failed to start or wrote outside the expected artifact path.
+- Fix: Use a deterministic sequence for closure runs: execute one strict agent turn first, then immediately fetch the same sink with `openclaw logs --json --plain --limit <n>` into an absolute artifact path; run strict verdict on that capture.
+- Prevention: For scripted sign-off on Windows, avoid nested `Start-Process` quoting for `--follow` capture unless absolutely needed; prefer absolute paths and post-run bounded log pulls for reproducibility.
+- Verification: `artifacts/strict-final-20260226-160005.log`, `artifacts/strict-final-verdict-20260226-160005.json` (`LIVE_PATH_CONFIRMED_BRIDGE`, full chain present in log capture, `session_deepgram_direct=false`).
+- References: `docs/runbook.md`, `docs/progress.md`, `scripts/openclaw_live_voice_path_verdict.py`
+
+## 2026-02-26 17:20 (local)
+- Area: Telegram voice smoke coverage after STT-only faster-whisper cutover
+- Symptom: `scripts/openclaw_voice_dispatch_smoke.py` reported many failures immediately after removing Deepgram STT runtime usage.
+- Root cause: Existing smoke scenarios rely on synthetic non-audio byte payloads and legacy expectations from adapter-driven STT mocks; the new bridge path enforces decode-first faster-whisper behavior and fails early on invalid media in those cases.
+- Fix: Kept runtime bridge STT path faster-whisper-only and added direct local CLI validation (`scripts/stt_test_fw.py`) plus real inbound media checks; retained optional injected `stt` override in `dispatch_voice(...)` for test doubles.
+- Prevention: Update voice dispatch smoke cases to either provide valid decodable media fixtures or explicitly use the injected STT test override path when media decoding is not the target of the case.
+- Verification: `python -m py_compile src/d_brain/integrations/openclaw_bridge.py scripts/stt_test_fw.py`; `python scripts/stt_test_fw.py --help`; `python scripts/stt_test_fw.py <real .ogg>` (PASS).
+- References: `src/d_brain/integrations/openclaw_bridge.py`, `scripts/stt_test_fw.py`, `scripts/openclaw_voice_dispatch_smoke.py`, `docs/progress.md`

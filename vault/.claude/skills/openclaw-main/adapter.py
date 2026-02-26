@@ -36,6 +36,7 @@ _REPO_SRC_PATH = _ensure_repo_src_on_path()
 from d_brain.bot.formatters import format_calendar_view, format_news_briefing
 from d_brain.bot.text_utils import fix_mojibake
 import d_brain.integrations.openclaw_bridge as openclaw_bridge_module
+from d_brain.integrations.marker_visibility import emit_observable_marker
 from d_brain.integrations.openclaw_bridge import (
     dispatch_command_response as dispatch_bridge_command_response,
     dispatch_voice_from_message,
@@ -81,7 +82,7 @@ USAGE_REMINDER = "Использование: /reminder list | /reminder deliver
 
 logger = logging.getLogger(__name__)
 _BRIDGE_RUNTIME_PATH_LOGGED = False
-_AUDIO_DOC_EXTENSIONS = (".ogg", ".opus", ".m4a", ".mp3", ".wav", ".mpeg")
+_AUDIO_DOC_EXTENSIONS = (".ogg", ".oga", ".opus", ".m4a", ".mp3", ".wav", ".mpeg")
 
 
 def _log_adapter_event(
@@ -166,29 +167,26 @@ def _log_voice_dispatch_path_select(
         or ""
     )
     file_name = str((document.get("file_name") if isinstance(document, dict) else "") or "")
-    logger.info(
-        "%s",
-        json.dumps(
-            {
-                "event": "openclaw_voice_dispatch_path_select",
-                "traceStage": "adapter.pre_bridge",
-                "selectedPath": selected_path,
-                "branchReason": branch_reason,
-                "requestId": request_id,
-                "request_id": request_id,
-                "hasVoice": isinstance(message.get("voice"), dict),
-                "hasAudio": isinstance(message.get("audio"), dict),
-                "hasDocument": isinstance(message.get("document"), dict),
-                "hasText": bool(str(message.get("text") or message.get("content") or "").strip()),
-                "textLooksTranscript": bool(str(message.get("text") or "").strip().lower().startswith("transcript:")),
-                "audioPathPresent": bool(str(message.get("audio_path") or message.get("media_path") or "")),
-                "mimeType": mime_type,
-                "ext": Path(file_name).suffix.lower() if file_name else "",
-                "sourceModule": __file__,
-            },
-            ensure_ascii=True,
-            separators=(",", ":"),
-        ),
+    emit_observable_marker(
+        {
+            "event": "openclaw_voice_dispatch_path_select",
+            "traceStage": "adapter.pre_bridge",
+            "selectedPath": selected_path,
+            "branchReason": branch_reason,
+            "requestId": request_id,
+            "request_id": request_id,
+            "hasVoice": isinstance(message.get("voice"), dict),
+            "hasAudio": isinstance(message.get("audio"), dict),
+            "hasDocument": isinstance(message.get("document"), dict),
+            "hasText": bool(str(message.get("text") or message.get("content") or "").strip()),
+            "textLooksTranscript": bool(str(message.get("text") or "").strip().lower().startswith("transcript:")),
+            "audioPathPresent": bool(str(message.get("audio_path") or message.get("media_path") or "")),
+            "mimeType": mime_type,
+            "ext": Path(file_name).suffix.lower() if file_name else "",
+            "sourceModule": __file__,
+        },
+        logger_obj=logger,
+        level="info",
     )
 
 
@@ -232,6 +230,9 @@ def _has_cyrillic_after_latin(text: str) -> bool:
 def _normalize_media_turn_reply_text(*, text: str, diagnostics: dict[str, Any], media_or_inferred: bool) -> str:
     if not media_or_inferred:
         return text
+    mode = str(diagnostics.get("mode") or "").strip().lower()
+    if mode in {"tutor", "reflection"}:
+        return text
     normalized = str(text or "")
     candidate = str(
         diagnostics.get("bridge_candidate_text")
@@ -242,10 +243,20 @@ def _normalize_media_turn_reply_text(*, text: str, diagnostics: dict[str, Any], 
 
     # Preserve full RU+EN+RU sequence when bridge selected candidate contains
     # trailing Cyrillic and top-layer text was truncated to RU+EN tail.
-    if candidate and _has_cyrillic_after_latin(candidate):
+    if candidate:
+        candidate_has_trailing_cyr = _has_cyrillic_after_latin(candidate)
+        normalized_has_trailing_cyr = _has_cyrillic_after_latin(normalized)
+        candidate_starts_cyr = bool(_CYRILLIC_RE.search(candidate[:1]))
+        normalized_starts_latin = bool(_LATIN_RE.search(normalized[:1]))
         if normalized.strip() and normalized.strip() != candidate and normalized.strip() in candidate:
             normalized = normalized.replace(normalized.strip(), candidate, 1)
-        elif not normalized.strip() or (len(normalized.strip()) < len(candidate) and not _has_cyrillic_after_latin(normalized)):
+        elif not normalized.strip():
+            normalized = candidate
+        elif candidate_has_trailing_cyr and not normalized_has_trailing_cyr:
+            normalized = candidate
+        elif candidate_starts_cyr and normalized_starts_latin and _LEADING_PRIVET_VARIANTS_RE.search(normalized):
+            normalized = candidate
+        elif len(normalized.strip()) < len(candidate) and candidate_has_trailing_cyr:
             normalized = candidate
 
     # Conservative de-translit for common greeting at phrase start.
@@ -303,32 +314,30 @@ def _log_voice_dispatch_path_result(
         or diagnostics.get("embeddedMediaPathPresent")
         or diagnostics.get("inferredMediaFromEmbeddedPrompt")
     )
-    logger.info(
-        "%s",
-        json.dumps(
-            {
-                "event": "openclaw_voice_dispatch_path_result",
-                "traceStage": "adapter.post_bridge",
-                "requestId": request_id,
-                "request_id": request_id,
-                "mediaDetected": bool(media_detected),
-                "media_or_inferred_at_decision": media_or_inferred_at_decision,
-                "media_or_inferred": media_or_inferred_at_decision,
-                "response_text_source": response_text_source,
-                "reply_text_source": response_text_source,
-                "bridgeHandled": bool(voice_response.get("handled")),
-                "status": status,
-                "errorCode": str(voice_response.get("error_code") or ""),
-                "sttSource": str(diagnostics.get("stt_source") or ""),
-                "fallbackReason": str(diagnostics.get("fallback_reason") or ""),
-                "transcriptOnlyWarning": bool(diagnostics.get("transcript_only_warning")),
-                "sttLanguage": str(diagnostics.get("stt_language") or ""),
-                "sttMultipass": bool(diagnostics.get("stt_multipass")),
-                "sourceModule": __file__,
-            },
-            ensure_ascii=True,
-            separators=(",", ":"),
-        ),
+    emit_observable_marker(
+        {
+            "event": "openclaw_voice_dispatch_path_result",
+            "traceStage": "adapter.post_bridge",
+            "requestId": request_id,
+            "request_id": request_id,
+            "mediaDetected": bool(media_detected),
+            "media_or_inferred_at_decision": media_or_inferred_at_decision,
+            "media_or_inferred": media_or_inferred_at_decision,
+            "response_text_source": response_text_source,
+            "reply_text_source": response_text_source,
+            "outgoing_text_source": response_text_source,
+            "bridgeHandled": bool(voice_response.get("handled")),
+            "status": status,
+            "errorCode": str(voice_response.get("error_code") or ""),
+            "sttSource": str(diagnostics.get("stt_source") or ""),
+            "fallbackReason": str(diagnostics.get("fallback_reason") or ""),
+            "transcriptOnlyWarning": bool(diagnostics.get("transcript_only_warning")),
+            "sttLanguage": str(diagnostics.get("stt_language") or ""),
+            "sttMultipass": bool(diagnostics.get("stt_multipass")),
+            "sourceModule": __file__,
+        },
+        logger_obj=logger,
+        level="info",
     )
 
 
@@ -427,6 +436,15 @@ def _is_audio_document_payload(value: Any) -> bool:
 
 
 def _message_has_media_hint(message: dict[str, Any]) -> bool:
+    text_blob = f"{str(message.get('text') or '')}\n{str(message.get('content') or '')}".lower()
+    embedded_media_hint = (
+        "<media:audio>" in text_blob
+        or "<media:file>" in text_blob
+        or "[media attached:" in text_blob
+        or "[audio] user text:" in text_blob
+        or bool(message.get("inferredMediaFromEmbeddedPrompt"))
+        or bool(message.get("embeddedMediaPathPresent"))
+    )
     return bool(
         message.get("voice")
         or message.get("audio")
@@ -440,6 +458,7 @@ def _message_has_media_hint(message: dict[str, Any]) -> bool:
         or message.get("has_media")
         or message.get("media_present")
         or message.get("media_type")
+        or embedded_media_hint
     )
 
 
@@ -1164,28 +1183,35 @@ def _build_adapter_response(
         or ""
     )
     media_or_inferred = bool(diagnostics.get("media_or_inferred") or diagnostics.get("media_or_inferred_at_decision"))
+    outgoing_text_source = str(diagnostics.get("outgoing_text_source") or chat_response_source)
+    if media_or_inferred and not outgoing_text_source:
+        outgoing_text_source = _resolve_response_text_source(
+            diagnostics,
+            status=status,
+            text=str(text or ""),
+        )
+    diagnostics["outgoing_text_source"] = outgoing_text_source
+    payload["meta"]["outgoing_text_source"] = outgoing_text_source
     outgoing_text = str(text or "")
-    logger.info(
-        "%s",
-        json.dumps(
-            {
-                "event": "openclaw_adapter_outgoing_boundary",
-                "traceStage": "adapter.respond.final",
-                "requestId": request_id or "",
-                "request_id": request_id or "",
-                "runId": run_id or "",
-                "sessionId": session_id or "",
-                "route": route,
-                "chat_response_source": chat_response_source,
-                "reply_text_source": chat_response_source,
-                "media_or_inferred": media_or_inferred,
-                "outgoing_text_preview_hash": _text_preview_hash(outgoing_text),
-                "outgoing_text_preview_len": len(outgoing_text),
-                "channel_send_origin_module": __file__,
-            },
-            ensure_ascii=True,
-            separators=(",", ":"),
-        ),
+    emit_observable_marker(
+        {
+            "event": "openclaw_adapter_outgoing_boundary",
+            "traceStage": "adapter.respond.final",
+            "requestId": request_id or "",
+            "request_id": request_id or "",
+            "runId": run_id or "",
+            "sessionId": session_id or "",
+            "route": route,
+            "chat_response_source": chat_response_source,
+            "reply_text_source": chat_response_source,
+            "outgoing_text_source": outgoing_text_source,
+            "media_or_inferred": media_or_inferred,
+            "outgoing_text_preview_hash": _text_preview_hash(outgoing_text),
+            "outgoing_text_preview_len": len(outgoing_text),
+            "channel_send_origin_module": __file__,
+        },
+        logger_obj=logger,
+        level="info",
     )
     return payload
 
@@ -1328,6 +1354,7 @@ def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
             diagnostics["chat_response_source"] = chat_response_source
             diagnostics["response_text_source"] = chat_response_source
             diagnostics["reply_text_source"] = chat_response_source
+            diagnostics["outgoing_text_source"] = chat_response_source
             diagnostics["media_or_inferred_at_decision"] = media_or_inferred
             diagnostics["media_or_inferred"] = media_or_inferred
             fallback_reason = None
@@ -1520,24 +1547,21 @@ def main_voice_handler(message: dict[str, Any], request_id: str | None = None) -
     chat_id = message.get("chat_id")
     media_detected = _message_has_media_hint(message)
     if media_detected and not str(request_id or "").strip():
-        logger.error(
-            "%s",
-            json.dumps(
-                {
-                    "event": "openclaw_voice_dispatch_path_error",
-                    "traceStage": "adapter.path_error",
-                    "requestId": "",
-                    "request_id": "",
-                    "selectedPath": "none",
-                    "intendedPath": "d_brain_openclaw_bridge",
-                    "errorCode": "request_id_missing_in_chain",
-                    "branchReason": "adapter_missing_request_id",
-                    "stage": "adapter.pre_bridge",
-                    "sourceModule": __file__,
-                },
-                ensure_ascii=True,
-                separators=(",", ":"),
-            ),
+        emit_observable_marker(
+            {
+                "event": "openclaw_voice_dispatch_path_error",
+                "traceStage": "adapter.path_error",
+                "requestId": "",
+                "request_id": "",
+                "selectedPath": "none",
+                "intendedPath": "d_brain_openclaw_bridge",
+                "errorCode": "request_id_missing_in_chain",
+                "branchReason": "adapter_missing_request_id",
+                "stage": "adapter.pre_bridge",
+                "sourceModule": __file__,
+            },
+            logger_obj=logger,
+            level="error",
         )
         return {
             "status": "error",

@@ -1,0 +1,3 @@
+file 'p1_ru.wav'
+file 'p2_en.wav'
+file 'p3_ru.wav'

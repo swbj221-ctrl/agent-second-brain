@@ -22,13 +22,23 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Documentation is English-only (no Cyrillic)
 
 ## Current Session Goal
+- Complete Telegram voice STT cutover to local faster-whisper-only runtime path in bridge code (no Deepgram STT runtime usage in `dispatch_voice`).
+- Add bridge-level faster-whisper wrapper with path/bytes input, internal ffmpeg decode for `.ogg/.oga/.m4a`, multipass diagnostics, and model singleton caching.
+- Add a small local STT CLI check (`scripts/stt_test_fw.py`) and document operational env/runtime defaults for Windows GTX 1060 (`int8_float32`, CPU fallback when CUDA runtime DLLs are missing).
 - Deliver v1.3 operator readiness for the OpenClaw-first production path: bridge-level user preferences (`/prefs`), reliability guardrails (timeout-safe sidecar degrade), and transport-agnostic diagnostics/admin quick controls (`/diag`, `/diag full`, `/ping`, `/version`) without changing the transport architecture.
 - v1.4 RC hardening pass: unify/sanitize bridge timeout/fallback behavior, tighten command safety, finalize offline voice/command/diag no-polling smoke coverage, and add a single RC smoke suite command.
 - Embedded voice transcription UTF-8 hardening follow-up: prevent mojibake token patterns in the wrapper-first OpenClaw embedded audio path by preferring UTF-8-safe transcript transport/decoding and explicit empty/corrupted transcript diagnostics.
 - Windows `gateway/ws` pretty-log mojibake hardening follow-up: reduce ANSI/unicode formatter corruption in OpenClaw pretty logs (`req/res` lines) by using ASCII-safe symbols and sanitized file-log messages in the installed runtime bundle until upstreamed.
 - Voice-call STT language-bias hardening follow-up: fix OpenClaw `voice-call` streaming STT (Twilio media stream -> OpenAI Realtime) so RU and mixed RU/EN telephony speech is not transcribed as English-phonetic Latin transliteration by passing explicit multilingual-safe transcription hints and adding operator diagnostics for provider/model/language/raw transcript preview.
 
+## Session Outcome (2026-02-26)
+- Faster-whisper is now enforced as the only Telegram bridge STT runtime backend in `dispatch_voice` (Deepgram STT is not used in normal Telegram media STT runtime flow).
+- Telegram runtime TTS is now local-only (`piper`) in normal flow; Deepgram TTS fallback is disabled unless an explicit diagnostic override is enabled.
+- Media turns are source-locked at final output boundaries (`response_text_source`, `outgoing_text_source`, `chat_response_source`), so provider transcript tails cannot become final text when `media_or_inferred=true`.
+- Focused backend/safety smokes are green for the strict policy: STT policy `3/3`, TTS policy `3/3`, faster-whisper path `2/2`, mixed-sequence retention case PASS in `openclaw_voice_dispatch_smoke.py`.
+
 ## Known Blockers
+- Local runtime environment must have `faster-whisper` installed for true live transcription; when unavailable, bridge now fails closed by design (`faster_whisper_import_failed`) with no Deepgram STT fallback.
 - MSI network TLS inspection blocks `summarize` URL fetches until corporate root CA is installed and provided to Node via `NODE_EXTRA_CA_CERTS`.
 - OpenClaw embedded Telegram audio/voice may still bypass the project bridge after OpenClaw updates unless the local runtime exec-guard hotfix in installed pi-embedded bundles is re-applied or upstreamed.
 - OpenClaw Windows gateway/ws pretty-log mojibake fix is currently a local installed-runtime bundle patch (outside repo source) and must be re-applied or upstreamed after OpenClaw updates/reinstalls.
@@ -45,6 +55,9 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - LLM as business logic
 
 ## Current Status
+- Telegram media STT path is now faster-whisper only in live `dispatch_voice` runtime execution and preserves multipass marker emissions.
+- Telegram runtime TTS path is now piper-only in normal mode (`TELEGRAM_TTS_BACKEND=piper`); Deepgram TTS path is diagnostic-only and OFF by default.
+- Media/inferred-media final text is fail-closed to bridge STT source only; provider transcript tail is blocked from final user output.
 - Stage 1 foundation complete
 - Stage 2 ingestion + summary pipeline complete with smoke test
 - Stage 3 plans/reminders complete with smoke tests (default + parse)
@@ -61,7 +74,7 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Stage 14 Books / Philosophy / Knowledge UX MVP first pass implemented; manual Telegram verification on MSI pending
 - Stage 16B Backup & Restore MVP implemented; weekly backups configured on MSI; restore verification pending
 - Stage 18 Projects & Tasks MVP first pass implemented; MSI validated
-- Deepgram TTS adapter added with config-driven fallback; TTS smoke script added.
+- Legacy Deepgram TTS adapter notes are superseded for normal OpenClaw Telegram runtime by local-only piper policy.
 - MSI venv standardized on `.venv`; gitignore tightened for venv variants.
 - OpenClaw main adapter Phase 3 Batches A-D bridged (read-only, low-risk writes, medium workflows, and command-only voice/delivery).
 - OpenClaw gateway trusted proxies set for dev tunnel; workspace bootstrap/heartbeat filenames normalized to lowercase.
@@ -92,6 +105,9 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 - Local OpenClaw runtime hotfix (installed npm `pi-embedded` bundles, outside repo source) now intercepts embedded direct Deepgram STT `exec` calls for `<media:audio>` and rewrites them to the project redirect shim (`scripts/openclaw_embedded_media_redirect_cli.py`) with runtime proof/error markers.
 - Wrapper-first embedded transcript encoding hardening is now in place: `openclaw_live_voice_bridge_cli.py` supports `TranscriptB64`/`TranscriptBase64`, emits explicit transcript decode diagnostics, and suppresses suspicious mojibake transcript text before adapter handoff (media STT remains primary).
 - Telegram voice handoff now hard-blocks provider transcript echo whenever media is present/inferred; adapter post-bridge diagnostics include `response_text_source` (`bridge_stt|provider_transcript|fallback`) and `media_or_inferred_at_decision` for request-scoped triage.
+- Telegram voice bridge STT runtime path is now faster-whisper only (`TELEGRAM_STT_BACKEND=faster_whisper`), with Deepgram STT removed from runtime voice execution in `dispatch_voice`.
+- New bridge STT wrapper `_run_faster_whisper_stt(...)` returns transcript + detected language + language probability + optional segments + diagnostics and supports both file path and bytes input.
+- Local CLI validation is available via `scripts/stt_test_fw.py`; real inbound `.ogg` checks confirm the mixed RU+EN phrase is preserved when using `FASTER_WHISPER_MODEL=medium`.
 - OpenClaw `voice-call` streaming STT hardening (installed extension, outside repo source) now supports config-backed `streaming.sttLanguage` (default `ru`) and `streaming.sttPrompt` (bilingual anti-transliteration hint), passes them into OpenAI Realtime `input_audio_transcription`, and emits short safe diagnostics for selected STT settings plus final/raw transcript previews to speed live voice-call language-bias triage.
 
 ## Key Paths
@@ -103,4 +119,3 @@ OpenClaw-based system with reuse-first philosophy: one main skill and a sidecar 
 ## Contacts / Owners
 - Owner: TBD
 - On-call: TBD
-

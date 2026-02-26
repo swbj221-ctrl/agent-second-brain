@@ -1,0 +1,97 @@
+﻿{
+  "verdict": "INCONCLUSIVE",
+  "reason": "Bridge markers found, but the candidate chain requestId is not discoverable in the provided log-capture. Missing/log-misaligned stages: runtime_exec_guard,redirect_select,wrapper_select,wrapper_trace.",
+  "findings": {
+    "log_exists": true,
+    "session_exists": true,
+    "runtime_exec_guard_marker": true,
+    "wrapper_select_marker": true,
+    "wrapper_selected_bridge": true,
+    "wrapper_trace_marker": true,
+    "adapter_select_marker": true,
+    "voice_pipeline_marker": true,
+    "multipass_any_marker": true,
+    "multipass_selected_marker": true,
+    "transcript_only_fallback_marker": true,
+    "transcript_only_clarify_marker": true,
+    "bridge_path_error_marker": true,
+    "adapter_post_bridge_marker": true,
+    "selected_lang": "",
+    "selected_candidate_translit_like": false,
+    "selected_candidate_has_cyrillic": false,
+    "selected_candidate_has_latin": false,
+    "selected_transcript_preview": "",
+    "selected_transcript_mixed_scripts": false,
+    "full_chain_same_request_id": false,
+    "full_chain_request_id": "",
+    "stage_request_ids": {
+      "runtime_exec_guard": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "redirect_select": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "wrapper_select": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "adapter_pre_bridge": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "adapter_post_bridge": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "wrapper_trace": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "telegram_voice_pipeline": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "stt_multipass_selected": [
+        "oc-call_abc123|fc_def456"
+      ]
+    },
+    "stage_request_ids_log": {},
+    "required_chain_stage_sources": {
+      "runtime_exec_guard": "session_only",
+      "redirect_select": "session_only",
+      "wrapper_select": "session_only",
+      "wrapper_trace": "session_only",
+      "adapter_pre_bridge": "session_only",
+      "adapter_post_bridge": "session_only",
+      "telegram_voice_pipeline": "session_only",
+      "stt_multipass_selected": "session_only"
+    },
+    "required_chain_missing_in_log_capture": [
+      "runtime_exec_guard",
+      "redirect_select",
+      "wrapper_select",
+      "wrapper_trace",
+      "adapter_pre_bridge",
+      "adapter_post_bridge",
+      "telegram_voice_pipeline",
+      "stt_multipass_selected"
+    ],
+    "log_request_ids": [],
+    "log_raw_request_ids": [],
+    "full_chain_request_id_in_log_capture": false,
+    "session_exec_toolcall": true,
+    "session_deepgram_direct": false,
+    "session_media_audio_hint": true,
+    "scoped_deepgram_direct_log": false,
+    "scoped_deepgram_direct_session_same_request": false,
+    "evidence_lines": [
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool start: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f | agent/embedded | type=log | time=2026-02-26T11:47:44.748Z | level=debug | subsystem=agent/embedded | message={\"subsystem\":\"agent/embedded\"} embedded run tool start: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b3481",
+      "[log-json] {\"0\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"1\":\"embedded run tool start: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f\",\"_meta\":{\"runtime\":\"node\",\"runtimeVersion\":\"22.22.0\",\"hostname\":\"WIN-FGP7TB09S98\",\"name\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"parentNames\":[\"openclaw\"],\"date\":\"2026-02-26T11:47:44.748Z\",\"logLevelId\":2,\"logLevelName\":\"DEBUG\",\"path\":{\"fullFilePath\":\"file:///C:/Users/User/AppData/",
+      "[log-json] 0={\"subsystem\":\"agent/embedded\"} | 1=embedded run tool start: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f | time=2026-02-26T11:47:44.748Z",
+      "[log-json] {\"0\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"1\": \"embedded run tool start: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f\", \"_meta\": {\"runtime\": \"node\", \"runtimeVersion\": \"22.22.0\", \"hostname\": \"WIN-FGP7TB09S98\", \"name\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"parentNames\": [\"openclaw\"], \"date\": \"2026-02-26T11:47:44.748Z\", \"logLevelId\": 2, \"logLevelName\": \"DEBUG\", \"path\": {\"fullFilePath\": \"file://",
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool start: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f",
+      "[log-json] {\"type\": \"log\", \"time\": \"2026-02-26T11:47:44.748Z\", \"level\": \"debug\", \"subsystem\": \"agent/embedded\", \"message\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"} embedded run tool start: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f\", \"raw\": \"{\\\"0\\\":\\\"{\\\\\\\"subsystem\\\\\\\":\\\\\\\"agent/embedded\\\\\\\"}\\\",\\\"1\\\":\\\"embedded run tool start: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJ",
+      "[log-raw] {\"type\":\"log\",\"time\":\"2026-02-26T11:47:44.748Z\",\"level\":\"debug\",\"subsystem\":\"agent/embedded\",\"message\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"} embedded run tool start: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f\",\"raw\":\"{\\\"0\\\":\\\"{\\\\\\\"subsystem\\\\\\\":\\\\\\\"agent/embedded\\\\\\\"}\\\",\\\"1\\\":\\\"embedded run tool start: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX",
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool end: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f | agent/embedded | type=log | time=2026-02-26T11:47:45.078Z | level=debug | subsystem=agent/embedded | message={\"subsystem\":\"agent/embedded\"} embedded run tool end: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa",
+      "[log-json] {\"0\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"1\":\"embedded run tool end: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f\",\"_meta\":{\"runtime\":\"node\",\"runtimeVersion\":\"22.22.0\",\"hostname\":\"WIN-FGP7TB09S98\",\"name\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"parentNames\":[\"openclaw\"],\"date\":\"2026-02-26T11:47:45.078Z\",\"logLevelId\":2,\"logLevelName\":\"DEBUG\",\"path\":{\"fullFilePath\":\"file:///C:/Users/User/AppData/Ro",
+      "[log-json] 0={\"subsystem\":\"agent/embedded\"} | 1=embedded run tool end: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f | time=2026-02-26T11:47:45.078Z",
+      "[log-json] {\"0\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"1\": \"embedded run tool end: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f\", \"_meta\": {\"runtime\": \"node\", \"runtimeVersion\": \"22.22.0\", \"hostname\": \"WIN-FGP7TB09S98\", \"name\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"parentNames\": [\"openclaw\"], \"date\": \"2026-02-26T11:47:45.078Z\", \"logLevelId\": 2, \"logLevelName\": \"DEBUG\", \"path\": {\"fullFilePath\": \"file:///C",
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool end: runId=e471db2c-7e78-4824-8458-fc1a5edd5a37 tool=exec toolCallId=call_WQBvxIHaFXncJM9HkbqNdnBX|fc_06917ad49f1ebe480169a032e00b348191aa790f27c75b380f"
+    ]
+  }
+}

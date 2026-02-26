@@ -1,0 +1,101 @@
+﻿{
+  "verdict": "INCONCLUSIVE",
+  "reason": "Bridge markers found, but the candidate chain requestId is not discoverable in the provided log-capture. Missing/log-misaligned stages: runtime_exec_guard,redirect_select,stt_multipass_selected.",
+  "findings": {
+    "log_exists": true,
+    "session_exists": true,
+    "runtime_exec_guard_marker": false,
+    "wrapper_select_marker": true,
+    "wrapper_selected_bridge": true,
+    "wrapper_trace_marker": true,
+    "adapter_select_marker": true,
+    "voice_pipeline_marker": true,
+    "multipass_any_marker": false,
+    "multipass_selected_marker": false,
+    "transcript_only_fallback_marker": false,
+    "transcript_only_clarify_marker": false,
+    "bridge_path_error_marker": false,
+    "adapter_post_bridge_marker": true,
+    "selected_lang": "",
+    "selected_candidate_translit_like": false,
+    "selected_candidate_has_cyrillic": false,
+    "selected_candidate_has_latin": false,
+    "selected_transcript_preview": "",
+    "selected_transcript_mixed_scripts": false,
+    "full_chain_same_request_id": false,
+    "full_chain_request_id": "",
+    "stage_request_ids": {
+      "wrapper_select": [
+        "marker-vis-20260226-152043"
+      ],
+      "adapter_pre_bridge": [
+        "marker-vis-20260226-152043"
+      ],
+      "adapter_post_bridge": [
+        "marker-vis-20260226-152043"
+      ],
+      "wrapper_trace": [
+        "marker-vis-20260226-152043"
+      ],
+      "telegram_voice_pipeline": [
+        "marker-vis-20260226-152043"
+      ]
+    },
+    "stage_request_ids_log": {
+      "wrapper_select": [
+        "marker-vis-20260226-152043"
+      ],
+      "adapter_pre_bridge": [
+        "marker-vis-20260226-152043"
+      ],
+      "adapter_post_bridge": [
+        "marker-vis-20260226-152043"
+      ],
+      "wrapper_trace": [
+        "marker-vis-20260226-152043"
+      ],
+      "telegram_voice_pipeline": [
+        "marker-vis-20260226-152043"
+      ]
+    },
+    "required_chain_stage_sources": {
+      "runtime_exec_guard": "missing",
+      "redirect_select": "missing",
+      "wrapper_select": "log_capture",
+      "wrapper_trace": "log_capture",
+      "adapter_pre_bridge": "log_capture",
+      "adapter_post_bridge": "log_capture",
+      "telegram_voice_pipeline": "log_capture",
+      "stt_multipass_selected": "missing"
+    },
+    "required_chain_missing_in_log_capture": [
+      "runtime_exec_guard",
+      "redirect_select",
+      "stt_multipass_selected"
+    ],
+    "log_request_ids": [
+      "marker-vis-20260226-152043"
+    ],
+    "log_raw_request_ids": [],
+    "full_chain_request_id_in_log_capture": false,
+    "session_exec_toolcall": true,
+    "session_deepgram_direct": false,
+    "session_media_audio_hint": true,
+    "scoped_deepgram_direct_log": false,
+    "scoped_deepgram_direct_session_same_request": false,
+    "evidence_lines": [
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool start: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e | agent/embedded | type=log | time=2026-02-26T12:20:22.067Z | level=debug | subsystem=agent/embedded | message={\"subsystem\":\"agent/embedded\"} embedded run tool start: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a84003881",
+      "[log-json] {\"0\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"1\":\"embedded run tool start: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e\",\"_meta\":{\"runtime\":\"node\",\"runtimeVersion\":\"22.22.0\",\"hostname\":\"WIN-FGP7TB09S98\",\"name\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"parentNames\":[\"openclaw\"],\"date\":\"2026-02-26T12:20:22.067Z\",\"logLevelId\":2,\"logLevelName\":\"DEBUG\",\"path\":{\"fullFilePath\":\"file:///C:/Users/User/AppData/",
+      "[log-json] 0={\"subsystem\":\"agent/embedded\"} | 1=embedded run tool start: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e | time=2026-02-26T12:20:22.067Z",
+      "[log-json] {\"0\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"1\": \"embedded run tool start: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e\", \"_meta\": {\"runtime\": \"node\", \"runtimeVersion\": \"22.22.0\", \"hostname\": \"WIN-FGP7TB09S98\", \"name\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"parentNames\": [\"openclaw\"], \"date\": \"2026-02-26T12:20:22.067Z\", \"logLevelId\": 2, \"logLevelName\": \"DEBUG\", \"path\": {\"fullFilePath\": \"file://",
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool start: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e",
+      "[log-json] {\"type\": \"log\", \"time\": \"2026-02-26T12:20:22.067Z\", \"level\": \"debug\", \"subsystem\": \"agent/embedded\", \"message\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"} embedded run tool start: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e\", \"raw\": \"{\\\"0\\\":\\\"{\\\\\\\"subsystem\\\\\\\":\\\\\\\"agent/embedded\\\\\\\"}\\\",\\\"1\\\":\\\"embedded run tool start: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pg",
+      "[log-raw] {\"type\":\"log\",\"time\":\"2026-02-26T12:20:22.067Z\",\"level\":\"debug\",\"subsystem\":\"agent/embedded\",\"message\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"} embedded run tool start: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e\",\"raw\":\"{\\\"0\\\":\\\"{\\\\\\\"subsystem\\\\\\\":\\\\\\\"agent/embedded\\\\\\\"}\\\",\\\"1\\\":\\\"embedded run tool start: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN",
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool end: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e | agent/embedded | type=log | time=2026-02-26T12:20:22.295Z | level=debug | subsystem=agent/embedded | message={\"subsystem\":\"agent/embedded\"} embedded run tool end: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd",
+      "[log-json] {\"0\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"1\":\"embedded run tool end: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e\",\"_meta\":{\"runtime\":\"node\",\"runtimeVersion\":\"22.22.0\",\"hostname\":\"WIN-FGP7TB09S98\",\"name\":\"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\",\"parentNames\":[\"openclaw\"],\"date\":\"2026-02-26T12:20:22.295Z\",\"logLevelId\":2,\"logLevelName\":\"DEBUG\",\"path\":{\"fullFilePath\":\"file:///C:/Users/User/AppData/Ro",
+      "[log-json] 0={\"subsystem\":\"agent/embedded\"} | 1=embedded run tool end: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e | time=2026-02-26T12:20:22.295Z",
+      "[log-json] {\"0\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"1\": \"embedded run tool end: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e\", \"_meta\": {\"runtime\": \"node\", \"runtimeVersion\": \"22.22.0\", \"hostname\": \"WIN-FGP7TB09S98\", \"name\": \"{\\\"subsystem\\\":\\\"agent/embedded\\\"}\", \"parentNames\": [\"openclaw\"], \"date\": \"2026-02-26T12:20:22.295Z\", \"logLevelId\": 2, \"logLevelName\": \"DEBUG\", \"path\": {\"fullFilePath\": \"file:///C",
+      "[log-json] {\"subsystem\":\"agent/embedded\"} embedded run tool end: runId=b6eb9bb1-b53a-4fa5-9f71-9a2ae149fbfd tool=exec toolCallId=call_4O3Jpnhikm4pgk7waxccRcrN|fc_02d654f9b6a73f3d0169a03a8400388191bd555ef98413e92e"
+    ]
+  }
+}

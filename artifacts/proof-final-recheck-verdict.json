@@ -1,0 +1,33 @@
+﻿{
+  "verdict": "INCONCLUSIVE",
+  "reason": "Bridge markers found, but no full same-requestId runtime->redirect->wrapper->adapter->bridge chain.",
+  "findings": {
+    "log_exists": true,
+    "session_exists": true,
+    "runtime_exec_guard_marker": true,
+    "wrapper_select_marker": true,
+    "wrapper_selected_bridge": true,
+    "wrapper_trace_marker": true,
+    "adapter_select_marker": true,
+    "voice_pipeline_marker": true,
+    "multipass_any_marker": true,
+    "multipass_selected_marker": true,
+    "transcript_only_fallback_marker": true,
+    "transcript_only_clarify_marker": true,
+    "bridge_path_error_marker": true,
+    "adapter_post_bridge_marker": true,
+    "selected_lang": "",
+    "selected_candidate_translit_like": false,
+    "selected_candidate_has_cyrillic": false,
+    "selected_candidate_has_latin": false,
+    "selected_transcript_preview": "",
+    "selected_transcript_mixed_scripts": false,
+    "full_chain_same_request_id": false,
+    "full_chain_request_id": "",
+    "stage_request_ids": {},
+    "session_exec_toolcall": true,
+    "session_deepgram_direct": false,
+    "session_media_audio_hint": true,
+    "evidence_lines": []
+  }
+}

@@ -1,0 +1,97 @@
+﻿{
+  "verdict": "INCONCLUSIVE",
+  "reason": "Bridge markers found, but the candidate chain requestId is not discoverable in the provided log-capture. Missing/log-misaligned stages: runtime_exec_guard,redirect_select,wrapper_select,wrapper_trace.",
+  "findings": {
+    "log_exists": true,
+    "session_exists": true,
+    "runtime_exec_guard_marker": true,
+    "wrapper_select_marker": true,
+    "wrapper_selected_bridge": true,
+    "wrapper_trace_marker": true,
+    "adapter_select_marker": true,
+    "voice_pipeline_marker": true,
+    "multipass_any_marker": true,
+    "multipass_selected_marker": true,
+    "transcript_only_fallback_marker": true,
+    "transcript_only_clarify_marker": true,
+    "bridge_path_error_marker": true,
+    "adapter_post_bridge_marker": true,
+    "selected_lang": "",
+    "selected_candidate_translit_like": false,
+    "selected_candidate_has_cyrillic": false,
+    "selected_candidate_has_latin": false,
+    "selected_transcript_preview": "",
+    "selected_transcript_mixed_scripts": false,
+    "full_chain_same_request_id": false,
+    "full_chain_request_id": "",
+    "stage_request_ids": {
+      "runtime_exec_guard": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "redirect_select": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "wrapper_select": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "adapter_pre_bridge": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "adapter_post_bridge": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "wrapper_trace": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "telegram_voice_pipeline": [
+        "oc-call_abc123|fc_def456"
+      ],
+      "stt_multipass_selected": [
+        "oc-call_abc123|fc_def456"
+      ]
+    },
+    "stage_request_ids_log": {},
+    "required_chain_stage_sources": {
+      "runtime_exec_guard": "session_only",
+      "redirect_select": "session_only",
+      "wrapper_select": "session_only",
+      "wrapper_trace": "session_only",
+      "adapter_pre_bridge": "session_only",
+      "adapter_post_bridge": "session_only",
+      "telegram_voice_pipeline": "session_only",
+      "stt_multipass_selected": "session_only"
+    },
+    "required_chain_missing_in_log_capture": [
+      "runtime_exec_guard",
+      "redirect_select",
+      "wrapper_select",
+      "wrapper_trace",
+      "adapter_pre_bridge",
+      "adapter_post_bridge",
+      "telegram_voice_pipeline",
+      "stt_multipass_selected"
+    ],
+    "log_request_ids": [],
+    "log_raw_request_ids": [],
+    "full_chain_request_id_in_log_capture": false,
+    "session_exec_toolcall": true,
+    "session_deepgram_direct": false,
+    "session_media_audio_hint": true,
+    "scoped_deepgram_direct_log": false,
+    "scoped_deepgram_direct_session_same_request": false,
+    "evidence_lines": [
+      "[session-raw] {\"type\":\"message\",\"id\":\"63b2abd2\",\"parentId\":\"65ba76bb\",\"timestamp\":\"2026-02-24T15:47:02.267Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"**Attempting local audio transcription**\",\"thinkingSignature\":\"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dc7f3c9bc819183856b79cd35548b\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpncf1tfWalbLXBDzjpm5DVCLH5Zkm0rof9wYO_npLmJ3ZEEiwAMOLqG50-cK_TW97sVUFyyRA7W54O0tJBv8qPM62iO2CfNkx3nk7csE5SXjFMoWMBZVAw40Mpbbuf8COGbPGjpfBE1hH_stCuY8KY",
+      "[session-json] {\"type\": \"message\", \"id\": \"63b2abd2\", \"parentId\": \"65ba76bb\", \"timestamp\": \"2026-02-24T15:47:02.267Z\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"thinking\", \"thinking\": \"**Attempting local audio transcription**\", \"thinkingSignature\": \"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dc7f3c9bc819183856b79cd35548b\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpncf1tfWalbLXBDzjpm5DVCLH5Zkm0rof9wYO_npLmJ3ZEEiwAMOLqG50-cK_TW97sVUFyyRA7W54O0tJBv8qPM62iO2CfNkx3nk7csE5SXjFMoWMBZVAw40Mpbbuf8COGbPG",
+      "[session-raw] {\"type\":\"message\",\"id\":\"5dbe1387\",\"parentId\":\"ee11260c\",\"timestamp\":\"2026-02-24T16:01:28.398Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"**Planning summarize tool fix**\",\"thinkingSignature\":\"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dcb552ddc819196736d8d5e16129b\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpnctX2yak3ZYNwORlhF8PP2seD_punF_yAFBwWb5OFjCt99QIOYW2bdgQRDA2S07E9ox0S0Sg_rm6RvP2uBvJaW3DEYlETAHiptYEECFpOQWIPTwFAe0wJEgDcjNDG1Lxkm6E-MDqWTSKpeEVgfh7IpNaxk1Qk7",
+      "[session-json] {\"type\": \"message\", \"id\": \"5dbe1387\", \"parentId\": \"ee11260c\", \"timestamp\": \"2026-02-24T16:01:28.398Z\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"thinking\", \"thinking\": \"**Planning summarize tool fix**\", \"thinkingSignature\": \"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dcb552ddc819196736d8d5e16129b\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpnctX2yak3ZYNwORlhF8PP2seD_punF_yAFBwWb5OFjCt99QIOYW2bdgQRDA2S07E9ox0S0Sg_rm6RvP2uBvJaW3DEYlETAHiptYEECFpOQWIPTwFAe0wJEgDcjNDG1Lxkm6E-MDqWTSKp",
+      "[session-raw] {\"type\":\"message\",\"id\":\"bfce7870\",\"parentId\":\"d11add56\",\"timestamp\":\"2026-02-24T16:01:33.994Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"**Inspecting shim file location**\",\"thinkingSignature\":\"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dcb5c07688191a939896a06ae4739\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpnctdxZMofYAg2nivlE4rMCTQa383jOCHpF_SE_-2HFRBc6gdmYKhMlrydwFGpDqKCw1Bu9wuMUmUTkQlFVt7W9wpuaxFu1AXQg5LANfq0fjc1wCBOtTYrTR515TRg331U3tWQwA03LoQ8tiuM-OCtxxXD4Z3",
+      "[session-json] {\"type\": \"message\", \"id\": \"bfce7870\", \"parentId\": \"d11add56\", \"timestamp\": \"2026-02-24T16:01:33.994Z\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"thinking\", \"thinking\": \"**Inspecting shim file location**\", \"thinkingSignature\": \"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dcb5c07688191a939896a06ae4739\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpnctdxZMofYAg2nivlE4rMCTQa383jOCHpF_SE_-2HFRBc6gdmYKhMlrydwFGpDqKCw1Bu9wuMUmUTkQlFVt7W9wpuaxFu1AXQg5LANfq0fjc1wCBOtTYrTR515TRg331U3tWQwA03Lo",
+      "[session-raw] {\"type\":\"message\",\"id\":\"a184cdac\",\"parentId\":\"62a246cc\",\"timestamp\":\"2026-02-24T16:01:37.659Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"**Assessing Windows apps precedence issue**\",\"thinkingSignature\":\"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dcb5f6b148191bf9f80714cd1930f\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpnctguMxaPTRX3RhIzY4RASk-OQgtbixSotDmPCUzM7X02vOVZGhILHyFesR6QoQCgQWGb-qqWCs7-RkQqrr2aG6bM438mnCgU4Z4OMWqT3fabqrxWdcVuoamCcDV1OpDqs2WzVuG6vVuPtNHi4",
+      "[session-json] {\"type\": \"message\", \"id\": \"a184cdac\", \"parentId\": \"62a246cc\", \"timestamp\": \"2026-02-24T16:01:37.659Z\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"thinking\", \"thinking\": \"**Assessing Windows apps precedence issue**\", \"thinkingSignature\": \"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dcb5f6b148191bf9f80714cd1930f\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpnctguMxaPTRX3RhIzY4RASk-OQgtbixSotDmPCUzM7X02vOVZGhILHyFesR6QoQCgQWGb-qqWCs7-RkQqrr2aG6bM438mnCgU4Z4OMWqT3fabqrxWdcVuoamCcDV1OpDq",
+      "[session-raw] {\"type\":\"message\",\"id\":\"c4b19659\",\"parentId\":\"b9dc04e0\",\"timestamp\":\"2026-02-24T16:01:43.089Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"**Planning clean reinstall**\",\"thinkingSignature\":\"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dcb655bf48191aff645d395cb7982\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpnctmneKLmEM7UXVpKzeVXfx75FXp5XYH7vZLpUuKW-y5bEsMI2IwcGNrGQpAtD3Lbs9uALz6oO3LV7pjXJo3i7zy2QGOYtNeZQAr7Y9Lm-64zFbd7Q_xXWY-KNQDrEZkmk_2LOVA8NSZ_IMJeWU-jTmz5dgA62pqN",
+      "[session-json] {\"type\": \"message\", \"id\": \"c4b19659\", \"parentId\": \"b9dc04e0\", \"timestamp\": \"2026-02-24T16:01:43.089Z\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"thinking\", \"thinking\": \"**Planning clean reinstall**\", \"thinkingSignature\": \"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dcb655bf48191aff645d395cb7982\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpnctmneKLmEM7UXVpKzeVXfx75FXp5XYH7vZLpUuKW-y5bEsMI2IwcGNrGQpAtD3Lbs9uALz6oO3LV7pjXJo3i7zy2QGOYtNeZQAr7Y9Lm-64zFbd7Q_xXWY-KNQDrEZkmk_2LOVA8NSZ_IMJ",
+      "[session-raw] {\"type\":\"message\",\"id\":\"d285b6e1\",\"parentId\":\"609627b0\",\"timestamp\":\"2026-02-24T16:02:17.865Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"**Evaluating command path conflicts**\",\"thinkingSignature\":\"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dcb86587c8191bb23722769a03c7e\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpncuJ-JPC4nSxhnQqaDNbiKJqipUfqpGa-dzcRD0WCb_SF8QNvbCkDUihuboffpnA677UlMrmcSY1zK47s-FAMdqB3vZKFvRG70yv_nAADkvANphv7KPSQbr65cLO4GAYAATqhQiNyzvyWmUyaQQnHGrT",
+      "[session-json] {\"type\": \"message\", \"id\": \"d285b6e1\", \"parentId\": \"609627b0\", \"timestamp\": \"2026-02-24T16:02:17.865Z\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"thinking\", \"thinking\": \"**Evaluating command path conflicts**\", \"thinkingSignature\": \"{\\\"id\\\":\\\"rs_0ccd2ee55074521701699dcb86587c8191bb23722769a03c7e\\\",\\\"type\\\":\\\"reasoning\\\",\\\"encrypted_content\\\":\\\"gAAAAABpncuJ-JPC4nSxhnQqaDNbiKJqipUfqpGa-dzcRD0WCb_SF8QNvbCkDUihuboffpnA677UlMrmcSY1zK47s-FAMdqB3vZKFvRG70yv_nAADkvANphv7KPSQbr65cLO4GAYAATqhQi"
+    ]
+  }
+}

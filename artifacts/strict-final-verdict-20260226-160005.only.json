@@ -1,0 +1,127 @@
+﻿{
+  "verdict": "LIVE_PATH_CONFIRMED_BRIDGE",
+  "reason": "Full same-requestId chain found (strict-final-20260226-160005) including runtime/redirect/wrapper/adapter/bridge multipass markers.",
+  "findings": {
+    "log_exists": true,
+    "session_exists": true,
+    "runtime_exec_guard_marker": true,
+    "wrapper_select_marker": true,
+    "wrapper_selected_bridge": true,
+    "wrapper_trace_marker": true,
+    "adapter_select_marker": true,
+    "voice_pipeline_marker": true,
+    "multipass_any_marker": true,
+    "multipass_selected_marker": true,
+    "transcript_only_fallback_marker": false,
+    "transcript_only_clarify_marker": false,
+    "bridge_path_error_marker": false,
+    "adapter_post_bridge_marker": true,
+    "selected_lang": "",
+    "selected_candidate_translit_like": false,
+    "selected_candidate_has_cyrillic": false,
+    "selected_candidate_has_latin": false,
+    "selected_transcript_preview": "",
+    "selected_transcript_mixed_scripts": false,
+    "full_chain_same_request_id": true,
+    "full_chain_request_id": "strict-final-20260226-160005",
+    "stage_request_ids": {
+      "telegram_voice_pipeline": [
+        "strict-final-20260226-160005",
+        "marker-vis-20260226-152043",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433"
+      ],
+      "stt_multipass_selected": [
+        "strict-final-20260226-160005",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433"
+      ],
+      "wrapper_select": [
+        "marker-vis-20260226-152043",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433",
+        "strict-final-20260226-160005"
+      ],
+      "adapter_pre_bridge": [
+        "marker-vis-20260226-152043",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433",
+        "strict-final-20260226-160005"
+      ],
+      "adapter_post_bridge": [
+        "marker-vis-20260226-152043",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433",
+        "strict-final-20260226-160005"
+      ],
+      "wrapper_trace": [
+        "marker-vis-20260226-152043",
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433",
+        "strict-final-20260226-160005"
+      ],
+      "runtime_exec_guard": [
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433",
+        "strict-final-20260226-160005"
+      ],
+      "redirect_select": [
+        "strict-chain-20260226-154542",
+        "strict-final-20260226-155433",
+        "strict-final-20260226-160005"
+      ]
+    },
+    "stage_request_ids_log": {
+      "telegram_voice_pipeline": [
+        "strict-final-20260226-160005"
+      ],
+      "stt_multipass_selected": [
+        "strict-final-20260226-160005"
+      ]
+    },
+    "required_chain_stage_sources": {
+      "runtime_exec_guard": "session_only",
+      "redirect_select": "session_only",
+      "wrapper_select": "session_only",
+      "wrapper_trace": "session_only",
+      "adapter_pre_bridge": "session_only",
+      "adapter_post_bridge": "session_only",
+      "telegram_voice_pipeline": "log_capture",
+      "stt_multipass_selected": "log_capture"
+    },
+    "required_chain_missing_in_log_capture": [
+      "runtime_exec_guard",
+      "redirect_select",
+      "wrapper_select",
+      "wrapper_trace",
+      "adapter_pre_bridge",
+      "adapter_post_bridge"
+    ],
+    "log_request_ids": [
+      "strict-final-20260226-160005"
+    ],
+    "log_raw_request_ids": [
+      "strict-final-20260226-160005"
+    ],
+    "full_chain_request_id_in_log_capture": true,
+    "session_exec_toolcall": true,
+    "session_deepgram_direct": false,
+    "session_media_audio_hint": true,
+    "scoped_deepgram_direct_log": false,
+    "scoped_deepgram_direct_session_same_request": false,
+    "evidence_lines": [
+      "[log-plain] ﻿{\"type\":\"log\",\"time\":\"2026-02-26T13:02:04.415Z\",\"level\":\"info\",\"message\":\"{\\\"exit_code\\\":0,\\\"stdout\\\":\\\"{\\\\\\\"event\\\\\\\":\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\",\\\\\\\"traceStage\\\\\\\":\\\\\\\"runtime.exec_guard\\\\\\\",\\\\\\\"selectedPath\\\\\\\":\\\\\\\"wrapper_cli_bridge\\\\\\\",\\\\\\\"branchReason\\\\\\\":\\\\\\\"redirect_runtime_guard_visibility\\\\\\\",\\\\\\\"messageKind\\\\\\\":\\\\\\\"document\\\\\\\",\\\\\\\"mimeType\\\\\\\":\\\\\\\"audio/ogg\\\\\\\",\\\\\\\"isAudioDocument\\\\\\\":true,\\\\\\\"sourceModule\\\\\\\":\\\\\\\"D:\\\\\\\\\\\\\\\\openclaw_bot\\\\\\\\\\\\\\\\agent-second-brain\\\\\\\\\\",
+      "[log-plain] ﻿{\"type\":\"log\",\"time\":\"2026-02-26T13:02:04.415Z\",\"level\":\"info\",\"message\":\"{\\\"exit_code\\\":0,\\\"stdout\\\":\\\"{\\\\\\\"event\\\\\\\":\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\",\\\\\\\"traceStage\\\\\\\":\\\\\\\"runtime.exec_guard\\\\\\\",\\\\\\\"selectedPath\\\\\\\":\\\\\\\"wrapper_cli_bridge\\\\\\\",\\\\\\\"branchReason\\\\\\\":\\\\\\\"redirect_runtime_guard_visibility\\\\\\\",\\\\\\\"messageKind\\\\\\\":\\\\\\\"document\\\\\\\",\\\\\\\"mimeType\\\\\\\":\\\\\\\"audio/ogg\\\\\\\",\\\\\\\"isAudioDocument\\\\\\\":true,\\\\\\\"sourceModule\\\\\\\":\\\\\\\"D:\\\\\\\\\\\\\\\\openclaw_bot\\\\\\\\\\\\\\\\agent-second-brain\\\\\\\\\\",
+      "[log-plain] ﻿{\"type\":\"log\",\"time\":\"2026-02-26T13:02:04.415Z\",\"level\":\"info\",\"message\":\"{\\\"exit_code\\\":0,\\\"stdout\\\":\\\"{\\\\\\\"event\\\\\\\":\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\",\\\\\\\"traceStage\\\\\\\":\\\\\\\"runtime.exec_guard\\\\\\\",\\\\\\\"selectedPath\\\\\\\":\\\\\\\"wrapper_cli_bridge\\\\\\\",\\\\\\\"branchReason\\\\\\\":\\\\\\\"redirect_runtime_guard_visibility\\\\\\\",\\\\\\\"messageKind\\\\\\\":\\\\\\\"document\\\\\\\",\\\\\\\"mimeType\\\\\\\":\\\\\\\"audio/ogg\\\\\\\",\\\\\\\"isAudioDocument\\\\\\\":true,\\\\\\\"sourceModule\\\\\\\":\\\\\\\"D:\\\\\\\\\\\\\\\\openclaw_bot\\\\\\\\\\\\\\\\agent-second-brain\\\\\\\\\\",
+      "[log-plain] ﻿{\"type\":\"log\",\"time\":\"2026-02-26T13:02:04.415Z\",\"level\":\"info\",\"message\":\"{\\\"exit_code\\\":0,\\\"stdout\\\":\\\"{\\\\\\\"event\\\\\\\":\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\",\\\\\\\"traceStage\\\\\\\":\\\\\\\"runtime.exec_guard\\\\\\\",\\\\\\\"selectedPath\\\\\\\":\\\\\\\"wrapper_cli_bridge\\\\\\\",\\\\\\\"branchReason\\\\\\\":\\\\\\\"redirect_runtime_guard_visibility\\\\\\\",\\\\\\\"messageKind\\\\\\\":\\\\\\\"document\\\\\\\",\\\\\\\"mimeType\\\\\\\":\\\\\\\"audio/ogg\\\\\\\",\\\\\\\"isAudioDocument\\\\\\\":true,\\\\\\\"sourceModule\\\\\\\":\\\\\\\"D:\\\\\\\\\\\\\\\\openclaw_bot\\\\\\\\\\\\\\\\agent-second-brain\\\\\\\\\\",
+      "[log-plain] ﻿{\"type\":\"log\",\"time\":\"2026-02-26T13:02:04.415Z\",\"level\":\"info\",\"message\":\"{\\\"exit_code\\\":0,\\\"stdout\\\":\\\"{\\\\\\\"event\\\\\\\":\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\",\\\\\\\"traceStage\\\\\\\":\\\\\\\"runtime.exec_guard\\\\\\\",\\\\\\\"selectedPath\\\\\\\":\\\\\\\"wrapper_cli_bridge\\\\\\\",\\\\\\\"branchReason\\\\\\\":\\\\\\\"redirect_runtime_guard_visibility\\\\\\\",\\\\\\\"messageKind\\\\\\\":\\\\\\\"document\\\\\\\",\\\\\\\"mimeType\\\\\\\":\\\\\\\"audio/ogg\\\\\\\",\\\\\\\"isAudioDocument\\\\\\\":true,\\\\\\\"sourceModule\\\\\\\":\\\\\\\"D:\\\\\\\\\\\\\\\\openclaw_bot\\\\\\\\\\\\\\\\agent-second-brain\\\\\\\\\\",
+      "[log-json] {\n  \"runId\": \"729951be-e182-4038-a9de-4e58e082785a\",\n  \"status\": \"ok\",\n  \"summary\": \"completed\",\n  \"result\": {\n    \"payloads\": [\n      {\n        \"text\": \"{\\\"exit_code\\\":0,\\\"stdout\\\":\\\"{\\\\\\\"event\\\\\\\":\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\",\\\\\\\"traceStage\\\\\\\":\\\\\\\"runtime.exec_guard\\\\\\\",\\\\\\\"selectedPath\\\\\\\":\\\\\\\"wrapper_cli_bridge\\\\\\\",\\\\\\\"branchReason\\\\\\\":\\\\\\\"redirect_runtime_guard_visibility\\\\\\\",\\\\\\\"messageKind\\\\\\\":\\\\\\\"document\\\\\\\",\\\\\\\"mimeType\\\\\\\":\\\\\\\"audio/ogg\\\\\\\",\\\\\\\"isAudioDocument\\\\\\\":true",
+      "[log-json] {\n  \"runId\": \"729951be-e182-4038-a9de-4e58e082785a\",\n  \"status\": \"ok\",\n  \"summary\": \"completed\",\n  \"result\": {\n    \"payloads\": [\n      {\n        \"text\": \"{\\\"exit_code\\\":0,\\\"stdout\\\":\\\"{\\\\\\\"event\\\\\\\":\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\",\\\\\\\"traceStage\\\\\\\":\\\\\\\"runtime.exec_guard\\\\\\\",\\\\\\\"selectedPath\\\\\\\":\\\\\\\"wrapper_cli_bridge\\\\\\\",\\\\\\\"branchReason\\\\\\\":\\\\\\\"redirect_runtime_guard_visibility\\\\\\\",\\\\\\\"messageKind\\\\\\\":\\\\\\\"document\\\\\\\",\\\\\\\"mimeType\\\\\\\":\\\\\\\"audio/ogg\\\\\\\",\\\\\\\"isAudioDocument\\\\\\\":true",
+      "[log-json] {\n  \"runId\": \"729951be-e182-4038-a9de-4e58e082785a\",\n  \"status\": \"ok\",\n  \"summary\": \"completed\",\n  \"result\": {\n    \"payloads\": [\n      {\n        \"text\": \"{\\\"exit_code\\\":0,\\\"stdout\\\":\\\"{\\\\\\\"event\\\\\\\":\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\",\\\\\\\"traceStage\\\\\\\":\\\\\\\"runtime.exec_guard\\\\\\\",\\\\\\\"selectedPath\\\\\\\":\\\\\\\"wrapper_cli_bridge\\\\\\\",\\\\\\\"branchReason\\\\\\\":\\\\\\\"redirect_runtime_guard_visibility\\\\\\\",\\\\\\\"messageKind\\\\\\\":\\\\\\\"document\\\\\\\",\\\\\\\"mimeType\\\\\\\":\\\\\\\"audio/ogg\\\\\\\",\\\\\\\"isAudioDocument\\\\\\\":true",
+      "[log-json] {\n  \"runId\": \"729951be-e182-4038-a9de-4e58e082785a\",\n  \"status\": \"ok\",\n  \"summary\": \"completed\",\n  \"result\": {\n    \"payloads\": [\n      {\n        \"text\": \"{\\\"exit_code\\\":0,\\\"stdout\\\":\\\"{\\\\\\\"event\\\\\\\":\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\",\\\\\\\"traceStage\\\\\\\":\\\\\\\"runtime.exec_guard\\\\\\\",\\\\\\\"selectedPath\\\\\\\":\\\\\\\"wrapper_cli_bridge\\\\\\\",\\\\\\\"branchReason\\\\\\\":\\\\\\\"redirect_runtime_guard_visibility\\\\\\\",\\\\\\\"messageKind\\\\\\\":\\\\\\\"document\\\\\\\",\\\\\\\"mimeType\\\\\\\":\\\\\\\"audio/ogg\\\\\\\",\\\\\\\"isAudioDocument\\\\\\\":true",
+      "[log-json] {\n  \"runId\": \"729951be-e182-4038-a9de-4e58e082785a\",\n  \"status\": \"ok\",\n  \"summary\": \"completed\",\n  \"result\": {\n    \"payloads\": [\n      {\n        \"text\": \"{\\\"exit_code\\\":0,\\\"stdout\\\":\\\"{\\\\\\\"event\\\\\\\":\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\",\\\\\\\"traceStage\\\\\\\":\\\\\\\"runtime.exec_guard\\\\\\\",\\\\\\\"selectedPath\\\\\\\":\\\\\\\"wrapper_cli_bridge\\\\\\\",\\\\\\\"branchReason\\\\\\\":\\\\\\\"redirect_runtime_guard_visibility\\\\\\\",\\\\\\\"messageKind\\\\\\\":\\\\\\\"document\\\\\\\",\\\\\\\"mimeType\\\\\\\":\\\\\\\"audio/ogg\\\\\\\",\\\\\\\"isAudioDocument\\\\\\\":true",
+      "[log-json] {\"0\":\"{\\n  \\\"runId\\\": \\\"729951be-e182-4038-a9de-4e58e082785a\\\",\\n  \\\"status\\\": \\\"ok\\\",\\n  \\\"summary\\\": \\\"completed\\\",\\n  \\\"result\\\": {\\n    \\\"payloads\\\": [\\n      {\\n        \\\"text\\\": \\\"{\\\\\\\"exit_code\\\\\\\":0,\\\\\\\"stdout\\\\\\\":\\\\\\\"{\\\\\\\\\\\\\\\"event\\\\\\\\\\\\\\\":\\\\\\\\\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"traceStage\\\\\\\\\\\\\\\":\\\\\\\\\\\\\\\"runtime.exec_guard\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"selectedPath\\\\\\\\\\\\\\\":\\\\\\\\\\\\\\\"wrapper_cli_bridge\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"branchReason\\\\\\\\\\\\\\\":\\\\\\\\\\\\\\\"redirect_runtime_guard_visibility\\\\\\",
+      "[log-json] {\"0\":\"{\\n  \\\"runId\\\": \\\"729951be-e182-4038-a9de-4e58e082785a\\\",\\n  \\\"status\\\": \\\"ok\\\",\\n  \\\"summary\\\": \\\"completed\\\",\\n  \\\"result\\\": {\\n    \\\"payloads\\\": [\\n      {\\n        \\\"text\\\": \\\"{\\\\\\\"exit_code\\\\\\\":0,\\\\\\\"stdout\\\\\\\":\\\\\\\"{\\\\\\\\\\\\\\\"event\\\\\\\\\\\\\\\":\\\\\\\\\\\\\\\"openclaw_voice_dispatch_path_select\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"traceStage\\\\\\\\\\\\\\\":\\\\\\\\\\\\\\\"runtime.exec_guard\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"selectedPath\\\\\\\\\\\\\\\":\\\\\\\\\\\\\\\"wrapper_cli_bridge\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"branchReason\\\\\\\\\\\\\\\":\\\\\\\\\\\\\\\"redirect_runtime_guard_visibility\\\\\\"
+    ]
+  }
+}
