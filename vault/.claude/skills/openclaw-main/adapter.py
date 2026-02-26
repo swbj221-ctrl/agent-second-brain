@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import hashlib
 import json
 import logging
 import os
@@ -1009,6 +1010,8 @@ def _build_adapter_response(
     latency_ms: int | None = None,
     error_code: str | None = None,
     request_id: str | None = None,
+    run_id: str | None = None,
+    session_id: str | None = None,
 ) -> dict[str, Any]:
     diagnostics = dict(diagnostics or {})
     file_exists: bool | None = None
@@ -1099,6 +1102,30 @@ def _build_adapter_response(
             tts_provider=str(diagnostics.get("tts_provider") or ""),
             fallback_reason=fallback_reason,
         )
+    reply_text_source = str(diagnostics.get("reply_text_source") or diagnostics.get("response_text_source") or "")
+    media_or_inferred = bool(diagnostics.get("media_or_inferred") or diagnostics.get("media_or_inferred_at_decision"))
+    outgoing_text = str(text or "")
+    logger.info(
+        "%s",
+        json.dumps(
+            {
+                "event": "openclaw_adapter_outgoing_boundary",
+                "traceStage": "adapter.respond.final",
+                "requestId": request_id or "",
+                "request_id": request_id or "",
+                "runId": run_id or "",
+                "sessionId": session_id or "",
+                "route": route,
+                "reply_text_source": reply_text_source,
+                "media_or_inferred": media_or_inferred,
+                "outgoing_text_preview_hash": _text_preview_hash(outgoing_text),
+                "outgoing_text_preview_len": len(outgoing_text),
+                "channel_send_origin_module": __file__,
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+        ),
+    )
     return payload
 
 
@@ -1131,11 +1158,28 @@ def _canonical_request_id(value: Any = None, *, payload: dict[str, Any] | None =
     return ""
 
 
+def _canonical_trace_id(payload: dict[str, Any], *keys: str) -> str:
+    for key in keys:
+        candidate = str(payload.get(key) or "").strip()
+        if candidate:
+            return candidate
+    return ""
+
+
+def _text_preview_hash(text: str) -> str:
+    value = str(text or "")
+    if not value:
+        return ""
+    return hashlib.sha256(value.encode("utf-8", errors="ignore")).hexdigest()[:16]
+
+
 def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
     started = time.perf_counter()
     text = str(message.get("text") or message.get("content") or "")
     user_id = message.get("user_id") or message.get("from_user_id") or "0"
     request_id = _canonical_request_id(payload=message) or uuid4().hex
+    run_id = _canonical_trace_id(message, "runId", "run_id")
+    session_id = _canonical_trace_id(message, "sessionId", "session_id")
     source_ref = _source_ref_from_message(message)
     chat_id_raw = message.get("chat_id")
     chat_id = int(chat_id_raw) if isinstance(chat_id_raw, int) else None
@@ -1150,6 +1194,8 @@ def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
                 "route_hint": "voice_or_command",
                 "user_id": str(user_id),
                 "source_ref": source_ref,
+                "runId": run_id,
+                "sessionId": session_id,
                 "media_detected": bool(media_detected),
             },
             ensure_ascii=True,
@@ -1175,6 +1221,8 @@ def main_handler_response(message: dict[str, Any]) -> dict[str, Any]:
             latency_ms=int((time.perf_counter() - started) * 1000),
             error_code=error_code,
             request_id=str(request_id),
+            run_id=run_id,
+            session_id=session_id,
             **kwargs,
         )
 
