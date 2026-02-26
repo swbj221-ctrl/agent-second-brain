@@ -1326,7 +1326,7 @@ Final GO gating rule:
   - `event=telegram_stt_source_select`
   - `event=telegram_voice_ingest`
   - `event=telegram_voice_pipeline`
-  - Key fields: `requestId`, `userIdHash`, `messageKind`, `telegramFileIdPresent`, `telegramFileUniqueIdPresent`, `downloaderName`, `downloaderPath`, `mediaBytesPresent`, `mediaBytesLen`, `mediaPathPresent`, `mediaPathExists`, `mediaPathSize`, `transcriptLen`, `transcriptLooksAuto`, `finalInputSource`, `downloadAttempted`, `downloadOk`, `sttAttempted`, `sttOk`, `finalOutcome`, `fallbackReason`, `responseMode`
+  - Key fields: `requestId`, `userIdHash`, `messageKind`, `telegramFileIdPresent`, `telegramFileUniqueIdPresent`, `downloaderName`, `downloaderPath`, `mediaBytesPresent`, `mediaBytesLen`, `mediaPathPresent`, `mediaPathExists`, `mediaPathSize`, `transcriptLen`, `transcriptLooksAuto`, `embeddedPromptSuppressed*`, `inferredMediaFromEmbeddedPrompt`, `embeddedMediaPath*`, `embeddedMediaMimeType`, `embeddedMediaExt`, `finalInputSource`, `downloadAttempted`, `downloadOk`, `sttAttempted`, `sttOk`, `finalOutcome`, `fallbackReason`, `responseMode`
   - Additional fields for live verification: `isVoiceNote`, `sttProvider`, `sttModel`
   - If `TELEGRAM_STT_NORMALIZE_AUDIO=1`, check `telegram_voice_pipeline` for ffmpeg conversion stages and `pipelineErrorCode` (`ffmpeg_missing`, `audio_conversion_failed`) when normalization fails.
   - For mixed RU+EN speech quality issues (non-tutor), test:

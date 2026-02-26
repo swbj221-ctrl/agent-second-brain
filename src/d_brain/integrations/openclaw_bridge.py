@@ -2695,6 +2695,14 @@ def _log_telegram_voice_path(event: str, payload: dict[str, Any]) -> None:
                 "mediaPathExists": payload.get("mediaPathExists") if payload.get("mediaPathExists") is not None else None,
                 "mediaPathSize": int(payload.get("mediaPathSize") or 0) if payload.get("mediaPathSize") is not None else None,
                 "mediaPathBase": str(payload.get("mediaPathBase") or ""),
+                "embeddedPromptLike": bool(payload.get("embeddedPromptLike")),
+                "embeddedPromptSuppressed": bool(payload.get("embeddedPromptSuppressed")),
+                "embeddedPromptSuppressedReason": str(payload.get("embeddedPromptSuppressedReason") or ""),
+                "inferredMediaFromEmbeddedPrompt": bool(payload.get("inferredMediaFromEmbeddedPrompt")),
+                "embeddedMediaPathPresent": bool(payload.get("embeddedMediaPathPresent")),
+                "embeddedMediaPathBase": str(payload.get("embeddedMediaPathBase") or ""),
+                "embeddedMediaMimeType": str(payload.get("embeddedMediaMimeType") or ""),
+                "embeddedMediaExt": str(payload.get("embeddedMediaExt") or ""),
                 "sttAttempted": bool(payload.get("sttAttempted")),
                 "sttOk": bool(payload.get("sttOk")),
                 "sttProvider": str(payload.get("sttProvider") or payload.get("stt_provider") or ""),
@@ -2720,6 +2728,25 @@ def _hash_text_for_logs(value: Any) -> str:
     return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()[:16]
 
 
+_EMBEDDED_MEDIA_ATTACHED_RE = re.compile(
+    r"\[media attached:\s*(?P<path>.+?)\s+\((?P<meta>[^)]*)\)\s+\|\s*(?P=path)\]",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _extract_embedded_media_from_text(text: str) -> tuple[str, str, str]:
+    raw = str(text or "")
+    match = _EMBEDDED_MEDIA_ATTACHED_RE.search(raw)
+    if not match:
+        return "", "", ""
+    media_path = _coerce_audio_path(str(match.group("path") or "")) or ""
+    meta = str(match.group("meta") or "")
+    mime_match = re.search(r"([A-Za-z0-9.+-]+/[A-Za-z0-9.+-]+)", meta)
+    mime_type = str(mime_match.group(1) if mime_match else "").strip().lower()
+    ext = Path(media_path).suffix.lower() if media_path else ""
+    return media_path, mime_type, ext
+
+
 def _normalize_voice_payload(
     message: dict[str, Any],
 ) -> dict[str, Any]:
@@ -2734,6 +2761,12 @@ def _normalize_voice_payload(
     has_voice = voice_obj is not None
     has_audio = audio_obj is not None
     has_document = document_obj is not None
+
+    embedded_media_path, embedded_media_mime, embedded_media_ext = _extract_embedded_media_from_text(text)
+    embedded_media_tag_audio = "<media:audio>" in text.lower()
+    embedded_media_tag_file = "<media:file>" in text.lower()
+    inferred_media_from_embedded_prompt = bool(embedded_media_path or embedded_media_tag_audio or embedded_media_tag_file)
+
     media_hints = bool(
         has_voice
         or has_audio
@@ -2741,19 +2774,22 @@ def _normalize_voice_payload(
         or message.get("has_media")
         or message.get("media_present")
         or message.get("media_type")
+        or inferred_media_from_embedded_prompt
     )
     embedded_prompt_like = bool(re.search(r"<media:(?:audio|file)>|\[audio\]\s+user\s+text:", text, re.IGNORECASE))
     embedded_prompt_suppressed = False
     embedded_prompt_suppressed_reason = ""
     # Guard against upstream embedded payload text leaking into transcript-only branch.
     # For normal media messages we must prefer media-derived STT.
-    if media_hints and embedded_prompt_like and not transcript_text.strip():
+    if media_hints and embedded_prompt_like:
         text = ""
         embedded_prompt_suppressed = True
         embedded_prompt_suppressed_reason = "embedded_prompt_text_with_media"
 
     top_audio_bytes = _coerce_audio_bytes(message.get("audio_bytes") or message.get("media_bytes") or message.get("file_bytes"))
     top_audio_path = _coerce_audio_path(message.get("audio_path") or message.get("media_path") or message.get("file_path"))
+    if not top_audio_path and embedded_media_path:
+        top_audio_path = embedded_media_path
     source_type = ""
     selected_obj: dict[str, Any] | None = None
     selected_kind = ""
@@ -2776,6 +2812,8 @@ def _normalize_voice_payload(
             source_type = "document_file"
         elif top_audio_bytes is not None or top_audio_path:
             source_type = "audio_file"
+        elif embedded_media_path and (embedded_media_mime.startswith("audio/") or embedded_media_ext in _AUDIO_EXTENSIONS):
+            source_type = "audio_file"
 
     nested_audio_bytes, nested_audio_path = _extract_media_bytes_and_path(selected_obj)
     audio_bytes = nested_audio_bytes if nested_audio_bytes is not None else top_audio_bytes
@@ -2792,6 +2830,8 @@ def _normalize_voice_payload(
             voice_duration = int(duration_raw)
     else:
         file_unique_id = ""
+    if not mime_type and embedded_media_mime:
+        mime_type = embedded_media_mime
 
     download_attempted = False
     download_ok = False
@@ -2912,6 +2952,11 @@ def _normalize_voice_payload(
         "embeddedPromptLike": embedded_prompt_like,
         "embeddedPromptSuppressed": embedded_prompt_suppressed,
         "embeddedPromptSuppressedReason": embedded_prompt_suppressed_reason,
+        "inferredMediaFromEmbeddedPrompt": inferred_media_from_embedded_prompt,
+        "embeddedMediaPathPresent": bool(embedded_media_path),
+        "embeddedMediaPathBase": _safe_log_basename(embedded_media_path) if embedded_media_path else "",
+        "embeddedMediaMimeType": embedded_media_mime,
+        "embeddedMediaExt": embedded_media_ext,
         "voiceDuration": voice_duration,
         "mimeType": mime_type,
         "fileIdPresent": bool(file_id),
@@ -3322,6 +3367,11 @@ async def dispatch_voice(
                 "embeddedPromptLike": bool(input_context.get("embeddedPromptLike")),
                 "embeddedPromptSuppressed": bool(input_context.get("embeddedPromptSuppressed")),
                 "embeddedPromptSuppressedReason": str(input_context.get("embeddedPromptSuppressedReason") or ""),
+                "inferredMediaFromEmbeddedPrompt": bool(input_context.get("inferredMediaFromEmbeddedPrompt")),
+                "embeddedMediaPathPresent": bool(input_context.get("embeddedMediaPathPresent")),
+                "embeddedMediaPathBase": str(input_context.get("embeddedMediaPathBase") or ""),
+                "embeddedMediaMimeType": str(input_context.get("embeddedMediaMimeType") or ""),
+                "embeddedMediaExt": str(input_context.get("embeddedMediaExt") or ""),
                 "telegram_voice_note": bool(
                     input_context.get("telegramVoiceNote")
                     or input_context.get("hasVoice")

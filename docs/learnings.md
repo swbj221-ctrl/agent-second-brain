@@ -76,8 +76,35 @@ Use this template for every entry:
 - Verification: `.\.venv\Scripts\python.exe scripts\openclaw_voice_dispatch_smoke.py` PASS (includes `ffmpeg_missing_fallback`).
 - References: `scripts/openclaw_voice_dispatch_smoke.py`, `src/d_brain/integrations/openclaw_bridge.py`, `docs/runbook.md`, `docs/progress.md`
 
+## 2026-02-26 09:55 (local)
+- Area: OpenClaw Telegram upstream embedded transcript ingestion
+- Symptom: Mixed RU+EN voice note could collapse to English tail (`how are you`) when upstream delivered `[Audio] ... Transcript:` text before bridge media extraction.
+- Root cause: Source-select treated that payload as transcript-only when media came only via embedded text (`[media attached ...]`) and no structured `voice/audio/document` object reached bridge.
+- Fix: Added embedded-media extraction in `openclaw_bridge._normalize_voice_payload` (path/mime/ext inference from text), promoted inferred media into media hints, suppressed embedded transcript text whenever media is inferred/present, and logged new evidence fields (`inferredMediaFromEmbeddedPrompt`, `embeddedMediaPath*`, `embeddedMediaMimeType`, `embeddedMediaExt`).
+- Prevention: Keep wrapper-first path, and assert transcript precedence with smoke that sends embedded media-attached text without Telegram media object.
+- Verification: `scripts/openclaw_voice_source_select_smoke.py` includes `embedded_media_attached_path_without_voice_object_prefers_media_stt`.
+- References: `src/d_brain/integrations/openclaw_bridge.py`, `scripts/openclaw_voice_source_select_smoke.py`, `docs/runbook.md`, `docs/openclaw-integration.md`
+
 ## Current Session Notes
-- No new entries yet for this file creation step.
+- Added upstream embedded-media inference + diagnostics and regression smoke for transcript precedence.
+
+## 2026-02-25 23:55 (local)
+- Area: Live voice path verdict strict chain correlation
+- Symptom: `openclaw_live_voice_path_verdict.py` reported bridge markers present but `full_chain_same_request_id=false` with empty `stage_request_ids`, even though runtime/redirect/wrapper/adapter/bridge markers existed in evidence.
+- Root cause: Verdict parser requestId regex did not allow runtime-style request IDs containing pipe separators (`|`) from OpenClaw tool-call IDs (for example `oc-...|fc-...`). Some markers were also embedded in top-level OpenClaw log `raw` JSON strings, which reduced extraction reliability.
+- Fix: Extended verdict parser requestId extraction to accept `|` (and common token separators), scan nested `raw`/`message` JSON blobs in log/session records, and keep strict same-requestId chain requirements unchanged. Added focused smoke fixtures for nested `raw` markers + pipe requestId (confirmed bridge) and a missing-stage case (stays inconclusive).
+- Prevention: When strict chain correlation fails with markers present, inspect requestId format first (especially runtime-derived IDs) and add parser coverage for the exact log encoding shape before changing routing logic.
+- Verification: `.\.venv\Scripts\python.exe scripts\openclaw_live_voice_path_verdict_smoke.py` PASS (includes pipe requestId + nested `raw` fixtures).
+- References: `scripts/openclaw_live_voice_path_verdict.py`, `scripts/openclaw_live_voice_path_verdict_smoke.py`, `docs/runbook.md`, `docs/progress.md`
+
+## 2026-02-26 00:10 (local)
+- Area: Embedded Telegram audio runtime exec-guard bypass coverage (installed OpenClaw `pi-embedded`)
+- Symptom: Latest live strict verdict still showed `session_deepgram_direct=true`, indicating a direct Deepgram exec branch was still reachable for an embedded Telegram audio prompt despite the runtime guard hotfix.
+- Root cause: Runtime guard Deepgram detection was too narrow (`api.deepgram.com/v1/listen` only), so alternate Deepgram command shapes in exec-like tools could bypass the rewrite.
+- Fix: Widened runtime guard Deepgram signature matching to any Deepgram command text (`deepgram` / `deepgram.com`) for embedded-audio exec-like tool calls and kept default behavior wrapper-first/fail-closed. Added explicit diagnostic override `OPENCLAW_AUDIO_DIRECT_DEEPGRAM_DIAGNOSTIC=1|true|yes` to allow direct Deepgram only when intentionally enabled, with a visible marker (`selectedPath=embedded_direct_deepgram_diag`).
+- Prevention: Treat runtime exec-guard command matching as signature-based (provider/domain family) instead of a single endpoint string when blocking unsafe direct STT branches.
+- Verification: `node.exe --check` PASS on both patched `pi-embedded` bundles; verdict smoke PASS (`scripts/openclaw_live_voice_path_verdict_smoke.py`). Live Telegram recheck still required.
+- References: `C:\Users\User\AppData\Roaming\npm\node_modules\openclaw\dist\pi-embedded-54x4PM3A.js`, `C:\Users\User\AppData\Roaming\npm\node_modules\openclaw\dist\pi-embedded-CWNyms-S.js`, `docs/runbook.md`, `docs/progress.md`
 
 ## 2026-02-25 14:10 (local)
 - Area: OpenClaw embedded voice/audio transcript encoding (Windows shell mojibake)
@@ -158,3 +185,39 @@ Use this template for every entry:
 - Prevention: Keep one fallback reason whitelist and verify with edge smoke cases (malformed media shape, downloader exception, nested bytes, transcript fallback regressions).
 - Verification: `.\.venv\Scripts\python.exe -m py_compile src\d_brain\integrations\openclaw_bridge.py scripts\openclaw_voice_source_select_smoke.py scripts\openclaw_voice_log_summary.py`, `.\.venv\Scripts\python.exe scripts\openclaw_voice_source_select_smoke.py`, `.\.venv\Scripts\python.exe scripts\openclaw_voice_dispatch_smoke.py`, `.\.venv\Scripts\python.exe scripts\openclaw_fallback_smoke.py`, `.\.venv\Scripts\python.exe scripts\openclaw_voice_log_summary.py --file .\tmp_voice_log.txt --lines 50 --jsonl` (synthetic sample).
 - References: `src/d_brain/integrations/openclaw_bridge.py`, `scripts/openclaw_voice_source_select_smoke.py`, `scripts/openclaw_voice_log_summary.py`, `docs/runbook.md`, `docs/progress.md`
+
+## 2026-02-25 22:54 (local)
+- Area: Live embedded voice path verdict evidence extraction
+- Symptom: `scripts/openclaw_live_voice_path_verdict.py --json` failed in Windows console with `UnicodeEncodeError` (`cp1251`), and full-session scans produced noisy evidence lines from older session history that were not suitable as strict live proof.
+- Root cause: Windows console default encoding could not emit some Unicode characters, and the verdict helper intentionally performs best-effort scanning across the full provided files without request scoping.
+- Fix: Re-ran with `PYTHONIOENCODING=utf-8` and used tail-only slices (`session_tail_250.jsonl`, `log_tail_200.jsonl`) to isolate the latest live test window before running the verdict helper.
+- Prevention: For live acceptance proof, always run the verdict helper on short tail slices and set UTF-8 console output first on Windows.
+- Verification: Tail-scoped verdict returned `LIVE_PATH_CONFIRMED_BRIDGE` for the sampled live window.
+- References: `scripts/openclaw_live_voice_path_verdict.py`, `artifacts/triage_tail_out.json`, `docs/runbook.md`, `docs/progress.md`
+
+## 2026-02-25 23:59 (local)
+- Area: Embedded voice strict verdict chain correlation (repo requestId continuity + parser stage extraction)
+- Symptom: Strict verdict stayed `INCONCLUSIVE` with bridge/runtime markers visible because the same-requestId full chain was not formed or not fully counted.
+- Root cause: In repo bridge path, `dispatch_voice_sync(...)` accepted `request_id` but did not pass it into async `dispatch_voice(...)`, which could break bridge-stage request correlation. In the verdict helper, wrapper-stage extraction was too strict about JSON formatting (`"key":"value"` only), so some JSON spacing/escaping variants did not populate `wrapper_select` in `stage_request_ids`.
+- Fix: Passed `request_id` through `dispatch_voice_sync -> dispatch_voice`, normalized `requestId`/`request_id` at redirect wrapper / wrapper CLI / adapter / bridge boundaries, and hardened verdict parser stage extraction for `traceStage` / `selectedPath` spacing/escaping variants without weakening same-requestId strictness.
+- Prevention: For request-scoped proof chains, verify requestId continuity across all handoff layers first, and keep verdict parsing tolerant to log encoding/JSON formatting differences while preserving strict acceptance criteria.
+- Verification: `py_compile` for bridge/adapter/wrapper/redirect/verdict + focused smokes (`openclaw_embedded_media_redirect_smoke.py`, `openclaw_live_voice_bridge_cli_smoke.py`, `openclaw_live_voice_path_verdict_smoke.py`, `openclaw_voice_source_select_smoke.py`, `openclaw_voice_dispatch_smoke.py`) PASS.
+- References: `src/d_brain/integrations/openclaw_bridge.py`, `vault/.claude/skills/openclaw-main/adapter.py`, `scripts/openclaw_embedded_media_redirect_cli.py`, `scripts/openclaw_live_voice_bridge_cli.py`, `scripts/openclaw_live_voice_path_verdict.py`, `docs/runbook.md`, `docs/progress.md`
+
+## 2026-02-26 00:20 (local)
+- Area: Verdict contamination / stale Deepgram scope in live voice path verification
+- Symptom: Verdict could report `LIVE_PATH_CONFIRMED_BRIDGE` using a fixture-like requestId visible in session data but not grep-able in the provided live log capture; `session_deepgram_direct=true` could also be triggered by stale unrelated session-tail history.
+- Root cause: The verdict helper merged stage/request evidence from log capture and session JSONL into a single pool, and direct Deepgram detection was unscoped across the whole session tail.
+- Fix: Split log-derived stage/request tracking from merged tracking, require the selected `full_chain_request_id` to be present in raw `--log-capture` lines, and scope Deepgram bypass detection to current-run evidence (Deepgram in log capture or session Deepgram evidence with requestId also seen in log capture).
+- Prevention: For live acceptance, always treat session JSONL as supporting evidence only; require final chain requestId and bypass evidence to be anchored to the explicit log-capture file for the run.
+- Verification: `\.venv\Scripts\python.exe scripts\openclaw_live_voice_path_verdict_smoke.py` PASS (includes session-only fixture chain rejection + stale session Deepgram non-scope).
+- References: `scripts/openclaw_live_voice_path_verdict.py`, `scripts/openclaw_live_voice_path_verdict_smoke.py`, `docs/runbook.md`, `docs/progress.md`
+
+## 2026-02-26 00:35 (local)
+- Area: Live log-capture proof-chain discoverability (redirect/wrapper marker sink alignment)
+- Symptom: Strict verdict could stay `INCONCLUSIVE` with `full_chain_request_id_in_log_capture=false` even when session evidence showed a full chain, indicating some stages were not reliably grep-discoverable in the captured `openclaw logs` stream.
+- Root cause: Redirect and wrapper markers were primarily returned inside tool JSON payloads and not always visible as standalone log lines in the same sink captured by `openclaw logs --follow --json --plain`.
+- Fix: Redirect shim and wrapper CLI now mirror proof/error/trace markers as standalone JSON lines to `stderr`, include both `requestId` and `request_id`, and redirect forwards wrapper stderr marker lines after wrapper execution. Adapter pre/post bridge markers now emit both requestId key styles.
+- Prevention: For live proof chains, emit stage markers directly into the observable log sink (stderr/logger) in addition to nested tool payloads; preserve dual requestId key emission across boundaries.
+- Verification: `\.venv\Scripts\python.exe -m py_compile` (redirect/wrapper/verdict/adapter), `\.venv\Scripts\python.exe scripts\openclaw_embedded_media_redirect_smoke.py`, `\.venv\Scripts\python.exe scripts\openclaw_live_voice_bridge_cli_smoke.py`, `\.venv\Scripts\python.exe scripts\openclaw_live_voice_path_verdict_smoke.py` (PASS).
+- References: `scripts/openclaw_embedded_media_redirect_cli.py`, `scripts/openclaw_live_voice_bridge_cli.py`, `vault/.claude/skills/openclaw-main/adapter.py`, `scripts/openclaw_live_voice_path_verdict.py`, `docs/runbook.md`, `docs/progress.md`

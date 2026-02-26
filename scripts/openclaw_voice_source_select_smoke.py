@@ -206,6 +206,49 @@ def main() -> int:
             if not ok:
                 failures += 1
 
+            # 2c) embedded_media_attached_path_without_voice_object_prefers_media_stt
+            log_handler.messages.clear()
+            audio_file = Path(tmp) / "embedded-media-attached.ogg"
+            audio_file.write_bytes(b"embedded-voice-bytes")
+            patches.set(bridge, "build_stt_adapter", lambda settings=None: FakeSTT("привет how are you, ты меня понимаешь?"))  # noqa: ARG005
+            embedded_text = (
+                f"[Audio] User text: [Telegram Hv (@hvhvhv12) id:311 Wed 2026-02-25 01:59 GMT+3] "
+                f"[media attached: {audio_file} (audio/ogg; codecs=opus) | {audio_file}] "
+                "<media:audio> Transcript: how are you"
+            )
+            response = bridge.dispatch_voice_from_message(
+                {
+                    "user_id": 312,
+                    "chat_id": 312,
+                    "message_id": 12,
+                    "text": embedded_text,
+                },
+                user_id=312,
+                request_id="smoke-v1c",
+            )
+            diag = response.get("diagnostics") or {}
+            source_log = _find_json_event(log_handler.messages, "telegram_stt_source_select") or {}
+            ok = (
+                response.get("status") == "ok"
+                and diag.get("stt_source") == "audio_file"
+                and bool(source_log.get("inferredMediaFromEmbeddedPrompt"))
+                and bool(source_log.get("embeddedMediaPathPresent"))
+                and source_log.get("mediaPathPresent") is True
+                and source_log.get("fallbackReason", "") not in {"transcript_only_auto", "transcript_only_no_media"}
+                and int(diag.get("transcript_len") or 0) > 0
+            )
+            emit(
+                "embedded_media_attached_path_without_voice_object_prefers_media_stt",
+                ok,
+                stt_source=diag.get("stt_source"),
+                inferred_media=source_log.get("inferredMediaFromEmbeddedPrompt"),
+                embedded_media_path_present=source_log.get("embeddedMediaPathPresent"),
+                media_path_present=source_log.get("mediaPathPresent"),
+                fallback_reason=source_log.get("fallbackReason", ""),
+            )
+            if not ok:
+                failures += 1
+
             # 3) voice_note_download_fail_no_file_request
             log_handler.messages.clear()
 
