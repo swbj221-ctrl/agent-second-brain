@@ -231,7 +231,7 @@ Diagnostics and observability smoke:
 - Also includes a deterministic `ffmpeg_missing` fallback case (`TELEGRAM_STT_NORMALIZE_AUDIO=1` + monkeypatched `shutil.which`) with exact `pipeline_error_code=ffmpeg_missing` and preprocess stage log assertions.
 - Also includes mixed RU+EN retention coverage (`Привет, how are you, ты меня понимаешь?`), transliterated pseudo-Russian Latin penalty checks, and transcript-only clarification/layout-typo safety checks (`ghbdtn`, `руддщ`, valid English no-clarification).
 - `python scripts/openclaw_voice_log_summary.py --file <logfile> --lines 200`
-- Operator helper: extracts `telegram_stt_source_select` / `telegram_voice_ingest` and prints a per-`requestId` summary (`finalInputSource`, download/STT outcome, `finalOutcome`, `fallbackReason`, `responseMode`).
+- Operator helper: extracts `telegram_stt_source_select` / `telegram_voice_ingest` and prints a per-`requestId` summary (`finalInputSource`, `finalTranscriptSource`, download/STT outcome, `finalOutcome`, `fallbackReason`, `responseMode`).
 - Runtime patch marker (live verification):
   - On first bridge voice dispatch, the bridge logs `event=openclaw_bridge_voice_fix_loaded` with `bridgeFile` and `voiceFixRev`.
   - Use this once per process to confirm the patched bridge module is actually loaded before analyzing voice-note fallback behavior.

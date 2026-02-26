@@ -3196,6 +3196,7 @@ def _log_telegram_voice_ingest_from_diagnostics(diagnostics: dict[str, Any]) -> 
             "embeddedPromptSuppressed": diagnostics.get("embeddedPromptSuppressed"),
             "embeddedPromptSuppressedReason": diagnostics.get("embeddedPromptSuppressedReason"),
             "finalOutcome": diagnostics.get("final_outcome"),
+            "finalTranscriptSource": diagnostics.get("final_transcript_source"),
             "fallbackReason": diagnostics.get("fallback_reason"),
             "responseMode": diagnostics.get("response_mode"),
         },
@@ -3393,6 +3394,7 @@ async def dispatch_voice(
         diagnostics["transcript_looks_auto"] = looks_like_auto_transcript(transcript_text)
         diagnostics["final_outcome"] = ""
         diagnostics["response_mode"] = ""
+        diagnostics["final_transcript_source"] = ""
         if not diagnostics.get("stt_source"):
             diagnostics["stt_source"] = "transcript" if transcript_text else ""
         diagnostics["sttAttempted"] = False
@@ -3780,6 +3782,7 @@ async def dispatch_voice(
                 diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason"))
                 return _voice_stt_fail_response(diagnostics=diagnostics, error_code="stt_empty")
             diagnostics["final_outcome"] = "stt_ok"
+            diagnostics["final_transcript_source"] = "bridge_stt"
             _log_telegram_voice_ingest_from_diagnostics(diagnostics)
             if mode in {"tutor", "reflection"}:
                 try:
@@ -3942,6 +3945,7 @@ async def dispatch_voice(
                 diagnostics["stt_source"] = "transcript"
                 diagnostics["final_outcome"] = "fallback_transcript"
                 diagnostics["response_mode"] = "text"
+                diagnostics["final_transcript_source"] = "provider_transcript"
                 _log_telegram_voice_pipeline(
                     "transcript_only_fallback",
                     {
@@ -3972,6 +3976,7 @@ async def dispatch_voice(
                 )
                 diagnostics["final_outcome"] = "fallback_transcript"
                 diagnostics["response_mode"] = "text"
+                diagnostics["final_transcript_source"] = "provider_transcript"
                 _log_telegram_voice_pipeline(
                     "transcript_only_clarify",
                     {
@@ -4017,6 +4022,7 @@ async def dispatch_voice(
             diagnostics["fallback_reason"] = _normalize_voice_fallback_reason(diagnostics.get("fallback_reason") or "transcript_only_auto")
             diagnostics["final_outcome"] = "fallback_transcript"
             diagnostics["response_mode"] = "text"
+            diagnostics["final_transcript_source"] = "provider_transcript"
             _log_telegram_voice_pipeline(
                 "transcript_only_fallback",
                 {

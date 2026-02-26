@@ -67,6 +67,7 @@ def _group_summary(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "userIdHash": str(ev.get("userIdHash") or ""),
                 "messageKind": str(ev.get("messageKind") or ""),
                 "finalInputSource": "",
+                "finalTranscriptSource": "",
                 "downloadAttempted": None,
                 "downloadOk": None,
                 "sttAttempted": None,
@@ -83,7 +84,7 @@ def _group_summary(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             row["userIdHash"] = ev.get("userIdHash")
         if ev.get("messageKind"):
             row["messageKind"] = ev.get("messageKind")
-        for key in ("finalInputSource", "finalOutcome", "fallbackReason", "responseMode"):
+        for key in ("finalInputSource", "finalTranscriptSource", "finalOutcome", "fallbackReason", "responseMode"):
             value = str(ev.get(key) or "")
             if value:
                 row[key] = value
@@ -104,6 +105,7 @@ def _print_table(rows: list[dict[str, Any]]) -> None:
         "requestId",
         "messageKind",
         "finalInputSource",
+        "finalTranscriptSource",
         "downloadAttempted",
         "downloadOk",
         "sttAttempted",

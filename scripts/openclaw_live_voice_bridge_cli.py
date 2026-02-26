@@ -144,7 +144,7 @@ def _is_audio_mime_or_name(mime_type: str, path_text: str) -> bool:
     if mime.startswith("audio/"):
         return True
     suffix = Path(path_text or "").suffix.lower()
-    return suffix in {".ogg", ".opus", ".m4a", ".mp3", ".wav", ".mpeg"}
+    return suffix in {".ogg", ".oga", ".opus", ".m4a", ".mp3", ".wav", ".mpeg"}
 
 
 def parse_openclaw_embedded_media_prompt(raw_text: str) -> dict[str, Any]:
@@ -211,6 +211,10 @@ def parse_openclaw_embedded_media_prompt(raw_text: str) -> dict[str, Any]:
         media_kind = "document"
 
     is_audio_payload = bool(media_tag_audio) or _is_audio_mime_or_name(mime_type, path_text)
+    if not is_audio_payload and media_tag_file and audio_user_text:
+        # Embedded Telegram voice-note wrappers may surface as <media:file> + [Audio] block
+        # with no reliable MIME/extension in the attached path. Treat this as audio payload.
+        is_audio_payload = True
     is_audio_document = bool(media_kind == "document" and _is_audio_mime_or_name(mime_type, path_text))
     selected_path = "d_brain_openclaw_bridge" if is_audio_payload else "embedded_direct_stt"
     branch_reason = (
@@ -430,6 +434,7 @@ def route_embedded_media_prompt_via_bridge(raw_text: str, *, request_id: str | N
                     "pipeline_error_code": str((response.get("diagnostics") or {}).get("pipeline_error_code") or ""),
                     "stt_language": str((response.get("diagnostics") or {}).get("stt_language") or ""),
                     "stt_source": str((response.get("diagnostics") or {}).get("stt_source") or ""),
+                    "final_transcript_source": str((response.get("diagnostics") or {}).get("final_transcript_source") or ""),
                     "fallback_reason": str((response.get("diagnostics") or {}).get("fallback_reason") or ""),
                     "transcript_only_warning": bool((response.get("diagnostics") or {}).get("transcript_only_warning")),
                     "stt_multipass": bool((response.get("diagnostics") or {}).get("stt_multipass")),
